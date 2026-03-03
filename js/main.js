@@ -99,17 +99,17 @@ window.Textures.generate = function() {
 };
 
 // ========== INITIALIZATION ==========
-// This will be called from index.html after all scripts are loaded
-// We need to ensure initUI is defined (from ui.js) and then call it
-if (typeof initUI === 'function') {
-    initUI();
-} else {
-    console.warn('initUI not yet defined, will try later');
-    // Retry after a short delay
-    setTimeout(() => {
-        if (typeof initUI === 'function') initUI();
-    }, 500);
-}
+// Wait for DOM and then init
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof initUI === 'function') {
+        initUI();
+    } else {
+        console.warn('initUI not yet defined, retrying...');
+        setTimeout(() => {
+            if (typeof initUI === 'function') initUI();
+        }, 500);
+    }
+});
 
 // Check if user is already logged in
 sb.auth.getSession().then(({ data: { session } }) => {
@@ -119,6 +119,7 @@ sb.auth.getSession().then(({ data: { session } }) => {
         loadProfile().then(() => {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('menu-screen').style.display = 'flex';
+            if (typeof updateStatsUI === 'function') updateStatsUI();
         });
     }
 });
@@ -128,9 +129,15 @@ sb.auth.onAuthStateChange((event, session) => {
     console.log('Auth event:', event, session);
     if (event === 'SIGNED_IN') {
         window.currentUser = session.user;
-        loadProfile();
+        loadProfile().then(() => {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'flex';
+            if (typeof updateStatsUI === 'function') updateStatsUI();
+        });
     } else if (event === 'SIGNED_OUT') {
         window.currentUser = null;
         window.currentProfile = null;
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
     }
 });
