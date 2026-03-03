@@ -1,39 +1,31 @@
-// ========== SAFETY FALLBACKS ==========
-// Only define keys if it doesn't exist (config.js should have defined it)
-if (typeof keys === 'undefined') {
-    var keys = { w: false, a: false, s: false, d: false };
-}
-if (typeof state === 'undefined') {
-    var state = { battle: { active: false } };
-}
-if (typeof playerState === 'undefined') {
-    var playerState = { name: 'Mystery' };
-}
-if (typeof CONFIG === 'undefined') {
-    var CONFIG = { 
-        MAP_SIZE: 40, 
-        TILE_SIZE: 64, 
-        BRAWLERS: { 
-            Mystery: { hp: 3800, speed: 6, color: '#a855f7', ammo: 3, reload: 1.5, type: 'Shotgun', unlocked: true } 
-        } 
-    };
-}
-if (typeof Textures === 'undefined') {
-    var Textures = { floor: null, bush: null, wall: null };
-}
+// ========== GLOBAL FALLBACKS (USING WINDOW) ==========
+// Ensure all required globals exist (config.js should have defined keys, but we're extra safe)
+window.keys = window.keys || { w: false, a: false, s: false, d: false };
+window.state = window.state || { battle: { active: false } };
+window.playerState = window.playerState || { name: 'Mystery' };
+window.CONFIG = window.CONFIG || { 
+    MAP_SIZE: 40, 
+    TILE_SIZE: 64, 
+    BRAWLERS: { 
+        Mystery: { hp: 3800, speed: 6, color: '#a855f7', ammo: 3, reload: 1.5, type: 'Shotgun', unlocked: true } 
+    } 
+};
+window.Textures = window.Textures || { floor: null, bush: null, wall: null };
+
+console.log('game.js loaded, keys =', window.keys);
 
 // ========== GAME ENGINE ==========
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let gameLoopId = null;
 let preBattleStart = null;
-let fightTextEl = document.getElementById('fight-text');
+const fightTextEl = document.getElementById('fight-text');
 
 function checkCollision(x, y, radius) {
-    if (!state.battle || !state.battle.active) return false;
-    for (const wall of state.battle.walls) {
-        if (x + radius > wall.x && x - radius < wall.x + CONFIG.TILE_SIZE &&
-            y + radius > wall.y && y - radius < wall.y + CONFIG.TILE_SIZE) {
+    if (!window.state.battle || !window.state.battle.active) return false;
+    for (const wall of window.state.battle.walls) {
+        if (x + radius > wall.x && x - radius < wall.x + window.CONFIG.TILE_SIZE &&
+            y + radius > wall.y && y - radius < wall.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
@@ -43,26 +35,26 @@ function checkCollision(x, y, radius) {
 function startBattlePre() {
     console.log('startBattlePre called');
     startBattle();
-    state.preBattle = true;
-    const fullSize = CONFIG.MAP_SIZE * CONFIG.TILE_SIZE;
-    state.battle.camera.x = fullSize/2 - (canvas.width/2)/state.battle.camera.zoom;
-    state.battle.camera.y = fullSize/2 - (canvas.height/2)/state.battle.camera.zoom;
+    window.state.preBattle = true;
+    const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+    window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
+    window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
     preBattleStart = Date.now();
     document.getElementById('battle-ui').style.display = 'none';
 }
 
 function startBattle() {
-    state.screen = 'battle';
+    window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('battle-screen').classList.remove('hidden');
     
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     
-    const fullSize = CONFIG.MAP_SIZE * CONFIG.TILE_SIZE;
-    const bData = CONFIG.BRAWLERS[state.currentBrawler];
+    const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+    const bData = window.CONFIG.BRAWLERS[window.state.currentBrawler];
     
-    state.battle = {
+    window.state.battle = {
         active: true,
         camera: { x: 0, y: 0, zoom: 0.8 },
         poisonRadius: fullSize / 1.1,
@@ -74,13 +66,13 @@ function startBattle() {
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
     };
 
-    for(let i=0; i<CONFIG.MAP_SIZE; i++) {
-        for(let j=0; j<CONFIG.MAP_SIZE; j++) {
+    for(let i=0; i<window.CONFIG.MAP_SIZE; i++) {
+        for(let j=0; j<window.CONFIG.MAP_SIZE; j++) {
             const rand = Math.random();
             if(rand < 0.08)
-                state.battle.walls.push({ x: i*CONFIG.TILE_SIZE, y: j*CONFIG.TILE_SIZE });
+                window.state.battle.walls.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
             else if(rand < 0.20)
-                state.battle.bushes.push({ x: i*CONFIG.TILE_SIZE, y: j*CONFIG.TILE_SIZE });
+                window.state.battle.bushes.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
         }
     }
 
@@ -92,22 +84,22 @@ function startBattle() {
             tries++;
             if (tries > 500) break;
         } while (
-            state.battle.walls.some(w =>
-                x + radius > w.x && x - radius < w.x + CONFIG.TILE_SIZE &&
-                y + radius > w.y && y - radius < w.y + CONFIG.TILE_SIZE
+            window.state.battle.walls.some(w =>
+                x + radius > w.x && x - radius < w.x + window.CONFIG.TILE_SIZE &&
+                y + radius > w.y && y - radius < w.y + window.CONFIG.TILE_SIZE
             )
         );
         return { x, y };
     }
 
     const spawn = safeSpawn(25);
-    state.battle.player = {
+    window.state.battle.player = {
         id: 'player',
-        name: playerState.name,
+        name: window.playerState.name,
         x: spawn.x, y: spawn.y,
         hp: bData.hp, maxHp: bData.hp,
         ammo: 3, maxAmmo: 3,
-        type: state.currentBrawler,
+        type: window.state.currentBrawler,
         reloading: 0, angle: 0,
         inBush: false, lastDamageTime: Date.now(),
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000
@@ -115,11 +107,11 @@ function startBattle() {
 
     for(let i=0; i<9; i++) {
         const botSpawn = safeSpawn(25);
-        state.battle.bots.push({
+        window.state.battle.bots.push({
             id: 'bot_'+i, name: 'Bot-'+(i+1),
             x: botSpawn.x, y: botSpawn.y,
-            hp: CONFIG.BRAWLERS['Mystery'].hp, maxHp: CONFIG.BRAWLERS['Mystery'].hp,
-            type: 'Mystery', speed: CONFIG.BRAWLERS['Mystery'].speed,
+            hp: window.CONFIG.BRAWLERS['Mystery'].hp, maxHp: window.CONFIG.BRAWLERS['Mystery'].hp,
+            type: 'Mystery', speed: window.CONFIG.BRAWLERS['Mystery'].speed,
             angle: Math.random()*Math.PI*2, lastShot: 0,
             inBush: false, invincibleUntil: Date.now() + 3000
         });
@@ -130,18 +122,18 @@ function startBattle() {
 }
 
 function gameLoop() {
-    if(!state.battle || !state.battle.active) return;
+    if(!window.state.battle || !window.state.battle.active) return;
     updateGame();
     drawGame();
     gameLoopId = requestAnimationFrame(gameLoop);
 }
 
 function updateGame() {
-    const battle = state.battle;
+    const battle = window.state.battle;
     const p = battle.player;
-    const mapLimit = CONFIG.MAP_SIZE * CONFIG.TILE_SIZE;
+    const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
 
-    if (state.preBattle) {
+    if (window.state.preBattle) {
         const elapsed = Date.now() - preBattleStart;
         const duration = 1000;
         if (elapsed < duration) {
@@ -153,7 +145,7 @@ function updateGame() {
             battle.camera.x = startX + (targetX - startX) * t;
             battle.camera.y = startY + (targetY - startY) * t;
         } else {
-            state.preBattle = false;
+            window.state.preBattle = false;
             fightTextEl.style.opacity = '1';
             setTimeout(() => {
                 fightTextEl.style.opacity = '0';
@@ -169,7 +161,7 @@ function updateGame() {
     const len = Math.hypot(move.x, move.y);
 
     if (len > 0) {
-        const speed = CONFIG.BRAWLERS[state.currentBrawler].speed;
+        const speed = window.CONFIG.BRAWLERS[window.state.currentBrawler].speed;
         let dx = (move.x / len) * speed;
         let dy = (move.y / len) * speed;
 
@@ -289,10 +281,10 @@ function updateGame() {
 
     if (aliveCount === 1 && p.hp > 0) {
         alert("Victory! Rank #1");
-        playerState.coins += 50;
-        playerState.trophies += 10;
-        updateStatsUI();
-        saveProfileToDB();
+        window.playerState.coins += 50;
+        window.playerState.trophies += 10;
+        if (typeof updateStatsUI === 'function') updateStatsUI();
+        if (typeof saveProfileToDB === 'function') saveProfileToDB();
         exitBattle();
         return;
     }
@@ -302,11 +294,11 @@ function updateGame() {
 }
 
 function exitBattle() {
-    state.battle.active = false;
-    state.screen = 'menu';
+    window.state.battle.active = false;
+    window.state.screen = 'menu';
     document.getElementById('battle-screen').classList.add('hidden');
     document.getElementById('menu-screen').style.display = 'flex';
-    keys = { w: false, a: false, s: false, d: false };
+    window.keys = { w: false, a: false, s: false, d: false };
 }
 
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
@@ -358,33 +350,33 @@ function drawGame() {
     ctx.imageSmoothingEnabled = false;
     ctx.save();
     
-    ctx.scale(state.battle.camera.zoom, state.battle.camera.zoom);
-    ctx.translate(-state.battle.camera.x, -state.battle.camera.y);
+    ctx.scale(window.state.battle.camera.zoom, window.state.battle.camera.zoom);
+    ctx.translate(-window.state.battle.camera.x, -window.state.battle.camera.y);
     
-    const fullSize = CONFIG.MAP_SIZE * CONFIG.TILE_SIZE;
+    const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
     
-    const startCol = Math.max(0, Math.floor(state.battle.camera.x / CONFIG.TILE_SIZE));
-    const endCol = Math.min(CONFIG.MAP_SIZE, Math.ceil((state.battle.camera.x + canvas.width/state.battle.camera.zoom) / CONFIG.TILE_SIZE));
-    const startRow = Math.max(0, Math.floor(state.battle.camera.y / CONFIG.TILE_SIZE));
-    const endRow = Math.min(CONFIG.MAP_SIZE, Math.ceil((state.battle.camera.y + canvas.height/state.battle.camera.zoom) / CONFIG.TILE_SIZE));
+    const startCol = Math.max(0, Math.floor(window.state.battle.camera.x / window.CONFIG.TILE_SIZE));
+    const endCol = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom) / window.CONFIG.TILE_SIZE));
+    const startRow = Math.max(0, Math.floor(window.state.battle.camera.y / window.CONFIG.TILE_SIZE));
+    const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) / window.CONFIG.TILE_SIZE));
     
     for(let i=startCol; i<endCol; i++) {
         for(let j=startRow; j<endRow; j++) {
-            ctx.drawImage(Textures.floor, i*64, j*64, 64, 64);
+            ctx.drawImage(window.Textures.floor, i*64, j*64, 64, 64);
         }
     }
     
-    state.battle.bushes.forEach(b => {
-        if (b.x + 64 > state.battle.camera.x && b.x < state.battle.camera.x + canvas.width/state.battle.camera.zoom &&
-            b.y + 64 > state.battle.camera.y && b.y < state.battle.camera.y + canvas.height/state.battle.camera.zoom) {
-            ctx.drawImage(Textures.bush, b.x, b.y, 64, 64);
+    window.state.battle.bushes.forEach(b => {
+        if (b.x + 64 > window.state.battle.camera.x && b.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
+            b.y + 64 > window.state.battle.camera.y && b.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
+            ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
         }
     });
     
-    state.battle.walls.forEach(w => {
-        if (w.x + 64 > state.battle.camera.x && w.x < state.battle.camera.x + canvas.width/state.battle.camera.zoom &&
-            w.y + 64 > state.battle.camera.y && w.y < state.battle.camera.y + canvas.height/state.battle.camera.zoom) {
-            ctx.drawImage(Textures.wall, w.x, w.y, 64, 64);
+    window.state.battle.walls.forEach(w => {
+        if (w.x + 64 > window.state.battle.camera.x && w.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
+            w.y + 64 > window.state.battle.camera.y && w.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
+            ctx.drawImage(window.Textures.wall, w.x, w.y, 64, 64);
         }
     });
 
@@ -416,10 +408,10 @@ function drawGame() {
         ctx.restore();
     };
 
-    drawChar(state.battle.player, true);
-    state.battle.bots.forEach(b => drawChar(b, false));
+    drawChar(window.state.battle.player, true);
+    window.state.battle.bots.forEach(b => drawChar(b, false));
 
-    state.battle.bullets.forEach(b => {
+    window.state.battle.bullets.forEach(b => {
         ctx.fillStyle = b.super ? '#fbbf24' : 'white';
         ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, Math.PI*2); ctx.fill();
     });
@@ -428,7 +420,7 @@ function drawGame() {
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize+4000, fullSize+4000);
     const mapCenter = fullSize / 2;
-    ctx.arc(mapCenter, mapCenter, state.battle.poisonRadius, 0, Math.PI*2, true);
+    ctx.arc(mapCenter, mapCenter, window.state.battle.poisonRadius, 0, Math.PI*2, true);
     ctx.fill();
     ctx.restore();
 }
@@ -436,27 +428,27 @@ function drawGame() {
 // ========== INPUT HANDLING ==========
 window.onkeydown = (e) => { 
     const key = e.key.toLowerCase();
-    if (key in keys) keys[key] = true;
+    if (key in window.keys) window.keys[key] = true;
 };
 window.onkeyup = (e) => { 
     const key = e.key.toLowerCase();
-    if (key in keys) keys[key] = false;
+    if (key in window.keys) window.keys[key] = false;
 };
 
 function updateKeyboardMovement() {
-    if (!state.battle || !state.battle.active || state.preBattle) return;
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle) return;
     let kx = 0, ky = 0;
-    if (keys.w) ky -= 1;
-    if (keys.s) ky += 1;
-    if (keys.a) kx -= 1;
-    if (keys.d) kx += 1;
+    if (window.keys.w) ky -= 1;
+    if (window.keys.s) ky += 1;
+    if (window.keys.a) kx -= 1;
+    if (window.keys.d) kx += 1;
     if (kx !== 0 || ky !== 0) {
         const mag = Math.hypot(kx, ky);
-        state.battle.joystick.move.x = kx / mag;
-        state.battle.joystick.move.y = ky / mag;
+        window.state.battle.joystick.move.x = kx / mag;
+        window.state.battle.joystick.move.y = ky / mag;
     } else {
-        state.battle.joystick.move.x = 0;
-        state.battle.joystick.move.y = 0;
+        window.state.battle.joystick.move.x = 0;
+        window.state.battle.joystick.move.y = 0;
     }
 }
 
@@ -476,20 +468,20 @@ function setupJoystick(id, stickId, type) {
         const max = 50;
         if (dist > max) { dx *= max/dist; dy *= max/dist; }
         stick.style.transform = `translate(${dx}px, ${dy}px)`;
-        state.battle.joystick[type] = { x: dx/max, y: dy/max };
+        window.state.battle.joystick[type] = { x: dx/max, y: dy/max };
     };
     base.addEventListener('touchstart', (e) => { active = true; handleInput(e); });
     window.addEventListener('touchmove', handleInput);
     window.addEventListener('touchend', () => { 
         if(active && type === 'attack') {
-            if(Math.hypot(state.battle.joystick.attack.x, state.battle.joystick.attack.y) > 0.5) {
-                const ang = Math.atan2(state.battle.joystick.attack.y, state.battle.joystick.attack.x);
-                spawnBullet(state.battle.player, ang, false);
+            if(Math.hypot(window.state.battle.joystick.attack.x, window.state.battle.joystick.attack.y) > 0.5) {
+                const ang = Math.atan2(window.state.battle.joystick.attack.y, window.state.battle.joystick.attack.x);
+                spawnBullet(window.state.battle.player, ang, false);
             }
         }
         active = false; 
         stick.style.transform = 'translate(0,0)';
-        state.battle.joystick[type] = { x: 0, y: 0 };
+        window.state.battle.joystick[type] = { x: 0, y: 0 };
     });
 }
 
@@ -497,24 +489,24 @@ setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
 canvas.addEventListener('mousedown', (e) => {
-    if (!state.battle || !state.battle.active || state.preBattle) return;
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle) return;
     const rect = canvas.getBoundingClientRect();
-    const worldX = (e.clientX - rect.left) / state.battle.camera.zoom + state.battle.camera.x;
-    const worldY = (e.clientY - rect.top) / state.battle.camera.zoom + state.battle.camera.y;
-    const p = state.battle.player;
+    const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
+    const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
+    const p = window.state.battle.player;
     const ang = Math.atan2(worldY - p.y, worldX - p.x);
     spawnBullet(p, ang, false);
 });
 
 document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
-    if (state.battle && state.battle.player && !state.preBattle) {
-        spawnBullet(state.battle.player, state.battle.player.angle, true);
+    if (window.state.battle && window.state.battle.player && !window.state.preBattle) {
+        spawnBullet(window.state.battle.player, window.state.battle.player.angle, true);
     }
 };
 
 function spawnBullet(owner, angle, isSuper) {
-    if (!state.battle || !state.battle.active || state.preBattle) return;
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle) return;
     if (owner.id === 'player') {
         owner.lastAttackTime = Date.now();
         owner.angle = angle;
@@ -524,7 +516,7 @@ function spawnBullet(owner, angle, isSuper) {
     const count = (owner.type === 'Mystery') ? 5 : 1;
     for (let i = 0; i < count; i++) {
         const spread = (i - (count - 1) / 2) * 0.15;
-        state.battle.bullets.push({
+        window.state.battle.bullets.push({
             x: owner.x,
             y: owner.y,
             angle: angle + spread,
