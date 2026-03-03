@@ -24,6 +24,11 @@ let gameLoopId = null;
 let preBattleStart = null;
 const fightTextEl = document.getElementById('fight-text');
 
+// Death animation variables
+let deathAnimationStart = 0;
+let deathAnimationDuration = 2000; // 2 seconds
+let playerDead = false;
+
 function checkCollision(x, y, radius) {
     if (!window.state.battle || !window.state.battle.active) return false;
     for (const wall of window.state.battle.walls) {
@@ -144,6 +149,31 @@ function updateGame() {
     const battle = window.state.battle;
     const p = battle.player;
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+
+    // If death animation is active, handle camera zoom out and fade
+    if (playerDead) {
+        const elapsed = Date.now() - deathAnimationStart;
+        if (elapsed < deathAnimationDuration) {
+            // Zoom out camera
+            const targetZoom = 0.4; // zoom out
+            const startZoom = 0.8;
+            const t = elapsed / deathAnimationDuration;
+            battle.camera.zoom = startZoom + (targetZoom - startZoom) * t;
+            
+            // Optionally move camera to center on player
+            const centerX = mapLimit / 2;
+            const centerY = mapLimit / 2;
+            battle.camera.x = centerX - (canvas.width/2)/battle.camera.zoom;
+            battle.camera.y = centerY - (canvas.height/2)/battle.camera.zoom;
+        } else {
+            // Death animation finished – show after-game menu and reset
+            playerDead = false;
+            battle.active = false;
+            showAfterGame(window.state.lastRank, window.state.lastCoins);
+            exitBattle();
+        }
+        return;
+    }
 
     if (window.state.preBattle) {
         const elapsed = Date.now() - preBattleStart;
@@ -286,8 +316,12 @@ function updateGame() {
     }
 
     if (p.hp <= 0) {
-        showAfterGame(aliveCount, 0);
-        exitBattle();
+        // Player died – start death animation
+        playerDead = true;
+        deathAnimationStart = Date.now();
+        window.state.lastRank = aliveCount;
+        window.state.lastCoins = 0;
+        // Disable further updates
         return;
     }
 
@@ -298,6 +332,7 @@ function updateGame() {
         window.playerState.trophies += trophiesEarned;
         if (typeof updateStatsUI === 'function') updateStatsUI();
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
+        // Victory – show after-game menu immediately (no death animation)
         showAfterGame(1, coinsEarned);
         exitBattle();
         return;
@@ -318,77 +353,95 @@ function showAfterGame(rank, coins) {
     const menu = document.getElementById('aftergame-menu');
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
+    menu.style.opacity = '0';
     menu.style.display = 'flex';
+    // Fade in
+    setTimeout(() => { menu.style.opacity = '1'; }, 50);
 }
 
 function hideAfterGame() {
-    document.getElementById('aftergame-menu').style.display = 'none';
-    document.getElementById('menu-screen').style.display = 'flex';
+    const menu = document.getElementById('aftergame-menu');
+    menu.style.opacity = '0';
+    setTimeout(() => {
+        menu.style.display = 'none';
+        document.getElementById('menu-screen').style.display = 'flex';
+    }, 300);
 }
 
-// ========== UPGRADED MYSTERY BRAWLER DRAWING ==========
+// ========== IMPROVED MYSTERY BRAWLER (humanoid) ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
     
-    // Glow effect
-    ctx.shadowColor = '#a855f7';
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 0;
-    ctx.beginPath();
-    ctx.arc(0, 0, 40, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
-    ctx.fill();
-    
-    // Body with metallic gradient
-    const grad = ctx.createRadialGradient(-15, -15, 10, 0, 0, 45);
-    grad.addColorStop(0, '#c084fc');
-    grad.addColorStop(0.5, '#a855f7');
-    grad.addColorStop(1, '#6b21a8');
-    ctx.fillStyle = grad;
-    ctx.shadowBlur = 15;
+    // Shadow for depth
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 12;
     ctx.shadowOffsetY = 4;
+    
+    // Legs (simple rectangles)
+    ctx.fillStyle = '#4a2e1e';
+    ctx.fillRect(-10, 10, 8, 20);
+    ctx.fillRect(2, 10, 8, 20);
+    
+    // Torso (oblong)
+    const gradTorso = ctx.createLinearGradient(-15, -15, 15, 15);
+    gradTorso.addColorStop(0, '#8b5a2b');
+    gradTorso.addColorStop(1, '#5d3a1a');
+    ctx.fillStyle = gradTorso;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 32, 34, 0, 0, Math.PI*2);
+    ctx.ellipse(0, -5, 18, 22, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.strokeStyle = '#2d2d2d';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.stroke();
-
+    
+    // Arms
+    ctx.fillStyle = '#5d3a1a';
+    ctx.fillRect(-22, -10, 8, 18); // left arm
+    ctx.fillRect(14, -10, 8, 18);  // right arm
+    
+    // Head (circle, not an ellipse)
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#a855f7';
+    ctx.fillStyle = '#c084fc';
+    ctx.beginPath();
+    ctx.arc(0, -28, 16, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
     // Eyes (glowing)
     ctx.shadowBlur = 10;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-14, -10, 7, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(14, -10, 7, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-6, -32, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, -32, 3, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#2d1b0e';
-    ctx.beginPath(); ctx.arc(-14, -8, 3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(14, -8, 3, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-16, -12, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(12, -12, 2, 0, Math.PI*2); ctx.fill();
-
-    // Hood/cloak
+    ctx.beginPath(); ctx.arc(-6, -31, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, -31, 1.5, 0, Math.PI*2); ctx.fill();
+    
+    // Hood / hat
     ctx.fillStyle = '#5d3a1a';
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 8;
     ctx.shadowColor = 'black';
-    ctx.beginPath(); ctx.ellipse(0, -30, 24, 12, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#8b5a2b';
-    ctx.beginPath(); ctx.rect(-22, -40, 44, 12); ctx.fill();
-
-    // Weapon (shotgun) with metal effect
+    ctx.beginPath(); ctx.ellipse(0, -40, 18, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(-10, -44, 20, 6);
+    
+    // Weapon (shotgun) in right hand
     ctx.fillStyle = '#4a3729';
     ctx.shadowBlur = 8;
-    ctx.fillRect(22, -12, 32, 8);
-    ctx.fillRect(48, -16, 8, 16);
-    // Add highlight
-    ctx.fillStyle = '#7a5a3a';
-    ctx.fillRect(25, -10, 10, 4);
-    ctx.fillRect(35, -10, 10, 4);
-
+    ctx.fillRect(18, -15, 28, 6);
+    ctx.fillRect(40, -19, 6, 12);
+    
+    // Glow around body
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#a855f7';
+    ctx.fillStyle = 'rgba(168,85,247,0.2)';
+    ctx.beginPath(); ctx.arc(0, -5, 30, 0, Math.PI*2); ctx.fill();
+    
     ctx.restore();
 }
 
@@ -433,13 +486,16 @@ function drawGame() {
         ctx.save();
         ctx.translate(c.x, c.y);
 
+        // Nickname
         ctx.fillStyle = 'white';
         ctx.font = 'bold 24px Luckiest Guy';
         ctx.textAlign = 'center';
         ctx.fillText(c.name, 0, -70);
 
+        // Draw the brawler (using improved drawBrawler)
         drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
 
+        // HP Bar
         const bw = 70;
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
         ctx.fillRect(-bw/2, -50, bw, 12);
@@ -455,7 +511,17 @@ function drawGame() {
         ctx.restore();
     };
 
-    drawChar(window.state.battle.player, true);
+    // If death animation, we still draw the player but with transparency
+    if (playerDead) {
+        const elapsed = Date.now() - deathAnimationStart;
+        const t = Math.min(1, elapsed / deathAnimationDuration);
+        ctx.globalAlpha = 1 - t; // fade out
+        drawChar(window.state.battle.player, true);
+        ctx.globalAlpha = 1;
+    } else {
+        drawChar(window.state.battle.player, true);
+    }
+    
     window.state.battle.bots.forEach(b => drawChar(b, false));
 
     window.state.battle.bullets.forEach(b => {
@@ -490,7 +556,7 @@ window.onkeyup = (e) => {
 };
 
 function updateKeyboardMovement() {
-    if (!window.state.battle || !window.state.battle.active || window.state.preBattle) return;
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     let kx = 0, ky = 0;
     if (window.keys.w) ky -= 1;
     if (window.keys.s) ky += 1;
@@ -543,7 +609,7 @@ setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
 canvas.addEventListener('mousedown', (e) => {
-    if (!window.state.battle || !window.state.battle.active || window.state.preBattle) return;
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     const rect = canvas.getBoundingClientRect();
     const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
@@ -554,13 +620,13 @@ canvas.addEventListener('mousedown', (e) => {
 
 document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
-    if (window.state.battle && window.state.battle.player && !window.state.preBattle) {
+    if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
         spawnBullet(window.state.battle.player, window.state.battle.player.angle, true);
     }
 };
 
 function spawnBullet(owner, angle, isSuper) {
-    if (!window.state.battle || !window.state.battle.active || window.state.preBattle) return;
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     if (owner.id === 'player') {
         owner.lastAttackTime = Date.now();
         owner.angle = angle;
