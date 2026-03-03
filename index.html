@@ -6,7 +6,7 @@
     <title>Brawl Stars – Mystery Desert</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="stylesheet" href="css/style.css?v=5">
     <!-- Fallback for PLAY button -->
     <script>
         window.startBattlePre = window.startBattlePre || function() { 
@@ -20,10 +20,26 @@
 </head>
 <body>
 
-<!-- LOADING SCREEN -->
+<!-- LOADING SCREEN (improved) -->
 <div id="loading-screen">
     <div class="loader"></div>
-    <div class="text-4xl text-yellow-400 ml-6">LOADING...</div>
+    <div class="loader-text">LOADING...</div>
+</div>
+
+<!-- PRE-MATCH LOADING OVERLAY (new) -->
+<div id="prematch-loading">
+    <div class="preloader"></div>
+    <div class="preloader-text">LOADING...</div>
+</div>
+
+<!-- AFTER-GAME MENU (new) -->
+<div id="aftergame-menu">
+    <div class="aftergame-box">
+        <div class="aftergame-title">BATTLE ENDED</div>
+        <div class="aftergame-rank" id="aftergame-rank">Rank #?</div>
+        <div class="aftergame-reward" id="aftergame-reward">+0 coins</div>
+        <button class="aftergame-button" onclick="hideAfterGame()">BACK TO MENU</button>
+    </div>
 </div>
 
 <!-- LOGIN SCREEN -->
@@ -192,7 +208,7 @@
     </div>
 </div>
 
-<!-- STARR DROP -->
+<!-- STARR DROP (unchanged) -->
 <div id="starr-drop-screen" class="absolute inset-0 bg-black/95 z-[60] hidden flex flex-col items-center justify-center">
     <div id="starr-drop-container" class="cursor-pointer flex flex-col items-center justify-center w-full h-full transition-all duration-500 relative">
         <div id="starr-drop-content" class="flex flex-col items-center justify-center">
@@ -212,7 +228,7 @@
     <button id="close-starr-drop" onclick="finishStarrDrop()" class="absolute bottom-20 opacity-0 pointer-events-none bg-white text-black px-12 py-4 rounded-full text-3xl font-bold hover:scale-110 transition-all">COLLECT</button>
 </div>
 
-<!-- BRAWLER SELECTION -->
+<!-- BRAWLER SELECTION (unchanged) -->
 <div id="brawler-screen" class="absolute inset-0 bg-blue-900 z-20 hidden flex flex-col p-8">
     <div class="flex justify-between items-center mb-8">
         <h1 class="text-5xl">CHOOSE BRAWLER</h1>
@@ -221,7 +237,7 @@
     <div class="grid grid-cols-4 gap-6" id="brawler-list"></div>
 </div>
 
-<!-- BATTLE SCREEN -->
+<!-- BATTLE SCREEN (unchanged) -->
 <div id="battle-screen" class="absolute inset-0 z-0 hidden">
     <canvas id="gameCanvas"></canvas>
     <div class="fight-text" id="fight-text">FIGHT!</div>
@@ -247,7 +263,7 @@
     </div>
 </div>
 
-<!-- ADMIN PANEL -->
+<!-- ADMIN PANEL (unchanged) -->
 <div id="adminPanel">
     <h2 class="text-3xl text-yellow-400 mb-4">ADMIN CONSOLE</h2>
     <div class="space-y-4">
@@ -279,16 +295,12 @@
     </div>
 </div>
 
-<!-- SCRIPTS (correct order) -->
-<script src="js/config.js?v=2"></script>
-<script src="js/auth.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/starrdrop.js"></script>
-<script src="js/main.js"></script>
-<script src="js/game.js?v=5"></script>
+<!-- SCRIPTS (order is important) -->
+<script src="js/config.js?v=3"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/ui.js?v=2"></script>
+<script src="js/starrdrop.js?v=2"></script>
+<script src="js/main.js?v=2"></script>
+<script src="js/game.js?v=7"></script>
 </body>
 </html>
-
-
-
-
