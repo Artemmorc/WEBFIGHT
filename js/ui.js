@@ -46,7 +46,8 @@ function updateStatsUI() {
     }
 }
 
-// ========== TOP-DOWN MENU BRAWLER (SVG) ==========
+// Inside ui.js, replace createBrawlerSVG with:
+
 function createBrawlerSVG(name, size) {
     const s = size === 'large' ? 200 : 80;
     return `
@@ -61,20 +62,24 @@ function createBrawlerSVG(name, size) {
                 <stop offset="100%" stop-color="#a855f7"/>
             </radialGradient>
         </defs>
-        <!-- Body (circle) -->
-        <circle cx="50" cy="50" r="30" fill="url(#bodyGrad)" stroke="black" stroke-width="3"/>
-        <!-- Head (smaller circle above body) -->
-        <circle cx="50" cy="25" r="15" fill="url(#headGrad)" stroke="black" stroke-width="2.5"/>
+        <!-- Body (torso) -->
+        <ellipse cx="50" cy="50" rx="18" ry="20" fill="url(#bodyGrad)" stroke="black" stroke-width="2"/>
+        <!-- Head -->
+        <circle cx="50" cy="30" r="10" fill="url(#headGrad)" stroke="black" stroke-width="2"/>
         <!-- Eyes -->
-        <circle cx="42" cy="22" r="3" fill="white" stroke="black" stroke-width="1.5"/>
-        <circle cx="58" cy="22" r="3" fill="white" stroke="black" stroke-width="1.5"/>
-        <circle cx="42" cy="24" r="1.5" fill="black"/>
-        <circle cx="58" cy="24" r="1.5" fill="black"/>
-        <!-- Weapon (simple rectangle) -->
-        <rect x="70" y="45" width="25" height="8" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
-        <rect x="85" y="41" width="8" height="16" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
-        <!-- Glow effect (optional) -->
-        <circle cx="50" cy="40" r="35" fill="none" stroke="#a855f7" stroke-width="2" opacity="0.3"/>
+        <circle cx="45" cy="27" r="2.5" fill="white" stroke="black" stroke-width="1.5"/>
+        <circle cx="55" cy="27" r="2.5" fill="white" stroke="black" stroke-width="1.5"/>
+        <circle cx="45" cy="28" r="1.2" fill="black"/>
+        <circle cx="55" cy="28" r="1.2" fill="black"/>
+        <!-- Hat -->
+        <ellipse cx="50" cy="20" rx="14" ry="6" fill="#5d3a1a" stroke="black" stroke-width="2"/>
+        <rect x="42" y="18" width="16" height="4" fill="#5d3a1a" stroke="black" stroke-width="2"/>
+        <!-- Shoulders / cloak -->
+        <ellipse cx="35" cy="45" rx="6" ry="8" fill="#4a2e1e" stroke="black" stroke-width="2"/>
+        <ellipse cx="65" cy="45" rx="6" ry="8" fill="#4a2e1e" stroke="black" stroke-width="2"/>
+        <!-- Weapon -->
+        <rect x="60" y="45" width="24" height="5" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
+        <rect x="78" y="42" width="5" height="11" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
     </svg>`;
 }
 
