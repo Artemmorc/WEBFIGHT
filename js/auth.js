@@ -1,9 +1,9 @@
-// Create Supabase client
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
+// Create Supabase client (uses SUPABASE_URL and SUPABASE_ANON_KEY from config.js)
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Auth variables
-let currentUser = null;
-let currentProfile = null; 
+window.currentUser = null;
+window.currentProfile = null;
 
 function generateAccountId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -97,7 +97,7 @@ async function handleLogin() {
     }
 
     console.log('Login success, user:', data.user);
-    currentUser = data.user;
+    window.currentUser = data.user;
     await loadProfile();
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('menu-screen').style.display = 'flex';
@@ -105,20 +105,20 @@ async function handleLogin() {
 
 async function logout() {
     await sb.auth.signOut();
-    currentUser = null;
-    currentProfile = null;
+    window.currentUser = null;
+    window.currentProfile = null;
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'flex';
-    keys = { w: false, a: false, s: false, d: false };
+    window.keys = { w: false, a: false, s: false, d: false };
 }
 
 async function loadProfile() {
-    if (!currentUser) return;
+    if (!window.currentUser) return;
 
     const { data, error } = await sb
         .from('profiles')
         .select('*')
-        .eq('user_id', currentUser.id)
+        .eq('user_id', window.currentUser.id)
         .single();
 
     if (error) {
@@ -126,8 +126,8 @@ async function loadProfile() {
         return;
     }
 
-    currentProfile = data;
-    playerState = {
+    window.currentProfile = data;
+    window.playerState = {
         name: data.display_name,
         nameColor: '#4ade80',
         selectedIcon: 'Mystery',
@@ -140,7 +140,7 @@ async function loadProfile() {
 
     document.getElementById('displayUsername').innerText = data.username;
     document.getElementById('displayAccountId').innerText = '#' + data.account_id;
-    updateStatsUI();
+    if (typeof updateStatsUI === 'function') updateStatsUI();
 
     if (data.is_admin) {
         document.getElementById('adminBtnContainer').classList.remove('hidden');
@@ -150,21 +150,21 @@ async function loadProfile() {
 }
 
 async function saveProfileToDB() {
-    if (!currentUser || !currentProfile) return;
+    if (!window.currentUser || !window.currentProfile) return;
 
     const updates = {
-        display_name: playerState.name,
-        trophies: playerState.trophies,
-        pp: playerState.pp,
-        coins: playerState.coins,
-        gems: playerState.gems,
-        daily_claimed: playerState.dailyClaimed
+        display_name: window.playerState.name,
+        trophies: window.playerState.trophies,
+        pp: window.playerState.pp,
+        coins: window.playerState.coins,
+        gems: window.playerState.gems,
+        daily_claimed: window.playerState.dailyClaimed
     };
 
     const { error } = await sb
         .from('profiles')
         .update(updates)
-        .eq('user_id', currentUser.id);
+        .eq('user_id', window.currentUser.id);
 
     if (error) console.error('Save error', error);
 }
@@ -176,39 +176,39 @@ function toggleAdminPanel() {
 }
 
 async function adminGiveCoins() {
-    if (!currentProfile?.is_admin) return;
+    if (!window.currentProfile?.is_admin) return;
     const amount = parseInt(document.getElementById('adminCoins').value);
-    playerState.coins += amount;
-    updateStatsUI();
+    window.playerState.coins += amount;
+    if (typeof updateStatsUI === 'function') updateStatsUI();
     await saveProfileToDB();
 }
 
 async function adminGiveGems() {
-    if (!currentProfile?.is_admin) return;
+    if (!window.currentProfile?.is_admin) return;
     const amount = parseInt(document.getElementById('adminGems').value);
-    playerState.gems += amount;
-    updateStatsUI();
+    window.playerState.gems += amount;
+    if (typeof updateStatsUI === 'function') updateStatsUI();
     await saveProfileToDB();
 }
 
 async function adminGivePp() {
-    if (!currentProfile?.is_admin) return;
+    if (!window.currentProfile?.is_admin) return;
     const amount = parseInt(document.getElementById('adminPp').value);
-    playerState.pp += amount;
-    updateStatsUI();
+    window.playerState.pp += amount;
+    if (typeof updateStatsUI === 'function') updateStatsUI();
     await saveProfileToDB();
 }
 
 async function adminChangeUsername() {
-    if (!currentProfile?.is_admin) return;
+    if (!window.currentProfile?.is_admin) return;
     const newUsername = document.getElementById('adminNewUsername').value.trim();
     if (!newUsername) return;
     const { error } = await sb
         .from('profiles')
         .update({ username: newUsername })
-        .eq('user_id', currentUser.id);
+        .eq('user_id', window.currentUser.id);
     if (!error) {
-        currentProfile.username = newUsername;
+        window.currentProfile.username = newUsername;
         document.getElementById('displayUsername').innerText = newUsername;
     }
 }
