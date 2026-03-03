@@ -46,21 +46,35 @@ function updateStatsUI() {
     }
 }
 
+// ========== TOP-DOWN MENU BRAWLER (SVG) ==========
 function createBrawlerSVG(name, size) {
-    const b = window.CONFIG.BRAWLERS[name];
     const s = size === 'large' ? 200 : 80;
-    const strokeWidth = size === 'large' ? 4 : 2;
     return `
     <svg width="${s}" height="${s}" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="38" fill="${b.color}" stroke="black" stroke-width="${strokeWidth}" />
-        <circle cx="38" cy="42" r="6" fill="white" stroke="black" stroke-width="2"/>
-        <circle cx="62" cy="42" r="6" fill="white" stroke="black" stroke-width="2"/>
-        <circle cx="38" cy="44" r="3" fill="black"/>
-        <circle cx="62" cy="44" r="3" fill="black"/>
-        <circle cx="36" cy="40" r="1.5" fill="white"/>
-        <circle cx="60" cy="40" r="1.5" fill="white"/>
-        <path d="M30 25 L70 25 L65 35 L35 35 Z" fill="#8b5a2b" stroke="black" stroke-width="2"/>
-        <rect x="65" y="42" width="25" height="8" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
+        <defs>
+            <radialGradient id="bodyGrad" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#c084fc"/>
+                <stop offset="100%" stop-color="#6b21a8"/>
+            </radialGradient>
+            <radialGradient id="headGrad" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#e9d5ff"/>
+                <stop offset="100%" stop-color="#a855f7"/>
+            </radialGradient>
+        </defs>
+        <!-- Body (circle) -->
+        <circle cx="50" cy="50" r="30" fill="url(#bodyGrad)" stroke="black" stroke-width="3"/>
+        <!-- Head (smaller circle above body) -->
+        <circle cx="50" cy="25" r="15" fill="url(#headGrad)" stroke="black" stroke-width="2.5"/>
+        <!-- Eyes -->
+        <circle cx="42" cy="22" r="3" fill="white" stroke="black" stroke-width="1.5"/>
+        <circle cx="58" cy="22" r="3" fill="white" stroke="black" stroke-width="1.5"/>
+        <circle cx="42" cy="24" r="1.5" fill="black"/>
+        <circle cx="58" cy="24" r="1.5" fill="black"/>
+        <!-- Weapon (simple rectangle) -->
+        <rect x="70" y="45" width="25" height="8" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
+        <rect x="85" y="41" width="8" height="16" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
+        <!-- Glow effect (optional) -->
+        <circle cx="50" cy="40" r="35" fill="none" stroke="#a855f7" stroke-width="2" opacity="0.3"/>
     </svg>`;
 }
 
