@@ -12,6 +12,11 @@ window.CONFIG = window.CONFIG || {
 };
 window.Textures = window.Textures || { floor: null, bush: null, wall: null };
 
+// Additional safety: ensure currentBrawler is set
+if (!window.state.currentBrawler) {
+    window.state.currentBrawler = 'Mystery';
+}
+
 console.log('game.js loaded, window.keys =', window.keys);
 console.log('window.state =', window.state);
 console.log('window.playerState =', window.playerState);
@@ -54,7 +59,14 @@ function startBattle() {
     canvas.height = window.innerHeight;
     
     const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-    const bData = window.CONFIG.BRAWLERS[window.state.currentBrawler];
+    
+    // Safety: ensure currentBrawler is valid
+    const brawlerName = window.state.currentBrawler || 'Mystery';
+    const bData = window.CONFIG.BRAWLERS[brawlerName];
+    if (!bData) {
+        console.error('Brawler data not found for', brawlerName);
+        return;
+    }
     
     window.state.battle = {
         active: true,
@@ -101,7 +113,7 @@ function startBattle() {
         x: spawn.x, y: spawn.y,
         hp: bData.hp, maxHp: bData.hp,
         ammo: 3, maxAmmo: 3,
-        type: window.state.currentBrawler,
+        type: brawlerName,
         reloading: 0, angle: 0,
         inBush: false, lastDamageTime: Date.now(),
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000
@@ -429,14 +441,10 @@ function drawGame() {
 
 // ========== INPUT HANDLING (with safety checks) ==========
 window.onkeydown = (e) => { 
-    // Guard against missing event or key property
     if (!e || typeof e.key !== 'string') return;
     const key = e.key.toLowerCase();
-    // Ensure window.keys exists (it should, but double-check)
     if (window.keys && key in window.keys) {
         window.keys[key] = true;
-    } else {
-        console.warn('Key event ignored: keys not ready or key not tracked', key);
     }
 };
 
