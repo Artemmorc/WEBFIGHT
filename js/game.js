@@ -365,7 +365,8 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== TOP-DOWN BRAWLER (humanoid from above) ==========
+// Inside game.js, replace the drawBrawler function with this:
+
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
@@ -373,56 +374,68 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     
     // Shadow for depth
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 4;
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
     
-    // Body (circle – top-down view)
-    const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 25);
+    // Body (torso) – an ellipse
+    const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 20);
     gradBody.addColorStop(0, '#a855f7');
     gradBody.addColorStop(1, '#4a1d6d');
     ctx.fillStyle = gradBody;
     ctx.beginPath();
-    ctx.arc(0, 0, 22, 0, Math.PI*2);
+    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2); // smaller than before
     ctx.fill();
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Head (smaller circle, placed in front relative to angle)
-    // In rotated coordinates, forward is positive y? Actually we rotate the whole character,
-    // so we want the head to be at (0, -distance) so it appears at the top in world space.
+    // Head – smaller circle, placed higher
     ctx.fillStyle = '#c084fc';
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 10;
     ctx.shadowColor = '#a855f7';
     ctx.beginPath();
-    ctx.arc(0, -18, 10, 0, Math.PI*2);
+    ctx.arc(0, -20, 10, 0, Math.PI*2);
     ctx.fill();
     ctx.strokeStyle = '#2d2d2d';
     ctx.stroke();
     
     // Eyes (glowing)
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 8;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-4, -20, 2.5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -20, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#2d1b0e';
-    ctx.beginPath(); ctx.arc(-4, -19, 1.2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -19, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
+    
+    // Hat / hood
+    ctx.fillStyle = '#5d3a1a';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'black';
+    ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(-8, -32, 16, 4);
+    
+    // Cloak (shoulders) – two arcs at sides
+    ctx.fillStyle = '#4a2e1e';
+    ctx.beginPath();
+    ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2);
+    ctx.fill();
     
     // Weapon (shotgun) – a rectangle extending forward
     ctx.fillStyle = '#4a3729';
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = 'black';
-    ctx.fillRect(0, 10, 30, 6); // forward along rotated y-axis
-    ctx.fillRect(22, 6, 6, 14);  // wider part
+    ctx.shadowBlur = 6;
+    ctx.fillRect(10, -3, 24, 5);
+    ctx.fillRect(28, -6, 5, 11);
+    // Highlight
+    ctx.fillStyle = '#7a5a3a';
+    ctx.fillRect(12, -2, 8, 2);
     
-    // Glow aura around body
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = '#a855f7';
-    ctx.fillStyle = 'rgba(168,85,247,0.2)';
-    ctx.beginPath(); ctx.arc(0, -5, 30, 0, Math.PI*2); ctx.fill();
+    // No extra glow circle – removed.
     
     ctx.restore();
 }
