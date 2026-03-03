@@ -1,16 +1,16 @@
 // ========== GLOBAL STATE ==========
-let playerState = {
+window.playerState = {
     name: 'Mystery',
     nameColor: '#4ade80',
     selectedIcon: 'Mystery',
     trophies: 0,
     pp: 0,
-    coins: 0, 
+    coins: 0,
     gems: 0,
     dailyClaimed: false
-}; 
+};
 
-let state = {
+window.state = {
     screen: 'menu',
     currentBrawler: 'Mystery',
     starrDropStep: 0,
@@ -23,7 +23,7 @@ let state = {
 };
 
 // ========== SVG ICONS ==========
-const SVG_ICONS = {
+window.SVG_ICONS = {
     coin: (s=24) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="#facc15" stroke="#a16207" stroke-width="6"/><circle cx="50" cy="50" r="32" fill="none" stroke="#a16207" stroke-width="4"/><text x="50" y="68" font-size="50" text-anchor="middle" fill="#a16207" font-family="Luckiest Guy">$</text></svg>`,
     pp: (s=24) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><rect x="15" y="15" width="70" height="70" rx="12" fill="#3b82f6" stroke="#1d4ed8" stroke-width="6"/><path d="M40 30 L70 50 L40 70 Z" fill="white" stroke="white" stroke-width="4" stroke-linejoin="round"/></svg>`,
     gem: (s=24) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><path d="M50 10 L85 35 L75 85 L25 85 L15 35 Z" fill="#10b981" stroke="#065f46" stroke-width="6"/><path d="M30 40 L50 25 L70 40" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="4"/></svg>`,
@@ -32,7 +32,7 @@ const SVG_ICONS = {
 };
 
 // ========== GAME CONFIG ==========
-const CONFIG = {
+window.CONFIG = {
     MAP_SIZE: 40,
     TILE_SIZE: 64,
     BRAWLERS: {
@@ -42,8 +42,8 @@ const CONFIG = {
 };
 
 // ========== TEXTURES ==========
-const Textures = { wall: null, bush: null, floor: null };
-Textures.generate = function() {
+window.Textures = { wall: null, bush: null, floor: null };
+window.Textures.generate = function() {
     const createTex = (w, h, drawFn) => {
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
@@ -99,13 +99,23 @@ Textures.generate = function() {
 };
 
 // ========== INITIALIZATION ==========
-initUI();
+// This will be called from index.html after all scripts are loaded
+// We need to ensure initUI is defined (from ui.js) and then call it
+if (typeof initUI === 'function') {
+    initUI();
+} else {
+    console.warn('initUI not yet defined, will try later');
+    // Retry after a short delay
+    setTimeout(() => {
+        if (typeof initUI === 'function') initUI();
+    }, 500);
+}
 
 // Check if user is already logged in
 sb.auth.getSession().then(({ data: { session } }) => {
     if (session) {
         console.log('User already logged in', session.user);
-        currentUser = session.user;
+        window.currentUser = session.user;
         loadProfile().then(() => {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('menu-screen').style.display = 'flex';
@@ -117,10 +127,10 @@ sb.auth.getSession().then(({ data: { session } }) => {
 sb.auth.onAuthStateChange((event, session) => {
     console.log('Auth event:', event, session);
     if (event === 'SIGNED_IN') {
-        currentUser = session.user;
+        window.currentUser = session.user;
         loadProfile();
     } else if (event === 'SIGNED_OUT') {
-        currentUser = null;
-        currentProfile = null;
+        window.currentUser = null;
+        window.currentProfile = null;
     }
 });
