@@ -1,5 +1,4 @@
 // ========== GLOBAL FALLBACKS (USING WINDOW) ==========
-// Ensure all required globals exist (config.js should have defined keys, but we're extra safe)
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
 window.state = window.state || { battle: { active: false } };
 window.playerState = window.playerState || { name: 'Mystery' };
@@ -12,14 +11,11 @@ window.CONFIG = window.CONFIG || {
 };
 window.Textures = window.Textures || { floor: null, bush: null, wall: null };
 
-// Additional safety: ensure currentBrawler is set
 if (!window.state.currentBrawler) {
     window.state.currentBrawler = 'Mystery';
 }
 
 console.log('game.js loaded, window.keys =', window.keys);
-console.log('window.state =', window.state);
-console.log('window.playerState =', window.playerState);
 
 // ========== GAME ENGINE ==========
 const canvas = document.getElementById('gameCanvas');
@@ -41,13 +37,17 @@ function checkCollision(x, y, radius) {
 
 function startBattlePre() {
     console.log('startBattlePre called');
-    startBattle();
-    window.state.preBattle = true;
-    const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-    window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
-    window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
-    preBattleStart = Date.now();
-    document.getElementById('battle-ui').style.display = 'none';
+    document.getElementById('prematch-loading').classList.add('active');
+    setTimeout(() => {
+        document.getElementById('prematch-loading').classList.remove('active');
+        startBattle();
+        window.state.preBattle = true;
+        const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+        window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
+        window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
+        preBattleStart = Date.now();
+        document.getElementById('battle-ui').style.display = 'none';
+    }, 500);
 }
 
 function startBattle() {
@@ -59,8 +59,6 @@ function startBattle() {
     canvas.height = window.innerHeight;
     
     const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-    
-    // Safety: ensure currentBrawler is valid
     const brawlerName = window.state.currentBrawler || 'Mystery';
     const bData = window.CONFIG.BRAWLERS[brawlerName];
     if (!bData) {
@@ -288,17 +286,19 @@ function updateGame() {
     }
 
     if (p.hp <= 0) {
-        alert("You finished in Rank #" + aliveCount);
+        showAfterGame(aliveCount, 0);
         exitBattle();
         return;
     }
 
     if (aliveCount === 1 && p.hp > 0) {
-        alert("Victory! Rank #1");
-        window.playerState.coins += 50;
-        window.playerState.trophies += 10;
+        const coinsEarned = 50 + Math.floor(Math.random() * 30);
+        const trophiesEarned = 10;
+        window.playerState.coins += coinsEarned;
+        window.playerState.trophies += trophiesEarned;
         if (typeof updateStatsUI === 'function') updateStatsUI();
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
+        showAfterGame(1, coinsEarned);
         exitBattle();
         return;
     }
@@ -311,51 +311,84 @@ function exitBattle() {
     window.state.battle.active = false;
     window.state.screen = 'menu';
     document.getElementById('battle-screen').classList.add('hidden');
-    document.getElementById('menu-screen').style.display = 'flex';
     window.keys = { w: false, a: false, s: false, d: false };
 }
 
+function showAfterGame(rank, coins) {
+    const menu = document.getElementById('aftergame-menu');
+    document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
+    document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
+    menu.style.display = 'flex';
+}
+
+function hideAfterGame() {
+    document.getElementById('aftergame-menu').style.display = 'none';
+    document.getElementById('menu-screen').style.display = 'flex';
+}
+
+// ========== UPGRADED MYSTERY BRAWLER DRAWING ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 4;
-
-    const grad = ctx.createRadialGradient(-10, -10, 10, 0, 0, 40);
-    grad.addColorStop(0, '#a855f7');
-    grad.addColorStop(1, '#4a1d6d');
-    ctx.fillStyle = grad;
+    
+    // Glow effect
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 0;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 30, 32, 0, 0, Math.PI*2);
+    ctx.arc(0, 0, 40, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.fill();
-    ctx.strokeStyle = 'black';
+    
+    // Body with metallic gradient
+    const grad = ctx.createRadialGradient(-15, -15, 10, 0, 0, 45);
+    grad.addColorStop(0, '#c084fc');
+    grad.addColorStop(0.5, '#a855f7');
+    grad.addColorStop(1, '#6b21a8');
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowOffsetY = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 32, 34, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 3;
     ctx.stroke();
 
+    // Eyes (glowing)
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'white';
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(-14, -10, 7, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(14, -10, 7, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-12, -8, 6, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(12, -8, 6, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#2d1b0e';
-    ctx.beginPath(); ctx.arc(-12, -6, 3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(12, -6, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-14, -8, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(14, -8, 3, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-14, -10, 1.5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(10, -10, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-16, -12, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(12, -12, 2, 0, Math.PI*2); ctx.fill();
 
+    // Hood/cloak
     ctx.fillStyle = '#5d3a1a';
-    ctx.beginPath(); ctx.ellipse(0, -28, 22, 10, 0, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'black';
+    ctx.beginPath(); ctx.ellipse(0, -30, 24, 12, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#8b5a2b';
-    ctx.beginPath(); ctx.rect(-20, -38, 40, 10); ctx.fill();
+    ctx.beginPath(); ctx.rect(-22, -40, 44, 12); ctx.fill();
+
+    // Weapon (shotgun) with metal effect
     ctx.fillStyle = '#4a3729';
-    ctx.fillRect(20, -10, 30, 8);
-    ctx.fillRect(45, -14, 6, 16);
-    ctx.shadowColor = '#a855f7';
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 8;
+    ctx.fillRect(22, -12, 32, 8);
+    ctx.fillRect(48, -16, 8, 16);
+    // Add highlight
+    ctx.fillStyle = '#7a5a3a';
+    ctx.fillRect(25, -10, 10, 4);
+    ctx.fillRect(35, -10, 10, 4);
+
     ctx.restore();
 }
 
