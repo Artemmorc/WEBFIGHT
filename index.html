@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Brawl Stars – Mystery Desert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/style.css?v=3">
+    <!-- Fallback for PLAY button -->
+    <script>
+        window.startBattlePre = window.startBattlePre || function() { 
+            console.warn('Game engine not ready – retrying...');
+            setTimeout(() => { 
+                if (typeof startBattlePre === 'function') startBattlePre(); 
+                else alert('Game failed to load. Please refresh.');
+            }, 500);
+        };
+    </script>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+    <div class="loader"></div>
+    <div class="text-4xl text-yellow-400 ml-6">LOADING...</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+    <div class="login-box">
+        <h1 class="text-5xl text-center text-yellow-400 mb-6">MYSTERY DESERT</h1>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="handleLogin()" class="bg-green-500 hover:bg-green-600">LOGIN</button>
+        <button onclick="handleRegister()" class="bg-blue-500 hover:bg-blue-600">REGISTER</button>
+        <div id="loginMessage" class="text-center text-red-300 mt-4"></div>
+    </div>
+</div>
+
+<!-- MAIN MENU -->
+<div id="menu-screen" class="absolute inset-0 desert-bg flex-col z-10" style="display: none;">
+    <!-- Decorative cacti -->
+    <div class="cactus" style="left: 5%; bottom: 10%;"></div>
+    <div class="cactus" style="left: 90%; bottom: 15%; transform: rotate(-5deg);"></div>
+    <div class="cactus" style="left: 20%; bottom: 30%; height: 40px;"></div>
+
+    <!-- TOP BAR -->
+    <div class="flex justify-between items-start p-4 relative z-10">
+        <!-- Left: profile + resources -->
+        <div class="flex items-center gap-4">
+            <!-- Profile box (clickable) -->
+            <div onclick="toggleProfile(true)" class="flex items-center gap-3 bg-black/50 p-2 rounded-xl border-2 border-white/30 cursor-pointer hover:bg-black/70 transition-all">
+                <div class="w-14 h-14 rounded-lg border-2 border-white flex items-center justify-center overflow-hidden bg-gray-700" id="menu-pfp-container"></div>
+                <div>
+                    <div id="display-player-name" class="text-green-400 text-xl leading-tight">Mystery</div>
+                    <div class="flex items-center gap-1 text-sm text-yellow-400">
+                        <span id="icon-trophy-sm"></span> <span id="trophy-count" class="font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Resources next to profile -->
+            <div class="flex gap-3">
+                <div class="bg-black/50 px-4 py-2 rounded-full border border-white/30 text-blue-400 flex items-center gap-2">
+                    <span id="icon-pp-sm"></span> <span id="val-pp" class="font-bold">0</span>
+                </div>
+                <div class="bg-black/50 px-4 py-2 rounded-full border border-white/30 text-yellow-500 flex items-center gap-2">
+                    <span id="icon-coins-sm"></span> <span id="val-coins" class="font-bold">0</span>
+                </div>
+                <div class="bg-black/50 px-4 py-2 rounded-full border border-white/30 text-emerald-400 flex items-center gap-2">
+                    <span id="icon-gems-sm"></span> <span id="val-gems" class="font-bold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: user info / login button -->
+        <div class="flex items-center gap-3">
+            <div id="userInfo" class="flex items-center gap-3 bg-black/50 p-2 rounded-xl border-2 border-white/30">
+                <span id="displayUsername" class="text-yellow-400"></span>
+                <span id="displayAccountId" class="text-sm text-gray-300"></span>
+                <button onclick="logout()" class="bg-red-500 px-4 py-1 rounded-full text-sm">LOGOUT</button>
+            </div>
+            <button id="loginBtn" onclick="showLogin()" class="bg-green-500 px-6 py-2 rounded-full border-2 border-white font-bold hidden">LOGIN</button>
+        </div>
+    </div>
+
+    <!-- CENTER: brawler stand -->
+    <div class="flex-1 flex flex-col items-center justify-center relative z-10">
+        <div id="brawler-stand" class="w-72 h-72 flex items-center justify-center brawler-shadow transition-all duration-500"></div>
+        <div class="absolute bottom-10 bg-black/60 px-10 py-3 rounded-full border-2 border-white/30 text-3xl uppercase tracking-widest" id="current-brawler-name">Mystery</div>
+    </div>
+
+    <!-- LEFT SIDE BUTTONS (SHOP, BRAWLERS, NEWS) + ADMIN BOTTOM LEFT -->
+    <div class="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-10">
+        <button onclick="toggleShop(true)" class="bg-blue-600 hover:bg-blue-500 btn-bs px-8 py-5 rounded-xl text-2xl">SHOP</button>
+        <button onclick="toggleBrawlers(true)" class="bg-blue-600 hover:bg-blue-500 btn-bs px-8 py-5 rounded-xl text-2xl">BRAWLERS</button>
+        <button onclick="alert('News coming soon!')" class="bg-purple-600 hover:bg-purple-500 btn-bs px-8 py-5 rounded-xl text-2xl">NEWS</button>
+        <!-- Admin button (hidden by default) -->
+        <div id="adminBtnContainer" class="mt-6 hidden">
+            <button onclick="toggleAdminPanel()" class="bg-purple-600 px-8 py-5 rounded-xl border-2 border-white text-2xl btn-bs">ADMIN</button>
+        </div>
+    </div>
+
+    <!-- RIGHT BOTTOM: PLAY BUTTON -->
+    <div class="absolute right-6 bottom-6 z-10">
+        <button onclick="startBattlePre()" class="bg-orange-500 hover:bg-orange-400 border-4 border-white px-20 py-8 rounded-3xl text-4xl shadow-[0_12px_0_0_#c2410c] transition-all hover:scale-105 active:translate-y-3 active:shadow-none">PLAY</button>
+    </div>
+
+    <!-- GAME MODE INDICATOR (bottom center) -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+        <div class="bg-purple-800 btn-bs px-12 py-5 rounded-2xl flex items-center gap-4 cursor-pointer">
+            <div id="mode-icon-container" class="w-14 h-14"></div>
+            <div class="flex flex-col">
+                <span class="text-xs opacity-80">GAME MODE</span>
+                <span class="text-3xl">SOLO SHOWDOWN</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE MODAL (unchanged) -->
+<div id="profile-modal" class="absolute inset-0 z-50 modal-overlay hidden flex items-center justify-center p-10">
+    <div class="bg-blue-900 w-full max-w-4xl rounded-3xl border-4 border-white p-8 flex flex-col gap-6">
+        <div class="flex justify-between items-center">
+            <h2 class="text-5xl uppercase">Profile</h2>
+            <button onclick="toggleProfile(false)" class="bg-red-500 px-8 py-3 rounded-xl border-2 border-white text-2xl hover:bg-red-600">CLOSE</button>
+        </div>
+        <div class="grid grid-cols-2 gap-10">
+            <div class="space-y-4">
+                <label class="block text-2xl">DISPLAY NAME</label>
+                <input type="text" id="input-name" class="w-full bg-black/60 border-2 border-white/30 p-4 rounded-xl text-2xl text-white outline-none focus:border-blue-400">
+                <label class="block text-2xl">NAME COLOR</label>
+                <div class="grid grid-cols-5 gap-2" id="color-grid"></div>
+                <div class="text-xl">Account ID: <span id="profileAccountId" class="text-yellow-400"></span></div>
+            </div>
+            <div class="space-y-4">
+                <label class="block text-2xl">ICON</label>
+                <div class="grid grid-cols-4 gap-4 bg-black/30 p-4 rounded-2xl max-h-60 overflow-y-auto custom-scrollbar" id="icon-grid"></div>
+            </div>
+        </div>
+        <button onclick="saveProfile()" class="bg-green-500 w-full py-4 rounded-2xl text-3xl border-b-8 border-green-700 active:border-b-0 active:translate-y-2 transition-all">SAVE</button>
+    </div>
+</div>
+
+<!-- SHOP MODAL (unchanged) -->
+<div id="shop-modal" class="absolute inset-0 z-40 modal-overlay hidden flex flex-col p-10">
+    <div class="flex justify-between items-center mb-10">
+        <h1 class="text-7xl text-white italic drop-shadow-[0_4px_0_black]">SHOP</h1>
+        <div class="flex gap-4">
+            <div class="bg-black/60 px-4 py-2 rounded-full border-2 border-white/30 text-yellow-500 flex items-center gap-2">
+                <span id="shop-coins-icon"></span> <span id="shop-val-coins" class="text-2xl font-bold">0</span>
+            </div>
+            <div class="bg-black/60 px-4 py-2 rounded-full border-2 border-white/30 text-emerald-400 flex items-center gap-2">
+                <span id="shop-gems-icon"></span> <span id="shop-val-gems" class="text-2xl font-bold">0</span>
+            </div>
+            <button onclick="toggleShop(false)" class="bg-red-500 px-8 py-2 rounded-xl border-4 border-black text-2xl hover:bg-red-600">BACK</button>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto pr-4 custom-scrollbar">
+        <h2 class="text-4xl text-yellow-400 mb-6 uppercase">Daily Deals</h2>
+        <div class="grid grid-cols-4 gap-6 mb-12">
+            <div onclick="claimDailyReward()" id="daily-reward-card" class="shop-card rounded-2xl p-6 flex flex-col items-center justify-between text-center min-h-[320px]">
+                <span class="text-xl text-white/90">DAILY FREEBIE</span>
+                <div id="daily-reward-icon" class="w-36 h-36 flex items-center justify-center"></div>
+                <div class="bg-green-500 w-full py-3 rounded-lg border-2 border-black text-2xl font-bold" id="daily-claim-text">FREE!</div>
+            </div>
+            <div onclick="purchaseStarrDrop()" class="shop-card rounded-2xl p-6 flex flex-col items-center justify-between text-center min-h-[320px]">
+                <span class="text-xl text-white/90">STARR DROP</span>
+                <div id="shop-starr-drop-icon" class="w-36 h-36 flex items-center justify-center"></div>
+                <div class="bg-emerald-500 w-full py-3 rounded-lg border-2 border-black text-2xl flex justify-center items-center gap-2 font-bold">
+                    10 <span id="btn-gem-icon"></span>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-4xl text-purple-400 mb-6 uppercase">Skins</h2>
+        <div class="bg-black/60 rounded-3xl p-12 text-center border-4 border-dashed border-white/30 mb-12">
+            <p class="text-5xl opacity-60 italic">SOON™</p>
+        </div>
+
+        <h2 class="text-4xl text-emerald-400 mb-6 uppercase">Resources</h2>
+        <div class="grid grid-cols-4 gap-6 mb-12">
+            <div onclick="exchangeGems(30, 500)" class="shop-card rounded-2xl p-6 flex flex-col items-center justify-between text-center !bg-gray-800 border-emerald-500/50">
+                <span class="text-xl text-yellow-500">500 COINS</span>
+                <div id="shop-coins-bundle-icon" class="w-28 h-28 flex items-center justify-center"></div>
+                <div class="bg-emerald-500 w-full py-3 rounded-lg border-2 border-black text-xl flex justify-center items-center gap-2 font-bold">
+                    30 <span id="btn-gem-icon-2"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- STARR DROP -->
+<div id="starr-drop-screen" class="absolute inset-0 bg-black/95 z-[60] hidden flex flex-col items-center justify-center">
+    <div id="starr-drop-container" class="cursor-pointer flex flex-col items-center justify-center w-full h-full transition-all duration-500 relative">
+        <div id="starr-drop-content" class="flex flex-col items-center justify-center">
+            <div id="starr-drop-visual" class="w-72 h-72 mb-8 relative flex items-center justify-center">
+                <div id="star-svg-container" class="w-full h-full transition-transform duration-200" style="transform: rotate(0deg);"></div>
+                <div id="star-glow" class="absolute inset-0 rounded-full opacity-80 blur-2xl -z-10"></div>
+            </div>
+            <h2 id="starr-drop-rarity" class="text-6xl mb-4 rarity-rare">RARE</h2>
+            <p id="starr-drop-hint" class="text-white/50 text-2xl animate-bounce">TAP TO UPGRADE!</p>
+        </div>
+        <div id="starr-drop-reward" class="hidden flex flex-col items-center justify-center absolute inset-0">
+            <h3 class="text-4xl text-yellow-400 mb-4" id="reward-title">REWARD</h3>
+            <div id="reward-visual" class="w-40 h-40 mx-auto mb-4 flex items-center justify-center"></div>
+            <p id="reward-desc" class="text-2xl text-white"></p>
+        </div>
+    </div>
+    <button id="close-starr-drop" onclick="finishStarrDrop()" class="absolute bottom-20 opacity-0 pointer-events-none bg-white text-black px-12 py-4 rounded-full text-3xl font-bold hover:scale-110 transition-all">COLLECT</button>
+</div>
+
+<!-- BRAWLER SELECTION -->
+<div id="brawler-screen" class="absolute inset-0 bg-blue-900 z-20 hidden flex flex-col p-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-5xl">CHOOSE BRAWLER</h1>
+        <button onclick="toggleBrawlers(false)" class="bg-red-500 px-8 py-3 rounded-lg border-2 border-white text-2xl hover:bg-red-600">BACK</button>
+    </div>
+    <div class="grid grid-cols-4 gap-6" id="brawler-list"></div>
+</div>
+
+<!-- BATTLE SCREEN -->
+<div id="battle-screen" class="absolute inset-0 z-0 hidden">
+    <canvas id="gameCanvas"></canvas>
+    <div class="fight-text" id="fight-text">FIGHT!</div>
+    <div class="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between" id="battle-ui" style="display: none;">
+        <div class="flex justify-between items-start">
+            <div class="bg-black/70 p-3 rounded-xl text-xl border-2 border-white/30">
+                BRAWLERS LEFT: <span id="brawlers-left" class="text-yellow-400 font-bold">10</span>
+            </div>
+        </div>
+
+        <div class="absolute inset-0 pointer-events-none">
+            <div id="move-joy-base" class="joystick-base" style="position:absolute; bottom:40px; left:40px;">
+                <div id="move-joy-stick" class="joystick-stick"></div>
+            </div>
+
+            <div class="flex flex-col gap-6 items-center pointer-events-auto">
+                <div id="super-btn" class="w-28 h-28 rounded-full border-4 border-yellow-500 bg-yellow-600/70 flex items-center justify-center text-lg text-white cursor-pointer opacity-70 active:scale-95 transition-transform backdrop-blur-sm">SUPER</div>
+                <div id="attack-joy-base" class="joystick-base" style="position:absolute; bottom:40px; right:40px;">
+                    <div id="attack-joy-stick" class="joystick-stick !bg-orange-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+    <h2 class="text-3xl text-yellow-400 mb-4">ADMIN CONSOLE</h2>
+    <div class="space-y-4">
+        <div>
+            <label>Give Coins</label>
+            <input type="number" id="adminCoins" class="admin-input" value="1000">
+            <button onclick="adminGiveCoins()" class="bg-blue-500 px-4 py-2 rounded">GIVE</button>
+        </div>
+        <div>
+            <label>Give Gems</label>
+            <input type="number" id="adminGems" class="admin-input" value="100">
+            <button onclick="adminGiveGems()" class="bg-blue-500 px-4 py-2 rounded">GIVE</button>
+        </div>
+        <div>
+            <label>Give PP</label>
+            <input type="number" id="adminPp" class="admin-input" value="500">
+            <button onclick="adminGivePp()" class="bg-blue-500 px-4 py-2 rounded">GIVE</button>
+        </div>
+        <div>
+            <label>Change Username (enter new)</label>
+            <input type="text" id="adminNewUsername" class="admin-input" placeholder="New username">
+            <button onclick="adminChangeUsername()" class="bg-blue-500 px-4 py-2 rounded">CHANGE</button>
+        </div>
+        <div>
+            <label>Map Editor (coming soon)</label>
+            <button disabled class="bg-gray-500 px-4 py-2 rounded">EDIT MAP</button>
+        </div>
+        <button onclick="toggleAdminPanel()" class="bg-red-500 w-full py-2 rounded mt-4">CLOSE</button>
+    </div>
+</div>
+
+<!-- SCRIPTS (correct order) -->
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/starrdrop.js"></script>
+<script src="js/main.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
