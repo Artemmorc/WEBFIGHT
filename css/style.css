@@ -9,6 +9,7 @@ body {
     touch-action: none;
 }
 
+/* ========== STATIC DESERT BACKGROUND (no animations) ========== */
 .desert-bg {
     background: linear-gradient(145deg, #d4a373, #b5835a);
     position: relative;
@@ -30,7 +31,8 @@ body {
     transform: rotate(5deg);
     bottom: 20px;
     left: 10%;
-    box-shadow: -5px -10px 0 #1b4332;
+    box-shadow: -5px -10px 0 #1b4332, 0 0 20px rgba(255,215,0,0.3);
+    /* removed animation */
 }
 .cactus::after {
     content: '';
