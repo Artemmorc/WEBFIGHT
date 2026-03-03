@@ -1,4 +1,4 @@
-// ========== GLOBAL FALLBACKS (USING WINDOW) ==========
+// ========== GLOBAL FALLBACKS ==========
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
 window.state = window.state || { battle: { active: false } };
 window.playerState = window.playerState || { name: 'Mystery' };
@@ -26,7 +26,7 @@ const fightTextEl = document.getElementById('fight-text');
 
 // Death animation variables
 let deathAnimationStart = 0;
-let deathAnimationDuration = 2000; // 2 seconds
+let deathAnimationDuration = 1500; // 1.5 seconds
 let playerDead = false;
 
 function checkCollision(x, y, radius) {
@@ -150,21 +150,18 @@ function updateGame() {
     const p = battle.player;
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
 
-    // If death animation is active, handle camera zoom out and fade
+    // Death animation
     if (playerDead) {
         const elapsed = Date.now() - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
-            // Zoom out camera
-            const targetZoom = 0.4; // zoom out
+            // Zoom out slightly from death location (not to center)
+            const targetZoom = 0.5;
             const startZoom = 0.8;
             const t = elapsed / deathAnimationDuration;
             battle.camera.zoom = startZoom + (targetZoom - startZoom) * t;
-            
-            // Optionally move camera to center on player
-            const centerX = mapLimit / 2;
-            const centerY = mapLimit / 2;
-            battle.camera.x = centerX - (canvas.width/2)/battle.camera.zoom;
-            battle.camera.y = centerY - (canvas.height/2)/battle.camera.zoom;
+            // Keep camera centered on player's death position
+            battle.camera.x = p.x - (canvas.width/2)/battle.camera.zoom;
+            battle.camera.y = p.y - (canvas.height/2)/battle.camera.zoom;
         } else {
             // Death animation finished – show after-game menu and reset
             playerDead = false;
@@ -217,6 +214,8 @@ function updateGame() {
         if (!checkCollision(newX, newY, 25)) {
             p.y = Math.max(25, Math.min(mapLimit - 25, newY));
         }
+        // Update angle based on movement direction
+        p.angle = Math.atan2(dy, dx);
     }
 
     if (p.ammo < p.maxAmmo) {
@@ -332,7 +331,6 @@ function updateGame() {
         window.playerState.trophies += trophiesEarned;
         if (typeof updateStatsUI === 'function') updateStatsUI();
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
-        // Victory – show after-game menu immediately (no death animation)
         showAfterGame(1, coinsEarned);
         exitBattle();
         return;
@@ -355,7 +353,6 @@ function showAfterGame(rank, coins) {
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
     menu.style.opacity = '0';
     menu.style.display = 'flex';
-    // Fade in
     setTimeout(() => { menu.style.opacity = '1'; }, 50);
 }
 
@@ -368,7 +365,7 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== IMPROVED MYSTERY BRAWLER (humanoid) ==========
+// ========== TOP-DOWN BRAWLER (humanoid from above) ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
@@ -379,64 +376,49 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.shadowBlur = 12;
     ctx.shadowOffsetY = 4;
     
-    // Legs (simple rectangles)
-    ctx.fillStyle = '#4a2e1e';
-    ctx.fillRect(-10, 10, 8, 20);
-    ctx.fillRect(2, 10, 8, 20);
-    
-    // Torso (oblong)
-    const gradTorso = ctx.createLinearGradient(-15, -15, 15, 15);
-    gradTorso.addColorStop(0, '#8b5a2b');
-    gradTorso.addColorStop(1, '#5d3a1a');
-    ctx.fillStyle = gradTorso;
+    // Body (circle – top-down view)
+    const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 25);
+    gradBody.addColorStop(0, '#a855f7');
+    gradBody.addColorStop(1, '#4a1d6d');
+    ctx.fillStyle = gradBody;
     ctx.beginPath();
-    ctx.ellipse(0, -5, 18, 22, 0, 0, Math.PI*2);
+    ctx.arc(0, 0, 22, 0, Math.PI*2);
     ctx.fill();
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Arms
-    ctx.fillStyle = '#5d3a1a';
-    ctx.fillRect(-22, -10, 8, 18); // left arm
-    ctx.fillRect(14, -10, 8, 18);  // right arm
-    
-    // Head (circle, not an ellipse)
+    // Head (smaller circle, placed in front relative to angle)
+    // In rotated coordinates, forward is positive y? Actually we rotate the whole character,
+    // so we want the head to be at (0, -distance) so it appears at the top in world space.
+    ctx.fillStyle = '#c084fc';
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#a855f7';
-    ctx.fillStyle = '#c084fc';
     ctx.beginPath();
-    ctx.arc(0, -28, 16, 0, Math.PI*2);
+    ctx.arc(0, -18, 10, 0, Math.PI*2);
     ctx.fill();
     ctx.strokeStyle = '#2d2d2d';
-    ctx.lineWidth = 2;
     ctx.stroke();
     
     // Eyes (glowing)
     ctx.shadowBlur = 10;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-6, -32, 3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6, -32, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-4, -20, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -20, 2.5, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#2d1b0e';
-    ctx.beginPath(); ctx.arc(-6, -31, 1.5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6, -31, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-4, -19, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -19, 1.2, 0, Math.PI*2); ctx.fill();
     
-    // Hood / hat
-    ctx.fillStyle = '#5d3a1a';
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = 'black';
-    ctx.beginPath(); ctx.ellipse(0, -40, 18, 8, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillRect(-10, -44, 20, 6);
-    
-    // Weapon (shotgun) in right hand
+    // Weapon (shotgun) – a rectangle extending forward
     ctx.fillStyle = '#4a3729';
     ctx.shadowBlur = 8;
-    ctx.fillRect(18, -15, 28, 6);
-    ctx.fillRect(40, -19, 6, 12);
+    ctx.shadowColor = 'black';
+    ctx.fillRect(0, 10, 30, 6); // forward along rotated y-axis
+    ctx.fillRect(22, 6, 6, 14);  // wider part
     
-    // Glow around body
+    // Glow aura around body
     ctx.shadowBlur = 30;
     ctx.shadowColor = '#a855f7';
     ctx.fillStyle = 'rgba(168,85,247,0.2)';
@@ -492,7 +474,6 @@ function drawGame() {
         ctx.textAlign = 'center';
         ctx.fillText(c.name, 0, -70);
 
-        // Draw the brawler (using improved drawBrawler)
         drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
 
         // HP Bar
@@ -511,7 +492,7 @@ function drawGame() {
         ctx.restore();
     };
 
-    // If death animation, we still draw the player but with transparency
+    // If death animation, fade out player
     if (playerDead) {
         const elapsed = Date.now() - deathAnimationStart;
         const t = Math.min(1, elapsed / deathAnimationDuration);
@@ -538,7 +519,7 @@ function drawGame() {
     ctx.restore();
 }
 
-// ========== INPUT HANDLING (with safety checks) ==========
+// ========== INPUT HANDLING ==========
 window.onkeydown = (e) => { 
     if (!e || typeof e.key !== 'string') return;
     const key = e.key.toLowerCase();
