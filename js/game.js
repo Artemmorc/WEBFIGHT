@@ -12,7 +12,9 @@ window.CONFIG = window.CONFIG || {
 };
 window.Textures = window.Textures || { floor: null, bush: null, wall: null };
 
-console.log('game.js loaded, keys =', window.keys);
+console.log('game.js loaded, window.keys =', window.keys);
+console.log('window.state =', window.state);
+console.log('window.playerState =', window.playerState);
 
 // ========== GAME ENGINE ==========
 const canvas = document.getElementById('gameCanvas');
@@ -425,14 +427,25 @@ function drawGame() {
     ctx.restore();
 }
 
-// ========== INPUT HANDLING ==========
+// ========== INPUT HANDLING (with safety checks) ==========
 window.onkeydown = (e) => { 
+    // Guard against missing event or key property
+    if (!e || typeof e.key !== 'string') return;
     const key = e.key.toLowerCase();
-    if (key in window.keys) window.keys[key] = true;
+    // Ensure window.keys exists (it should, but double-check)
+    if (window.keys && key in window.keys) {
+        window.keys[key] = true;
+    } else {
+        console.warn('Key event ignored: keys not ready or key not tracked', key);
+    }
 };
+
 window.onkeyup = (e) => { 
+    if (!e || typeof e.key !== 'string') return;
     const key = e.key.toLowerCase();
-    if (key in window.keys) window.keys[key] = false;
+    if (window.keys && key in window.keys) {
+        window.keys[key] = false;
+    }
 };
 
 function updateKeyboardMovement() {
