@@ -403,12 +403,15 @@
             <!-- Maintenance Mode -->
             <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
                 <label class="block text-2xl mb-2">Maintenance</label>
-                <div class="flex gap-2 mb-2">
-                    <input type="number" id="maintenance-minutes" class="w-24 bg-black/60 border-2 border-white/30 p-2 rounded-xl text-xl text-white" value="5" min="1">
-                    <button onclick="scheduleMaintenanceWithDuration()" class="flex-1 bg-orange-500 hover:bg-orange-600 py-3 rounded-xl text-2xl">SCHEDULE (custom)</button>
-                </div>
+                <!-- Actual maintenance scheduling (affects login) -->
                 <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">SCHEDULE (3 min)</button>
-                <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL</button>
+                <!-- Visual timer (countdown only) -->
+                <div class="flex gap-2 mt-4">
+                    <input type="number" id="visual-minutes" class="w-24 bg-black/60 border-2 border-white/30 p-2 rounded-xl text-xl text-white" value="10" min="1">
+                    <button onclick="setVisualTimer()" class="flex-1 bg-blue-500 hover:bg-blue-600 py-3 rounded-xl text-2xl">SET VISUAL TIMER</button>
+                </div>
+                <button onclick="clearVisualTimer()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CLEAR VISUAL TIMER</button>
+                <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL MAINTENANCE</button>
             </div>
         </div>
     </div>
@@ -534,4 +537,5 @@
 <script src="js/game.js?v=8"></script>
 </body>
 </html>
+
 
