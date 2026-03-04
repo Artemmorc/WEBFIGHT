@@ -443,9 +443,10 @@ async function saveNews(published) {
     }
 }
 
-// ========== MAINTENANCE MODE (GLOBAL, INDEFINITE) ==========
+// ========== MAINTENANCE MODE (GLOBAL, WITH COUNTDOWN) ==========
 let maintenanceInterval = null;
 let warningTimeout = null;
+let timerInterval = null;
 
 async function checkMaintenance() {
     if (!window.sb) return;
@@ -461,6 +462,8 @@ async function checkMaintenance() {
 
     const start = new Date(data.start_time).getTime();
     const now = Date.now();
+    const duration = (data.duration_minutes || 10) * 60 * 1000;
+    const end = start + duration;
 
     // Pre‑maintenance warning (if start is in the future)
     if (now < start) {
@@ -470,21 +473,33 @@ async function checkMaintenance() {
         return;
     }
 
-    // Maintenance active (start time passed) – lasts until cancelled
-    if (!window.currentProfile?.is_admin) {
-        document.getElementById('maintenance-overlay').classList.remove('hidden');
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('menu-screen').style.display = 'none';
-        // No timer, just show indefinite message
-        const timerSpan = document.getElementById('maintenance-timer');
-        if (timerSpan) timerSpan.innerText = '--:--';
-    } else {
+    // Maintenance active
+    if (now >= start && now < end) {
+        if (!window.currentProfile?.is_admin) {
+            document.getElementById('maintenance-overlay').classList.remove('hidden');
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'none';
+            startMaintenanceTimer(end);
+        } else {
+            document.getElementById('maintenance-overlay').classList.add('hidden');
+        }
+        return;
+    }
+
+    // Maintenance ended – delete record
+    if (now >= end) {
+        await window.sb.from('maintenance').delete().eq('id', 1);
         document.getElementById('maintenance-overlay').classList.add('hidden');
     }
 }
 
 function showMaintenanceWarning(minutes) {
-    if (warningTimeout) clearTimeout(warningTimeout);
+    // Remove any existing warning
+    if (warningTimeout) {
+        clearTimeout(warningTimeout);
+        const oldWarning = document.querySelector('.fixed.top-4.left-1\\/2');
+        if (oldWarning) oldWarning.remove();
+    }
     const warning = document.createElement('div');
     warning.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-600 text-white px-6 py-4 rounded-xl text-2xl z-[1100] animate-bounce shadow-2xl border-4 border-white';
     warning.innerText = `⚠️ MAINTENANCE IN ${minutes} MINUTE${minutes > 1 ? 'S' : ''} ⚠️`;
@@ -494,16 +509,54 @@ function showMaintenanceWarning(minutes) {
     }, 5000);
 }
 
+function startMaintenanceTimer(endTime) {
+    if (timerInterval) clearInterval(timerInterval);
+    const timerSpan = document.getElementById('maintenance-timer');
+    if (!timerSpan) return;
+    timerInterval = setInterval(async () => {
+        const now = Date.now();
+        if (now >= endTime) {
+            timerSpan.innerText = '0:00';
+            clearInterval(timerInterval);
+            // End maintenance
+            await window.sb.from('maintenance').delete().eq('id', 1);
+            document.getElementById('maintenance-overlay').classList.add('hidden');
+            return;
+        }
+        const remaining = endTime - now;
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        timerSpan.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
 async function scheduleMaintenance() {
     if (!window.currentProfile?.is_admin) return;
     const startTime = new Date(Date.now() + 3 * 60 * 1000).toISOString();
     const { error } = await window.sb
         .from('maintenance')
-        .upsert({ id: 1, start_time: startTime });
+        .upsert({ id: 1, start_time: startTime, duration_minutes: 10 });
     if (error) {
         alert('Error scheduling maintenance: ' + error.message);
     } else {
-        alert('Maintenance scheduled to start in 3 minutes.');
+        alert('Maintenance scheduled to start in 3 minutes (duration 10 min).');
+        toggleAdminPanel();
+    }
+}
+
+async function scheduleMaintenanceWithDuration() {
+    if (!window.currentProfile?.is_admin) return;
+    const minutesInput = document.getElementById('maintenance-minutes');
+    let duration = parseInt(minutesInput.value, 10);
+    if (isNaN(duration) || duration < 1) duration = 5;
+    const startTime = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+    const { error } = await window.sb
+        .from('maintenance')
+        .upsert({ id: 1, start_time: startTime, duration_minutes: duration });
+    if (error) {
+        alert('Error scheduling maintenance: ' + error.message);
+    } else {
+        alert(`Maintenance scheduled to start in 3 minutes (duration ${duration} min).`);
         toggleAdminPanel();
     }
 }
