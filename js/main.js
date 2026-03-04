@@ -3,7 +3,7 @@ window.playerState = {
     name: 'Mystery',
     nameColor: '#4ade80',
     selectedIcon: 'Mystery',
-    trophies: 0, 
+    trophies: 0,
     pp: 0,
     coins: 0,
     gems: 0,
@@ -70,14 +70,14 @@ window.Textures.generate = function() {
     });
     this.bush = createTex(64, 64, ctx => {
         // Darker wheat field covering entire tile
-        ctx.fillStyle = '#b45309'; // darker base
+        ctx.fillStyle = '#b45309';
         ctx.fillRect(0, 0, 64, 64);
         // Add texture with darker yellow
         ctx.fillStyle = '#a16207';
         for (let i = 0; i < 20; i++) {
             ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
         }
-        // Wheat stalks (darker)
+        // Wheat stalks
         ctx.strokeStyle = '#78350f';
         ctx.lineWidth = 2;
         for (let x = 8; x < 64; x += 16) {
@@ -245,7 +245,7 @@ function renderEditorGrid() {
 }
 
 function updateCellColor(cell, type) {
-    const colors = ['#d4a373', '#8b5a2b', '#2d6a4f', '#0284c7', '#fbbf24', '#b91c1c', '#22c55e'];
+    const colors = ['#d4a373', '#8b5a2b', '#b45309', '#0284c7', '#fbbf24', '#b91c1c', '#22c55e'];
     cell.style.backgroundColor = colors[type] || colors[0];
 }
 
@@ -325,6 +325,108 @@ function loadMap() {
 function testMap() {
     startBattle(mapData);
     closeMapEditor();
+}
+
+// ========== NEWS SYSTEM ==========
+async function handleNewsClick() {
+    if (window.currentProfile?.is_admin) {
+        openNewsEditor();
+    } else {
+        openNewsViewer();
+    }
+}
+
+async function openNewsViewer() {
+    const viewer = document.getElementById('news-viewer');
+    viewer.classList.remove('hidden');
+    await loadNewsList();
+}
+
+function closeNewsViewer() {
+    document.getElementById('news-viewer').classList.add('hidden');
+}
+
+async function loadNewsList() {
+    if (!window.sb) return;
+    const { data, error } = await window.sb
+        .from('news')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error('Error loading news:', error);
+        return;
+    }
+    const container = document.getElementById('news-list');
+    container.innerHTML = '';
+    data.forEach(news => {
+        const item = document.createElement('div');
+        item.className = 'news-item';
+        item.innerHTML = `
+            <div class="news-title">${escapeHTML(news.title)}</div>
+            <div class="news-date">${new Date(news.created_at).toLocaleString()}</div>
+            <div class="news-content">${news.content}</div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>"]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        if (m === '"') return '&quot;';
+        return m;
+    });
+}
+
+function openNewsEditor() {
+    if (!window.currentProfile?.is_admin) return;
+    document.getElementById('news-editor').classList.remove('hidden');
+}
+
+function closeNewsEditor() {
+    document.getElementById('news-editor').classList.add('hidden');
+}
+
+function clearNewsEditor() {
+    document.getElementById('news-title').value = '';
+    document.getElementById('news-content').value = '';
+}
+
+async function saveNewsAsDraft() {
+    await saveNews(false);
+}
+
+async function publishNews() {
+    await saveNews(true);
+}
+
+async function saveNews(published) {
+    if (!window.currentUser) return;
+    const title = document.getElementById('news-title').value.trim();
+    const content = document.getElementById('news-content').value.trim();
+    if (!title || !content) {
+        alert('Title and content required');
+        return;
+    }
+    const { error } = await window.sb
+        .from('news')
+        .insert({
+            title,
+            content,
+            published,
+            author_id: window.currentUser.id
+        });
+    if (error) {
+        alert('Error saving news: ' + error.message);
+    } else {
+        alert('News saved');
+        clearNewsEditor();
+        closeNewsEditor();
+        if (published) loadNewsList();
+    }
 }
 
 // ========== INITIALIZATION ==========
