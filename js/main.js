@@ -325,7 +325,6 @@ function testMap() {
 }
 
 // ========== NEWS SYSTEM ==========
-// NEW: Always open viewer, then show create button for admins
 async function handleNewsClick() {
     await openNewsViewer(); // viewer first for everyone
 }
@@ -361,15 +360,30 @@ async function loadNewsList() {
     const container = document.getElementById('news-list');
     container.innerHTML = '';
     data.forEach(news => {
-        const item = document.createElement('div');
-        item.className = 'news-item';
-        item.innerHTML = `
-            <div class="news-title">${escapeHTML(news.title)}</div>
-            <div class="news-date">${new Date(news.created_at).toLocaleString()}</div>
-            <div class="news-content">${news.content}</div>
+        const card = document.createElement('div');
+        card.className = 'news-card bg-black/40 p-6 rounded-xl border-2 border-white/30 cursor-pointer hover:bg-black/60 transition-colors';
+        // Strip HTML tags for preview, keep full for detail
+        const plainText = news.content.replace(/<[^>]*>/g, '');
+        const preview = plainText.length > 150 ? plainText.substring(0, 150) + '...' : plainText;
+        card.innerHTML = `
+            <h3 class="text-3xl text-yellow-400 mb-2">${escapeHTML(news.title)}</h3>
+            <div class="text-gray-300 text-sm">${new Date(news.created_at).toLocaleString()}</div>
+            <div class="text-white mt-2 line-clamp-2">${escapeHTML(preview)}</div>
         `;
-        container.appendChild(item);
+        card.onclick = () => showNewsDetail(news);
+        container.appendChild(card);
     });
+}
+
+function showNewsDetail(news) {
+    document.getElementById('detail-title').innerText = news.title;
+    document.getElementById('detail-date').innerText = new Date(news.created_at).toLocaleString();
+    document.getElementById('detail-content').innerHTML = news.content; // HTML allowed
+    document.getElementById('news-detail').classList.remove('hidden');
+}
+
+function closeNewsDetail() {
+    document.getElementById('news-detail').classList.add('hidden');
 }
 
 function escapeHTML(str) {
