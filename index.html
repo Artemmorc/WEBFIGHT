@@ -264,35 +264,48 @@
     </div>
 </div>
 
-<!-- ADMIN PANEL (smaller) -->
-<div id="adminPanel">
-    <h2 class="text-3xl text-yellow-400 mb-4">ADMIN CONSOLE</h2>
-    <div class="space-y-4">
-        <div>
-            <label>Give Coins</label>
-            <input type="number" id="adminCoins" class="admin-input" value="1000">
-            <button onclick="adminGiveCoins()" class="bg-blue-500 px-4 py-2 rounded">GIVE</button>
+<!-- ADMIN PANEL (full-screen, horizontal layout) -->
+<div id="adminPanel" class="absolute inset-0 z-50 modal-overlay hidden flex items-center justify-center p-10">
+    <div class="bg-blue-900 w-full max-w-6xl rounded-3xl border-4 border-white p-8 flex flex-col gap-6">
+        <div class="flex justify-between items-center">
+            <h2 class="text-5xl uppercase">Admin Console</h2>
+            <button onclick="toggleAdminPanel()" class="bg-red-500 px-8 py-3 rounded-xl border-2 border-white text-2xl hover:bg-red-600">CLOSE</button>
         </div>
-        <div>
-            <label>Give Gems</label>
-            <input type="number" id="adminGems" class="admin-input" value="100">
-            <button onclick="adminGiveGems()" class="bg-blue-500 px-4 py-2 rounded">GIVE</button>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <!-- Give Coins -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+                <label class="block text-2xl mb-2">Give Coins</label>
+                <input type="number" id="adminCoins" class="w-full bg-black/60 border-2 border-white/30 p-3 rounded-xl text-xl text-white" value="1000">
+                <button onclick="adminGiveCoins()" class="w-full bg-blue-500 hover:bg-blue-600 mt-4 py-3 rounded-xl text-2xl">GIVE</button>
+            </div>
+            <!-- Give Gems -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+                <label class="block text-2xl mb-2">Give Gems</label>
+                <input type="number" id="adminGems" class="w-full bg-black/60 border-2 border-white/30 p-3 rounded-xl text-xl text-white" value="100">
+                <button onclick="adminGiveGems()" class="w-full bg-blue-500 hover:bg-blue-600 mt-4 py-3 rounded-xl text-2xl">GIVE</button>
+            </div>
+            <!-- Give PP -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+                <label class="block text-2xl mb-2">Give PP</label>
+                <input type="number" id="adminPp" class="w-full bg-black/60 border-2 border-white/30 p-3 rounded-xl text-xl text-white" value="500">
+                <button onclick="adminGivePp()" class="w-full bg-blue-500 hover:bg-blue-600 mt-4 py-3 rounded-xl text-2xl">GIVE</button>
+            </div>
+            <!-- Change Username -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+                <label class="block text-2xl mb-2">Change Username</label>
+                <input type="text" id="adminNewUsername" class="w-full bg-black/60 border-2 border-white/30 p-3 rounded-xl text-xl text-white" placeholder="New username">
+                <button onclick="adminChangeUsername()" class="w-full bg-blue-500 hover:bg-blue-600 mt-4 py-3 rounded-xl text-2xl">CHANGE</button>
+            </div>
+            <!-- Map Editor -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+                <label class="block text-2xl mb-2">Map Editor</label>
+                <button onclick="openMapEditor()" class="w-full bg-purple-500 hover:bg-purple-600 mt-4 py-3 rounded-xl text-2xl">OPEN EDITOR</button>
+            </div>
+            <!-- (placeholder for future tools) -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30 flex items-center justify-center">
+                <span class="text-2xl opacity-50">More tools soon</span>
+            </div>
         </div>
-        <div>
-            <label>Give PP</label>
-            <input type="number" id="adminPp" class="admin-input" value="500">
-            <button onclick="adminGivePp()" class="bg-blue-500 px-4 py-2 rounded">GIVE</button>
-        </div>
-        <div>
-            <label>Change Username (enter new)</label>
-            <input type="text" id="adminNewUsername" class="admin-input" placeholder="New username">
-            <button onclick="adminChangeUsername()" class="bg-blue-500 px-4 py-2 rounded">CHANGE</button>
-        </div>
-        <div>
-            <label>Map Editor</label>
-            <button onclick="openMapEditor()" class="bg-purple-500 px-4 py-2 rounded">OPEN EDITOR</button>
-        </div>
-        <button onclick="toggleAdminPanel()" class="bg-red-500 w-full py-2 rounded mt-4">CLOSE</button>
     </div>
 </div>
 
