@@ -89,6 +89,7 @@ function startBattle(customMap = null) {
         water: [],
         powerCubes: [],
         barrels: [],
+        spawnPoints: [], // new array for spawn points
         bots: [],
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
     };
@@ -105,6 +106,7 @@ function startBattle(customMap = null) {
                 else if (type === 3) window.state.battle.water.push({ x: worldX, y: worldY });
                 else if (type === 4) window.state.battle.powerCubes.push({ x: worldX, y: worldY });
                 else if (type === 5) window.state.battle.barrels.push({ x: worldX, y: worldY });
+                else if (type === 6) window.state.battle.spawnPoints.push({ x: worldX + 32, y: worldY + 32 }); // center of tile
             }
         }
     } else {
@@ -118,6 +120,24 @@ function startBattle(customMap = null) {
                     window.state.battle.bushes.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
             }
         }
+        // For random maps, we'll still need spawn points – we'll generate them later in safeSpawn fallback
+    }
+
+    // Function to pick a random spawn point that is not occupied
+    function pickSpawnPoint(excludeList = []) {
+        if (window.state.battle.spawnPoints.length === 0) {
+            // Fallback to random safe position
+            return safeSpawn(25);
+        }
+        // Shuffle spawn points
+        const shuffled = [...window.state.battle.spawnPoints].sort(() => Math.random() - 0.5);
+        for (let spawn of shuffled) {
+            // Check if this spawn is already used (if coordinates are in excludeList)
+            const used = excludeList.some(u => u.x === spawn.x && u.y === spawn.y);
+            if (!used) return spawn;
+        }
+        // If all spawn points are used, fallback to random
+        return safeSpawn(25);
     }
 
     function safeSpawn(radius) {
@@ -140,11 +160,15 @@ function startBattle(customMap = null) {
         return { x, y };
     }
 
-    const spawn = safeSpawn(25);
+    // Player spawn
+    const usedSpawns = [];
+    const playerSpawn = pickSpawnPoint(usedSpawns);
+    usedSpawns.push(playerSpawn);
     window.state.battle.player = {
         id: 'player',
         name: window.playerState.name,
-        x: spawn.x, y: spawn.y,
+        x: playerSpawn.x,
+        y: playerSpawn.y,
         hp: bData.hp, maxHp: bData.hp,
         ammo: 3, maxAmmo: 3,
         type: brawlerName,
@@ -153,8 +177,10 @@ function startBattle(customMap = null) {
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000
     };
 
+    // Bot spawns
     for(let i=0; i<9; i++) {
-        const botSpawn = safeSpawn(25);
+        const botSpawn = pickSpawnPoint(usedSpawns);
+        usedSpawns.push(botSpawn);
         window.state.battle.bots.push({
             id: 'bot_'+i, name: 'Bot-'+(i+1),
             x: botSpawn.x, y: botSpawn.y,
