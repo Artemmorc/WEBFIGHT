@@ -33,7 +33,7 @@ window.SVG_ICONS = {
 
 // ========== GAME CONFIG ==========
 window.CONFIG = {
-    MAP_SIZE: 40,
+    MAP_SIZE: 60, // 60x60
     TILE_SIZE: 64,
     BRAWLERS: {
         'Mystery': { color: '#a855f7', hp: 3800, ammo: 3, speed: 6, reload: 1.5, type: 'Shotgun', pfp: 'M', rarity: 'starter', unlocked: true }
@@ -98,16 +98,112 @@ window.Textures.generate = function() {
     });
 };
 
-// ========== MAP EDITOR IMPROVED ==========
+// ========== MAP EDITOR WITH SERVER STORAGE ==========
 let mapData = [];
 let currentTile = 0; // 0=empty, 1=wall, 2=bush, 3=water, 4=powercube, 5=barrel, 6=spawn
-let mirrorMode = 'none'; // 'none', 'horizontal', 'vertical', 'diagonal', 'all'
+let mirrorMode = 'none';
+
+// Load list of maps from server and populate dropdown
+async function loadMapList() {
+    const { data, error } = await window.sb
+        .from('maps')
+        .select('id, name, is_active')
+        .order('name');
+    if (error) {
+        console.error('Error loading maps:', error);
+        return;
+    }
+    const select = document.getElementById('map-list-select');
+    select.innerHTML = '<option value="">-- Select a map to load --</option>';
+    let activeId = null;
+    data.forEach(map => {
+        const option = document.createElement('option');
+        option.value = map.id;
+        option.textContent = map.name + (map.is_active ? ' (active)' : '');
+        select.appendChild(option);
+        if (map.is_active) activeId = map.id;
+    });
+    if (activeId) {
+        document.getElementById('active-map-indicator').textContent = `Active map ID: ${activeId}`;
+    } else {
+        document.getElementById('active-map-indicator').textContent = 'No active map';
+    }
+}
+
+// Save current map to server with given name
+async function saveMapToServer() {
+    const name = document.getElementById('map-name-input').value.trim();
+    if (!name) {
+        alert('Please enter a map name');
+        return;
+    }
+    const { error } = await window.sb
+        .from('maps')
+        .insert({
+            name: name,
+            map_data: mapData,
+            is_active: false
+        });
+    if (error) {
+        alert('Error saving map: ' + error.message);
+    } else {
+        alert('Map saved successfully');
+        loadMapList(); // refresh dropdown
+        document.getElementById('map-name-input').value = '';
+    }
+}
+
+// Load selected map from server into editor
+async function loadMapFromServer() {
+    const select = document.getElementById('map-list-select');
+    const mapId = select.value;
+    if (!mapId) return;
+    const { data, error } = await window.sb
+        .from('maps')
+        .select('map_data')
+        .eq('id', mapId)
+        .single();
+    if (error) {
+        alert('Error loading map: ' + error.message);
+        return;
+    }
+    mapData = data.map_data;
+    renderEditorGrid();
+    alert('Map loaded');
+}
+
+// Set the selected map as active (deactivate others)
+async function setActiveMap() {
+    const select = document.getElementById('map-list-select');
+    const mapId = select.value;
+    if (!mapId) return;
+    // First, set all maps is_active = false
+    const { error: resetError } = await window.sb
+        .from('maps')
+        .update({ is_active: false })
+        .neq('id', 0); // update all
+    if (resetError) {
+        alert('Error resetting active map: ' + resetError.message);
+        return;
+    }
+    // Then set the selected one to active
+    const { error } = await window.sb
+        .from('maps')
+        .update({ is_active: true })
+        .eq('id', mapId);
+    if (error) {
+        alert('Error setting active map: ' + error.message);
+    } else {
+        alert('Active map updated');
+        loadMapList(); // refresh
+    }
+}
 
 function openMapEditor() {
     document.getElementById('map-editor').classList.remove('hidden');
     initMapData();
+    loadMapList();
     renderEditorGrid();
-    // Highlight default tile (erase)
     highlightSelectedTile(0);
 }
 
@@ -153,11 +249,9 @@ function selectTile(type) {
 }
 
 function highlightSelectedTile(type) {
-    // Remove highlight from all palette items
     document.querySelectorAll('[id^="palette-"]').forEach(el => {
         el.style.borderColor = 'white';
     });
-    // Highlight selected
     const ids = ['erase', 'wall', 'bush', 'water', 'powercube', 'barrel', 'spawn'];
     const id = ids[type];
     const el = document.getElementById(`palette-${id}`);
@@ -180,7 +274,7 @@ function placeTile(x, y) {
 }
 
 function getMirrorPositions(x, y) {
-    const max = 59; // 0-59
+    const max = 59;
     switch (mirrorMode) {
         case 'none':
             return [{x, y}];
@@ -206,6 +300,7 @@ function getMirrorPositions(x, y) {
     }
 }
 
+// Legacy browser storage functions (optional)
 function saveMap() {
     localStorage.setItem('customMap', JSON.stringify(mapData));
     alert('Map saved to browser storage');
@@ -223,7 +318,7 @@ function loadMap() {
 }
 
 function testMap() {
-    startBattle(mapData); // pass custom map
+    startBattle(mapData);
     closeMapEditor();
 }
 
@@ -240,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Check if user is already logged in
-sb.auth.getSession().then(({ data: { session } }) => {
+window.sb.auth.getSession().then(({ data: { session } }) => {
     if (session) {
         console.log('User already logged in', session.user);
         window.currentUser = session.user;
@@ -253,7 +348,7 @@ sb.auth.getSession().then(({ data: { session } }) => {
 });
 
 // Listen for auth changes
-sb.auth.onAuthStateChange((event, session) => {
+window.sb.auth.onAuthStateChange((event, session) => {
     console.log('Auth event:', event, session);
     if (event === 'SIGNED_IN') {
         window.currentUser = session.user;
