@@ -334,6 +334,7 @@ canvas {
 
 /* ========== RESPONSIVE TWEAKS FOR MOBILE ========== */
 @media (max-width: 768px) {
+    /* Scale down joysticks */
     .joystick-base {
         width: 100px;
         height: 100px;
@@ -342,13 +343,25 @@ canvas {
         width: 45px;
         height: 45px;
     }
+    /* Scale down buttons */
     .btn-bs {
         font-size: 1.2rem;
         padding: 0.8rem 1.5rem;
     }
+    /* Login box */
     .login-box {
         width: 90%;
+        padding: 1.5rem;
     }
+    .login-box input {
+        font-size: 1rem;
+        padding: 0.8rem;
+    }
+    .login-box button {
+        font-size: 1.2rem;
+        padding: 0.8rem;
+    }
+    /* After-game menu */
     .aftergame-box {
         width: 90%;
         padding: 1.5rem;
@@ -359,7 +372,55 @@ canvas {
     .aftergame-rank {
         font-size: 2rem;
     }
+    .aftergame-reward {
+        font-size: 1.5rem;
+    }
+    .aftergame-button {
+        font-size: 1.5rem;
+        padding: 0.8rem 2rem;
+    }
+    /* Fight text */
     .fight-text {
         font-size: 4rem;
+    }
+    /* Profile and shop modals */
+    .modal-overlay > div {
+        width: 95%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    #profile-modal .grid-cols-2 {
+        grid-template-columns: 1fr;
+    }
+    #shop-modal .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    /* Brawler selection */
+    #brawler-screen .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    /* Admin panel */
+    #adminPanel {
+        width: 90%;
+    }
+}
+
+/* ========== LANDSCAPE ORIENTATION FIX ========== */
+@media (orientation: portrait) {
+    /* Optionally show a message to rotate device */
+    body::after {
+        content: "Please rotate your device to landscape mode";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        color: white;
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
     }
 }
