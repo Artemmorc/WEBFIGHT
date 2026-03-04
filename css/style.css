@@ -6,7 +6,7 @@ body {
     margin: 0;
     overflow: hidden;
     user-select: none;
-    touch-action: none;
+    touch-action: none; /* prevents page zoom/scroll */
 }
 
 /* ========== STATIC DESERT BACKGROUND ========== */
@@ -95,6 +95,7 @@ canvas {
 }
 .btn-bs:active { transform: translateY(4px); box-shadow: 0 2px 0 0 #000; }
 
+/* ========== JOYSTICK (MOBILE SUPPORT) ========== */
 .joystick-base {
     width: 130px;
     height: 130px;
@@ -106,6 +107,8 @@ canvas {
     align-items: center;
     justify-content: center;
     pointer-events: auto;
+    touch-action: none; /* prevents page scroll while using joystick */
+    -webkit-tap-highlight-color: transparent;
 }
 .joystick-stick {
     width: 60px;
@@ -327,4 +330,36 @@ canvas {
     opacity: 0;
     transition: opacity 0.3s;
     white-space: nowrap;
+}
+
+/* ========== RESPONSIVE TWEAKS FOR MOBILE ========== */
+@media (max-width: 768px) {
+    .joystick-base {
+        width: 100px;
+        height: 100px;
+    }
+    .joystick-stick {
+        width: 45px;
+        height: 45px;
+    }
+    .btn-bs {
+        font-size: 1.2rem;
+        padding: 0.8rem 1.5rem;
+    }
+    .login-box {
+        width: 90%;
+    }
+    .aftergame-box {
+        width: 90%;
+        padding: 1.5rem;
+    }
+    .aftergame-title {
+        font-size: 2.5rem;
+    }
+    .aftergame-rank {
+        font-size: 2rem;
+    }
+    .fight-text {
+        font-size: 4rem;
+    }
 }
