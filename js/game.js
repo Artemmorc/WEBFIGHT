@@ -163,11 +163,8 @@ function startBattle(customMap = null) {
     }
 
     function canSee(observer, target, currentTime) {
-        // If target is revealed by recent shooting, always visible
         if (target.revealUntil && target.revealUntil > currentTime) return true;
-        // If target not in bush, visible
         if (!isInBush(target.x, target.y)) return true;
-        // If observer is within 3 tiles, can see into bush
         const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
         return distance < 3 * window.CONFIG.TILE_SIZE;
     }
@@ -430,6 +427,7 @@ function updateGame() {
         }
     });
 
+    // Faster HP regen
     if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
@@ -608,7 +606,7 @@ function drawGame() {
         }
     }
     
-    // Bushes (solid – no distance transparency)
+    // Bushes (solid)
     window.state.battle.bushes.forEach(b => {
         ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
     });
@@ -657,13 +655,11 @@ function drawGame() {
     const drawChar = (c, isPlayer, viewer) => {
         if(c.hp <= 0) return;
         
-        // Visibility check
         if (!isPlayer && !canSee(viewer, c, now)) return;
         
         ctx.save();
         ctx.translate(c.x, c.y);
 
-        // Player in bush becomes semi-transparent
         if (isPlayer && isInBush(c.x, c.y)) {
             ctx.globalAlpha = 0.75;
         }
@@ -736,9 +732,14 @@ function drawGame() {
     ctx.restore();
 }
 
-// ========== INPUT HANDLING ==========
+// ========== INPUT HANDLING (with input field detection) ==========
 window.onkeydown = (e) => {
     if (!e) return;
+    // If an input or textarea is focused, don't prevent default
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+        return; // allow typing
+    }
     switch (e.code) {
         case 'KeyW': window.keys.w = true; e.preventDefault(); break;
         case 'KeyA': window.keys.a = true; e.preventDefault(); break;
@@ -749,6 +750,10 @@ window.onkeydown = (e) => {
 
 window.onkeyup = (e) => {
     if (!e) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+        return;
+    }
     switch (e.code) {
         case 'KeyW': window.keys.w = false; e.preventDefault(); break;
         case 'KeyA': window.keys.a = false; e.preventDefault(); break;
