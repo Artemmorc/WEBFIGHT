@@ -47,12 +47,26 @@ function checkCollision(x, y, radius) {
     return false;
 }
 
-function startBattlePre() {
+async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
+    
+    // Try to load active map from server
+    let customMap = null;
+    if (!window.currentProfile?.is_admin) { // for non-admin, use active map
+        const { data, error } = await sb
+            .from('maps')
+            .select('map_data')
+            .eq('is_active', true)
+            .maybeSingle();
+        if (!error && data) {
+            customMap = data.map_data;
+        }
+    }
+    
     setTimeout(() => {
         document.getElementById('prematch-loading').classList.remove('active');
-        startBattle(); // use random map
+        startBattle(customMap); // pass custom map (null if none)
         window.state.preBattle = true;
         const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
         window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
