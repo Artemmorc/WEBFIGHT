@@ -98,13 +98,17 @@ window.Textures.generate = function() {
     });
 };
 
-// ========== MAP EDITOR FUNCTIONS ==========
-let mapData = []; // 2D array of tile types: 0=empty, 1=wall, 2=bush, 3=water, 4=powercube, 5=barrel
+// ========== MAP EDITOR IMPROVED ==========
+let mapData = [];
+let currentTile = 0; // 0=empty, 1=wall, 2=bush, 3=water, 4=powercube, 5=barrel, 6=spawn
+let mirrorMode = 'none'; // 'none', 'horizontal', 'vertical', 'diagonal', 'all'
 
 function openMapEditor() {
     document.getElementById('map-editor').classList.remove('hidden');
     initMapData();
     renderEditorGrid();
+    // Highlight default tile (erase)
+    highlightSelectedTile(0);
 }
 
 function closeMapEditor() {
@@ -113,10 +117,10 @@ function closeMapEditor() {
 
 function initMapData() {
     mapData = [];
-    for (let y = 0; y < CONFIG.MAP_SIZE; y++) {
+    for (let y = 0; y < 60; y++) {
         let row = [];
-        for (let x = 0; x < CONFIG.MAP_SIZE; x++) {
-            row.push(0); // empty by default
+        for (let x = 0; x < 60; x++) {
+            row.push(0);
         }
         mapData.push(row);
     }
@@ -125,28 +129,81 @@ function initMapData() {
 function renderEditorGrid() {
     const grid = document.getElementById('editor-grid');
     grid.innerHTML = '';
-    for (let y = 0; y < CONFIG.MAP_SIZE; y++) {
-        for (let x = 0; x < CONFIG.MAP_SIZE; x++) {
+    for (let y = 0; y < 60; y++) {
+        for (let x = 0; x < 60; x++) {
             const cell = document.createElement('div');
-            cell.className = 'w-10 h-10 border-2 border-gray-600 cursor-pointer';
+            cell.className = 'w-10 h-10 border border-gray-700 cursor-pointer';
             cell.dataset.x = x;
             cell.dataset.y = y;
             updateCellColor(cell, mapData[y][x]);
-            cell.onclick = () => cycleTile(x, y);
+            cell.onclick = () => placeTile(x, y);
             grid.appendChild(cell);
         }
     }
 }
 
 function updateCellColor(cell, type) {
-    const colors = ['#d4a373', '#8b5a2b', '#2d6a4f', '#0284c7', '#fbbf24', '#b91c1c'];
+    const colors = ['#d4a373', '#8b5a2b', '#2d6a4f', '#0284c7', '#fbbf24', '#b91c1c', '#22c55e'];
     cell.style.backgroundColor = colors[type] || colors[0];
 }
 
-function cycleTile(x, y) {
-    mapData[y][x] = (mapData[y][x] + 1) % 6; // cycle through 0-5
-    const cell = document.querySelector(`[data-x="${x}"][data-y="${y}"]`);
-    updateCellColor(cell, mapData[y][x]);
+function selectTile(type) {
+    currentTile = type;
+    highlightSelectedTile(type);
+}
+
+function highlightSelectedTile(type) {
+    // Remove highlight from all palette items
+    document.querySelectorAll('[id^="palette-"]').forEach(el => {
+        el.style.borderColor = 'white';
+    });
+    // Highlight selected
+    const ids = ['erase', 'wall', 'bush', 'water', 'powercube', 'barrel', 'spawn'];
+    const id = ids[type];
+    const el = document.getElementById(`palette-${id}`);
+    if (el) el.style.borderColor = 'yellow';
+}
+
+function setMirrorMode(mode) {
+    mirrorMode = mode;
+}
+
+function placeTile(x, y) {
+    const positions = getMirrorPositions(x, y);
+    positions.forEach(pos => {
+        if (pos.x >= 0 && pos.x < 60 && pos.y >= 0 && pos.y < 60) {
+            mapData[pos.y][pos.x] = currentTile;
+            const cell = document.querySelector(`[data-x="${pos.x}"][data-y="${pos.y}"]`);
+            if (cell) updateCellColor(cell, currentTile);
+        }
+    });
+}
+
+function getMirrorPositions(x, y) {
+    const max = 59; // 0-59
+    switch (mirrorMode) {
+        case 'none':
+            return [{x, y}];
+        case 'horizontal':
+            return [{x, y}, {x: max - x, y}];
+        case 'vertical':
+            return [{x, y}, {x, y: max - y}];
+        case 'diagonal':
+            return [{x, y}, {x: y, y: x}];
+        case 'all':
+            return [
+                {x, y},
+                {x: max - x, y},
+                {x, y: max - y},
+                {x: max - x, y: max - y},
+                {x: y, y: x},
+                {x: max - y, y: max - x},
+                {x: y, y: max - x},
+                {x: max - y, y: x}
+            ];
+        default:
+            return [{x, y}];
+    }
 }
 
 function saveMap() {
@@ -166,7 +223,7 @@ function loadMap() {
 }
 
 function testMap() {
-    startBattle(mapData); // pass custom map to startBattle
+    startBattle(mapData); // pass custom map
     closeMapEditor();
 }
 
