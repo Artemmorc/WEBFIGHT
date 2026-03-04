@@ -77,6 +77,36 @@ async function startBattlePre() {
     }, 500);
 }
 
+// ========== GAME ENGINE ==========
+async function startBattlePre() {
+    console.log('startBattlePre called');
+    document.getElementById('prematch-loading').classList.add('active');
+    
+    // Try to load active map from server (for non-admin players)
+    let customMap = null;
+    if (!window.currentProfile?.is_admin) { // for non-admin, use active map
+        const { data, error } = await window.sb
+            .from('maps')
+            .select('map_data')
+            .eq('is_active', true)
+            .maybeSingle();
+        if (!error && data) {
+            customMap = data.map_data;
+        }
+    }
+    
+    setTimeout(() => {
+        document.getElementById('prematch-loading').classList.remove('active');
+        startBattle(customMap); // pass custom map (null if none)
+        window.state.preBattle = true;
+        const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+        window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
+        window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
+        preBattleStart = Date.now();
+        document.getElementById('battle-ui').style.display = 'none';
+    }, 500);
+}
+
 function startBattle(customMap = null) {
     window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
@@ -104,7 +134,7 @@ function startBattle(customMap = null) {
         water: [],
         powerCubes: [],
         barrels: [],
-        spawnPoints: [], // new array for spawn points
+        spawnPoints: [],
         bots: [],
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
     };
@@ -121,11 +151,11 @@ function startBattle(customMap = null) {
                 else if (type === 3) window.state.battle.water.push({ x: worldX, y: worldY });
                 else if (type === 4) window.state.battle.powerCubes.push({ x: worldX, y: worldY });
                 else if (type === 5) window.state.battle.barrels.push({ x: worldX, y: worldY });
-                else if (type === 6) window.state.battle.spawnPoints.push({ x: worldX + 32, y: worldY + 32 }); // center of tile
+                else if (type === 6) window.state.battle.spawnPoints.push({ x: worldX + 32, y: worldY + 32 });
             }
         }
     } else {
-        // Random generation (existing)
+        // Random generation
         for(let i=0; i<window.CONFIG.MAP_SIZE; i++) {
             for(let j=0; j<window.CONFIG.MAP_SIZE; j++) {
                 const rand = Math.random();
@@ -135,7 +165,6 @@ function startBattle(customMap = null) {
                     window.state.battle.bushes.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
             }
         }
-        // For random maps, we'll still need spawn points – we'll generate them later in safeSpawn fallback
     }
 
     // Function to pick a random spawn point that is not occupied
@@ -144,14 +173,11 @@ function startBattle(customMap = null) {
             // Fallback to random safe position
             return safeSpawn(25);
         }
-        // Shuffle spawn points
         const shuffled = [...window.state.battle.spawnPoints].sort(() => Math.random() - 0.5);
         for (let spawn of shuffled) {
-            // Check if this spawn is already used (if coordinates are in excludeList)
             const used = excludeList.some(u => u.x === spawn.x && u.y === spawn.y);
             if (!used) return spawn;
         }
-        // If all spawn points are used, fallback to random
         return safeSpawn(25);
     }
 
