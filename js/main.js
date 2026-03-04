@@ -72,12 +72,10 @@ window.Textures.generate = function() {
         // Darker wheat field covering entire tile
         ctx.fillStyle = '#b45309';
         ctx.fillRect(0, 0, 64, 64);
-        // Add texture with darker yellow
         ctx.fillStyle = '#a16207';
         for (let i = 0; i < 20; i++) {
             ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
         }
-        // Wheat stalks
         ctx.strokeStyle = '#78350f';
         ctx.lineWidth = 2;
         for (let x = 8; x < 64; x += 16) {
@@ -328,18 +326,21 @@ function testMap() {
 }
 
 // ========== NEWS SYSTEM ==========
-async function handleNewsClick() {
-    if (window.currentProfile?.is_admin) {
-        openNewsEditor();
-    } else {
-        openNewsViewer();
-    }
+function handleNewsClick() {
+    openNewsViewer(); // Always open viewer; admin sees create button inside
 }
 
 async function openNewsViewer() {
     const viewer = document.getElementById('news-viewer');
     viewer.classList.remove('hidden');
     await loadNewsList();
+    // Show create button if admin
+    const createBtn = document.getElementById('news-create-btn');
+    if (window.currentProfile?.is_admin) {
+        createBtn.classList.remove('hidden');
+    } else {
+        createBtn.classList.add('hidden');
+    }
 }
 
 function closeNewsViewer() {
