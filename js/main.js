@@ -443,7 +443,7 @@ async function saveNews(published) {
     }
 }
 
-// ========== MAINTENANCE MODE (VISUAL COUNTDOWN ONLY) ==========
+// ========== MAINTENANCE MODE (with separate visual timer) ==========
 let maintenanceInterval = null;
 let warningTimeout = null;
 let timerInterval = null;
@@ -473,12 +473,13 @@ async function checkMaintenance() {
         return;
     }
 
-    // Maintenance active – record exists and start time passed
+    // Maintenance active – show overlay for non‑admins
     if (!window.currentProfile?.is_admin) {
         document.getElementById('maintenance-overlay').classList.remove('hidden');
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('menu-screen').style.display = 'none';
-        startMaintenanceTimer(end); // show countdown based on end
+        // Start visual timer if a visual_end_time exists, otherwise fallback to old duration
+        startMaintenanceTimer(data);
     } else {
         document.getElementById('maintenance-overlay').classList.add('hidden');
     }
@@ -499,20 +500,43 @@ function showMaintenanceWarning(minutes) {
     }, 5000);
 }
 
-function startMaintenanceTimer(endTime) {
+function startMaintenanceTimer(data) {
     if (timerInterval) clearInterval(timerInterval);
     const timerSpan = document.getElementById('maintenance-timer');
     if (!timerSpan) return;
+
+    // If there's a visual_end_time, use that for countdown
+    if (data.visual_end_time) {
+        const visualEnd = new Date(data.visual_end_time).getTime();
+        timerInterval = setInterval(() => {
+            const now = Date.now();
+            if (now >= visualEnd) {
+                timerSpan.innerText = '0:00';
+                clearInterval(timerInterval);
+                timerInterval = null;
+                return;
+            }
+            const remaining = visualEnd - now;
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            timerSpan.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
+        return;
+    }
+
+    // Fallback to old duration-based countdown (if no visual timer)
+    const start = new Date(data.start_time).getTime();
+    const duration = (data.duration_minutes || 10) * 60 * 1000;
+    const end = start + duration;
     timerInterval = setInterval(() => {
         const now = Date.now();
-        if (now >= endTime) {
+        if (now >= end) {
             timerSpan.innerText = '0:00';
-            // Do NOT delete maintenance – just stop countdown
             clearInterval(timerInterval);
             timerInterval = null;
             return;
         }
-        const remaining = endTime - now;
+        const remaining = end - now;
         const minutes = Math.floor(remaining / 60000);
         const seconds = Math.floor((remaining % 60000) / 1000);
         timerSpan.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -533,19 +557,34 @@ async function scheduleMaintenance() {
     }
 }
 
-async function scheduleMaintenanceWithDuration() {
+async function setVisualTimer() {
     if (!window.currentProfile?.is_admin) return;
-    const minutesInput = document.getElementById('maintenance-minutes');
-    let duration = parseInt(minutesInput.value, 10);
-    if (isNaN(duration) || duration < 1) duration = 5;
-    const startTime = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+    const minutesInput = document.getElementById('visual-minutes');
+    let minutes = parseInt(minutesInput.value, 10);
+    if (isNaN(minutes) || minutes < 1) minutes = 10;
+    const visualEnd = new Date(Date.now() + minutes * 60 * 1000).toISOString();
     const { error } = await window.sb
         .from('maintenance')
-        .upsert({ id: 1, start_time: startTime, duration_minutes: duration });
+        .update({ visual_end_time: visualEnd })
+        .eq('id', 1);
     if (error) {
-        alert('Error scheduling maintenance: ' + error.message);
+        alert('Error setting visual timer: ' + error.message);
     } else {
-        alert(`Maintenance scheduled to start in 3 minutes (duration ${duration} min).`);
+        alert(`Visual timer set to ${minutes} minutes.`);
+        toggleAdminPanel();
+    }
+}
+
+async function clearVisualTimer() {
+    if (!window.currentProfile?.is_admin) return;
+    const { error } = await window.sb
+        .from('maintenance')
+        .update({ visual_end_time: null })
+        .eq('id', 1);
+    if (error) {
+        alert('Error clearing visual timer: ' + error.message);
+    } else {
+        alert('Visual timer cleared.');
         toggleAdminPanel();
     }
 }
