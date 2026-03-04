@@ -550,6 +550,7 @@ window.onkeyup = (e) => {
 };
 
 function updateKeyboardMovement() {
+    console.log('updateKeyboardMovement called, keys:', window.keys);
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     let kx = 0, ky = 0;
     if (window.keys.w) ky -= 1;
