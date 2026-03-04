@@ -98,8 +98,79 @@ window.Textures.generate = function() {
     });
 };
 
+// ========== MAP EDITOR FUNCTIONS ==========
+let mapData = []; // 2D array of tile types: 0=empty, 1=wall, 2=bush, 3=water, 4=powercube, 5=barrel
+
+function openMapEditor() {
+    document.getElementById('map-editor').classList.remove('hidden');
+    initMapData();
+    renderEditorGrid();
+}
+
+function closeMapEditor() {
+    document.getElementById('map-editor').classList.add('hidden');
+}
+
+function initMapData() {
+    mapData = [];
+    for (let y = 0; y < CONFIG.MAP_SIZE; y++) {
+        let row = [];
+        for (let x = 0; x < CONFIG.MAP_SIZE; x++) {
+            row.push(0); // empty by default
+        }
+        mapData.push(row);
+    }
+}
+
+function renderEditorGrid() {
+    const grid = document.getElementById('editor-grid');
+    grid.innerHTML = '';
+    for (let y = 0; y < CONFIG.MAP_SIZE; y++) {
+        for (let x = 0; x < CONFIG.MAP_SIZE; x++) {
+            const cell = document.createElement('div');
+            cell.className = 'w-10 h-10 border-2 border-gray-600 cursor-pointer';
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+            updateCellColor(cell, mapData[y][x]);
+            cell.onclick = () => cycleTile(x, y);
+            grid.appendChild(cell);
+        }
+    }
+}
+
+function updateCellColor(cell, type) {
+    const colors = ['#d4a373', '#8b5a2b', '#2d6a4f', '#0284c7', '#fbbf24', '#b91c1c'];
+    cell.style.backgroundColor = colors[type] || colors[0];
+}
+
+function cycleTile(x, y) {
+    mapData[y][x] = (mapData[y][x] + 1) % 6; // cycle through 0-5
+    const cell = document.querySelector(`[data-x="${x}"][data-y="${y}"]`);
+    updateCellColor(cell, mapData[y][x]);
+}
+
+function saveMap() {
+    localStorage.setItem('customMap', JSON.stringify(mapData));
+    alert('Map saved to browser storage');
+}
+
+function loadMap() {
+    const saved = localStorage.getItem('customMap');
+    if (saved) {
+        mapData = JSON.parse(saved);
+        renderEditorGrid();
+        alert('Map loaded');
+    } else {
+        alert('No saved map found');
+    }
+}
+
+function testMap() {
+    startBattle(mapData); // pass custom map to startBattle
+    closeMapEditor();
+}
+
 // ========== INITIALIZATION ==========
-// Wait for DOM and then init
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof initUI === 'function') {
         initUI();
