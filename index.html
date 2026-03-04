@@ -264,9 +264,9 @@
     </div>
 </div>
 
-<!-- ADMIN PANEL (full-screen, horizontal layout) -->
+<!-- ADMIN PANEL (styled like profile modal, with scroll) -->
 <div id="adminPanel" class="absolute inset-0 z-50 modal-overlay hidden flex items-center justify-center p-10">
-    <div class="bg-blue-900 w-full max-w-6xl rounded-3xl border-4 border-white p-8 flex flex-col gap-6">
+    <div class="bg-blue-900 w-full max-w-6xl rounded-3xl border-4 border-white p-8 flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center">
             <h2 class="text-5xl uppercase">Admin Console</h2>
             <button onclick="toggleAdminPanel()" class="bg-red-500 px-8 py-3 rounded-xl border-2 border-white text-2xl hover:bg-red-600">CLOSE</button>
