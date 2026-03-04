@@ -24,6 +24,9 @@ let gameLoopId = null;
 let preBattleStart = null;
 const fightTextEl = document.getElementById('fight-text');
 
+// Power cubes collected counter
+let powerCubesCollected = 0;
+
 // Death animation variables
 let deathAnimationStart = 0;
 let deathAnimationDuration = 1500;
@@ -31,31 +34,39 @@ let playerDead = false;
 
 function checkCollision(x, y, radius) {
     if (!window.state.battle || !window.state.battle.active) return false;
+    // Walls
     for (const wall of window.state.battle.walls) {
         if (x + radius > wall.x && x - radius < wall.x + window.CONFIG.TILE_SIZE &&
             y + radius > wall.y && y - radius < wall.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
+    // Water (impassable)
     for (const water of window.state.battle.water || []) {
         if (x + radius > water.x && x - radius < water.x + window.CONFIG.TILE_SIZE &&
             y + radius > water.y && y - radius < water.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
+    // Barrels (impassable)
+    for (const barrel of window.state.battle.barrels || []) {
+        if (x + radius > barrel.x && x - radius < barrel.x + window.CONFIG.TILE_SIZE &&
+            y + radius > barrel.y && y - radius < barrel.y + window.CONFIG.TILE_SIZE) {
+            return true;
+        }
+    }
     return false;
 }
 
-// Modified startBattlePre to be async and load active map
+// Modified startBattlePre to load active map for everyone
 async function startBattlePre() {
     console.log('startBattlePre called');
     
-    // Show loading overlay immediately
     document.getElementById('prematch-loading').classList.add('active');
     
-    // Try to load active map from server (for non-admin players)
+    // Try to load active map from server for everyone
     let customMap = null;
-    if (!window.currentProfile?.is_admin && typeof window.sb !== 'undefined') {
+    if (typeof window.sb !== 'undefined') {
         try {
             const { data, error } = await window.sb
                 .from('maps')
@@ -71,10 +82,9 @@ async function startBattlePre() {
         }
     }
     
-    // Short delay to show loading (optional)
     setTimeout(() => {
         document.getElementById('prematch-loading').classList.remove('active');
-        startBattle(customMap); // pass custom map (null if none)
+        startBattle(customMap);
         window.state.preBattle = true;
         const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
         window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
@@ -100,6 +110,9 @@ function startBattle(customMap = null) {
         return;
     }
     
+    // Reset power cubes counter
+    powerCubesCollected = 0;
+    
     window.state.battle = {
         active: true,
         camera: { x: 0, y: 0, zoom: 0.8 },
@@ -117,7 +130,6 @@ function startBattle(customMap = null) {
     };
 
     if (customMap) {
-        // Build from custom map data
         for (let y = 0; y < window.CONFIG.MAP_SIZE; y++) {
             for (let x = 0; x < window.CONFIG.MAP_SIZE; x++) {
                 const type = customMap[y][x];
@@ -126,7 +138,7 @@ function startBattle(customMap = null) {
                 if (type === 1) window.state.battle.walls.push({ x: worldX, y: worldY });
                 else if (type === 2) window.state.battle.bushes.push({ x: worldX, y: worldY });
                 else if (type === 3) window.state.battle.water.push({ x: worldX, y: worldY });
-                else if (type === 4) window.state.battle.powerCubes.push({ x: worldX, y: worldY });
+                else if (type === 4) window.state.battle.powerCubes.push({ x: worldX + 32, y: worldY + 32, collected: false });
                 else if (type === 5) window.state.battle.barrels.push({ x: worldX, y: worldY });
                 else if (type === 6) window.state.battle.spawnPoints.push({ x: worldX + 32, y: worldY + 32 });
             }
@@ -144,10 +156,8 @@ function startBattle(customMap = null) {
         }
     }
 
-    // Function to pick a random spawn point that is not occupied
     function pickSpawnPoint(excludeList = []) {
         if (window.state.battle.spawnPoints.length === 0) {
-            // Fallback to random safe position
             return safeSpawn(25);
         }
         const shuffled = [...window.state.battle.spawnPoints].sort(() => Math.random() - 0.5);
@@ -173,6 +183,10 @@ function startBattle(customMap = null) {
             window.state.battle.water.some(w =>
                 x + radius > w.x && x - radius < w.x + window.CONFIG.TILE_SIZE &&
                 y + radius > w.y && y - radius < w.y + window.CONFIG.TILE_SIZE
+            ) ||
+            window.state.battle.barrels.some(b =>
+                x + radius > b.x && x - radius < b.x + window.CONFIG.TILE_SIZE &&
+                y + radius > b.y && y - radius < b.y + window.CONFIG.TILE_SIZE
             )
         );
         return { x, y };
@@ -192,10 +206,10 @@ function startBattle(customMap = null) {
         type: brawlerName,
         reloading: 0, angle: 0,
         inBush: false, lastDamageTime: Date.now(),
-        lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000
+        lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000,
+        power: 0 // power cubes multiplier
     };
 
-    // Bot spawns
     for(let i=0; i<9; i++) {
         const botSpawn = pickSpawnPoint(usedSpawns);
         usedSpawns.push(botSpawn);
@@ -205,7 +219,8 @@ function startBattle(customMap = null) {
             hp: window.CONFIG.BRAWLERS['Mystery'].hp, maxHp: window.CONFIG.BRAWLERS['Mystery'].hp,
             type: 'Mystery', speed: window.CONFIG.BRAWLERS['Mystery'].speed,
             angle: Math.random()*Math.PI*2, lastShot: 0,
-            inBush: false, invincibleUntil: Date.now() + 3000
+            inBush: false, invincibleUntil: Date.now() + 3000,
+            power: 0
         });
     }
 
@@ -225,6 +240,7 @@ function updateGame() {
     const p = battle.player;
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
 
+    // Death animation
     if (playerDead) {
         const elapsed = Date.now() - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
@@ -288,6 +304,19 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
+    // Power cube collection
+    for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
+        const cube = battle.powerCubes[i];
+        if (cube.collected) continue;
+        const dist = Math.hypot(p.x - cube.x, p.y - cube.y);
+        if (dist < 30) {
+            cube.collected = true;
+            p.power++;
+            powerCubesCollected++;
+            // Optional: play sound, increase damage etc.
+        }
+    }
+
     if (p.ammo < p.maxAmmo) {
         if (Date.now() - p.lastAttackTime > 1500) {
             p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
@@ -314,7 +343,12 @@ function updateGame() {
             if (t.id === b.ownerId || t.hp <= 0) continue;
             if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
                 if (!t.invincibleUntil || Date.now() > t.invincibleUntil) {
-                    t.hp -= 800;
+                    // Damage scales with shooter's power (if shooter is player)
+                    let damage = 800;
+                    if (b.ownerId === 'player' && p.power > 0) {
+                        damage += p.power * 200;
+                    }
+                    t.hp -= damage;
                     if (t.id === 'player') {
                         t.lastDamageTime = Date.now();
                     }
@@ -393,7 +427,7 @@ function updateGame() {
     }
 
     if (aliveCount === 1 && p.hp > 0) {
-        const coinsEarned = 50 + Math.floor(Math.random() * 30);
+        const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         const trophiesEarned = 10;
         window.playerState.coins += coinsEarned;
         window.playerState.trophies += trophiesEarned;
@@ -433,6 +467,7 @@ function hideAfterGame() {
     }, 300);
 }
 
+// ========== IMPROVED TEXTURES ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
@@ -442,6 +477,7 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 3;
     
+    // Body
     const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 20);
     gradBody.addColorStop(0, '#a855f7');
     gradBody.addColorStop(1, '#4a1d6d');
@@ -453,6 +489,7 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
+    // Head
     ctx.fillStyle = '#c084fc';
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#a855f7';
@@ -462,6 +499,7 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.strokeStyle = '#2d2d2d';
     ctx.stroke();
     
+    // Eyes
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
@@ -472,22 +510,85 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     
+    // Hat
     ctx.fillStyle = '#5d3a1a';
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'black';
     ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillRect(-8, -32, 16, 4);
     
+    // Cloak shoulders
     ctx.fillStyle = '#4a2e1e';
     ctx.beginPath(); ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     
+    // Weapon
     ctx.fillStyle = '#4a3729';
     ctx.shadowBlur = 6;
     ctx.fillRect(10, -3, 24, 5);
     ctx.fillRect(28, -6, 5, 11);
     ctx.fillStyle = '#7a5a3a';
     ctx.fillRect(12, -2, 8, 2);
+    
+    ctx.restore();
+}
+
+function drawPowerCube(ctx, x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    
+    // Glow
+    ctx.shadowColor = '#fbbf24';
+    ctx.shadowBlur = 20;
+    
+    // Main cube
+    const grad = ctx.createRadialGradient(-5, -5, 5, 0, 0, 15);
+    grad.addColorStop(0, '#fde047');
+    grad.addColorStop(1, '#b45309');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.rect(-10, -10, 20, 20);
+    ctx.fill();
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Inner glow
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(-5, -5, 10, 10);
+    
+    ctx.restore();
+}
+
+function drawBarrel(ctx, x, y) {
+    ctx.save();
+    ctx.translate(x + 32, y + 32); // center of tile
+    
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    
+    // Barrel body
+    const grad = ctx.createLinearGradient(-20, -20, 20, 20);
+    grad.addColorStop(0, '#b91c1c');
+    grad.addColorStop(1, '#7f1d1d');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 20, 25, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Metal bands
+    ctx.fillStyle = '#4a3729';
+    ctx.fillRect(-22, -15, 44, 6);
+    ctx.fillRect(-22, 10, 44, 6);
+    
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(-18, -20, 36, 5);
     
     ctx.restore();
 }
@@ -523,20 +624,23 @@ function drawGame() {
     window.state.battle.water?.forEach(w => {
         ctx.fillStyle = '#0284c7';
         ctx.fillRect(w.x, w.y, 64, 64);
+        // Add wave lines
+        ctx.fillStyle = '#7dd3fc';
+        for (let i = 0; i < 3; i++) {
+            ctx.fillRect(w.x + 10, w.y + 10 + i*20, 44, 4);
+        }
     });
     
+    // Draw power cubes (only if not collected)
     window.state.battle.powerCubes?.forEach(p => {
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(p.x, p.y, 64, 64);
-        ctx.fillStyle = '#b45309';
-        ctx.fillRect(p.x+16, p.y+16, 32, 32);
+        if (!p.collected) {
+            drawPowerCube(ctx, p.x, p.y);
+        }
     });
     
+    // Draw barrels
     window.state.battle.barrels?.forEach(b => {
-        ctx.fillStyle = '#b91c1c';
-        ctx.fillRect(b.x, b.y, 64, 64);
-        ctx.fillStyle = '#7f1d1d';
-        ctx.fillRect(b.x+8, b.y+8, 48, 48);
+        drawBarrel(ctx, b.x, b.y);
     });
     
     window.state.battle.walls.forEach(w => {
@@ -558,6 +662,13 @@ function drawGame() {
         ctx.fillText(c.name, 0, -70);
 
         drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
+
+        // Show power cubes count
+        if (isPlayer && c.power > 0) {
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 20px Luckiest Guy';
+            ctx.fillText(`+${c.power}`, 40, -50);
+        }
 
         const bw = 70;
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -599,6 +710,8 @@ function drawGame() {
     ctx.fill();
     ctx.restore();
 }
+
+// ... (rest of input handling remains the same)
 
 // ========== INPUT HANDLING ==========
 window.onkeydown = (e) => { 
