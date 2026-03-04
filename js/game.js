@@ -26,7 +26,7 @@ const fightTextEl = document.getElementById('fight-text');
 
 // Death animation variables
 let deathAnimationStart = 0;
-let deathAnimationDuration = 1500; // 1.5 seconds
+let deathAnimationDuration = 1500;
 let playerDead = false;
 
 function checkCollision(x, y, radius) {
@@ -37,33 +37,41 @@ function checkCollision(x, y, radius) {
             return true;
         }
     }
-    // Add water as impassable if desired
     for (const water of window.state.battle.water || []) {
         if (x + radius > water.x && x - radius < water.x + window.CONFIG.TILE_SIZE &&
             y + radius > water.y && y - radius < water.y + window.CONFIG.TILE_SIZE) {
-            return true; // water blocks movement
+            return true;
         }
     }
     return false;
 }
 
+// Modified startBattlePre to be async and load active map
 async function startBattlePre() {
     console.log('startBattlePre called');
+    
+    // Show loading overlay immediately
     document.getElementById('prematch-loading').classList.add('active');
     
     // Try to load active map from server (for non-admin players)
     let customMap = null;
-    if (!window.currentProfile?.is_admin) { // for non-admin, use active map
-        const { data, error } = await window.sb
-            .from('maps')
-            .select('map_data')
-            .eq('is_active', true)
-            .maybeSingle();
-        if (!error && data) {
-            customMap = data.map_data;
+    if (!window.currentProfile?.is_admin && typeof window.sb !== 'undefined') {
+        try {
+            const { data, error } = await window.sb
+                .from('maps')
+                .select('map_data')
+                .eq('is_active', true)
+                .maybeSingle();
+            if (!error && data) {
+                customMap = data.map_data;
+                console.log('Loaded active map from server');
+            }
+        } catch (e) {
+            console.warn('Could not load active map, using random', e);
         }
     }
     
+    // Short delay to show loading (optional)
     setTimeout(() => {
         document.getElementById('prematch-loading').classList.remove('active');
         startBattle(customMap); // pass custom map (null if none)
@@ -217,7 +225,6 @@ function updateGame() {
     const p = battle.player;
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
 
-    // Death animation
     if (playerDead) {
         const elapsed = Date.now() - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
@@ -426,7 +433,6 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== TOP-DOWN BRAWLER DRAWING ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
@@ -436,7 +442,6 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 3;
     
-    // Body
     const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 20);
     gradBody.addColorStop(0, '#a855f7');
     gradBody.addColorStop(1, '#4a1d6d');
@@ -448,7 +453,6 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Head
     ctx.fillStyle = '#c084fc';
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#a855f7';
@@ -458,7 +462,6 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.strokeStyle = '#2d2d2d';
     ctx.stroke();
     
-    // Eyes
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
@@ -469,19 +472,16 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     
-    // Hat
     ctx.fillStyle = '#5d3a1a';
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'black';
     ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillRect(-8, -32, 16, 4);
     
-    // Cloak shoulders
     ctx.fillStyle = '#4a2e1e';
     ctx.beginPath(); ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     
-    // Weapon
     ctx.fillStyle = '#4a3729';
     ctx.shadowBlur = 6;
     ctx.fillRect(10, -3, 24, 5);
@@ -507,14 +507,12 @@ function drawGame() {
     const startRow = Math.max(0, Math.floor(window.state.battle.camera.y / window.CONFIG.TILE_SIZE));
     const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) / window.CONFIG.TILE_SIZE));
     
-    // Draw floor
     for(let i=startCol; i<endCol; i++) {
         for(let j=startRow; j<endRow; j++) {
             ctx.drawImage(window.Textures.floor, i*64, j*64, 64, 64);
         }
     }
     
-    // Draw bushes
     window.state.battle.bushes.forEach(b => {
         if (b.x + 64 > window.state.battle.camera.x && b.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
             b.y + 64 > window.state.battle.camera.y && b.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
@@ -522,13 +520,11 @@ function drawGame() {
         }
     });
     
-    // Draw water
     window.state.battle.water?.forEach(w => {
         ctx.fillStyle = '#0284c7';
         ctx.fillRect(w.x, w.y, 64, 64);
     });
     
-    // Draw power cubes
     window.state.battle.powerCubes?.forEach(p => {
         ctx.fillStyle = '#fbbf24';
         ctx.fillRect(p.x, p.y, 64, 64);
@@ -536,7 +532,6 @@ function drawGame() {
         ctx.fillRect(p.x+16, p.y+16, 32, 32);
     });
     
-    // Draw barrels
     window.state.battle.barrels?.forEach(b => {
         ctx.fillStyle = '#b91c1c';
         ctx.fillRect(b.x, b.y, 64, 64);
@@ -544,7 +539,6 @@ function drawGame() {
         ctx.fillRect(b.x+8, b.y+8, 48, 48);
     });
     
-    // Draw walls
     window.state.battle.walls.forEach(w => {
         if (w.x + 64 > window.state.battle.camera.x && w.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
             w.y + 64 > window.state.battle.camera.y && w.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
