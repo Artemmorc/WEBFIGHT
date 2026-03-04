@@ -1,6 +1,7 @@
 // ========== GLOBAL FALLBACKS ==========
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
 window.state = window.state || { battle: { active: false } };
+const sb = window.sb;
 window.playerState = window.playerState || { name: 'Mystery' };
 window.CONFIG = window.CONFIG || { 
     MAP_SIZE: 40, 
