@@ -69,18 +69,23 @@ window.Textures.generate = function() {
         ctx.fillRect(0, 0, 64, 32);
     });
     this.bush = createTex(64, 64, ctx => {
-        ctx.fillStyle = '#b58b5a';
+        // Solid yellow wheat field covering entire tile
+        ctx.fillStyle = '#fde047';
         ctx.fillRect(0, 0, 64, 64);
-        for (let i = 0; i < 8; i++) {
-            ctx.fillStyle = `hsl(30, 50%, ${20 + Math.random()*20}%)`;
-            ctx.beginPath();
-            ctx.ellipse(10+Math.random()*44, 10+Math.random()*44, 12, 6, 0, 0, Math.PI*2);
-            ctx.fill();
+        // Add some texture
+        ctx.fillStyle = '#eab308';
+        for (let i = 0; i < 20; i++) {
+            ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
         }
-        ctx.fillStyle = '#8b5a2b';
-        ctx.globalAlpha = 0.3;
-        ctx.fillRect(0, 32, 64, 32);
-        ctx.globalAlpha = 1;
+        // Wheat stalks
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2;
+        for (let x = 8; x < 64; x += 16) {
+            ctx.beginPath();
+            ctx.moveTo(x, 64);
+            ctx.lineTo(x, 32);
+            ctx.stroke();
+        }
     });
     this.floor = createTex(64, 64, ctx => {
         ctx.fillStyle = '#d4a373';
