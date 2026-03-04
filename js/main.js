@@ -325,18 +325,22 @@ function testMap() {
 }
 
 // ========== NEWS SYSTEM ==========
+// NEW: Always open viewer, then show create button for admins
 async function handleNewsClick() {
-    if (window.currentProfile?.is_admin) {
-        openNewsEditor();
-    } else {
-        openNewsViewer();
-    }
+    await openNewsViewer(); // viewer first for everyone
 }
 
 async function openNewsViewer() {
     const viewer = document.getElementById('news-viewer');
     viewer.classList.remove('hidden');
     await loadNewsList();
+    // Show create button if admin
+    const createBtn = document.getElementById('news-create-btn');
+    if (window.currentProfile?.is_admin) {
+        createBtn.classList.remove('hidden');
+    } else {
+        createBtn.classList.add('hidden');
+    }
 }
 
 function closeNewsViewer() {
@@ -422,7 +426,7 @@ async function saveNews(published) {
         alert('News saved');
         clearNewsEditor();
         closeNewsEditor();
-        if (published) loadNewsList();
+        if (published) loadNewsList(); // refresh viewer if it's open
     }
 }
 
@@ -539,7 +543,7 @@ if (window.sb) {
             window.currentProfile = null;
             document.getElementById('menu-screen').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
-            checkMaintenance(); // maintenance may still be active
+            checkMaintenance();
         }
     });
 } else {
