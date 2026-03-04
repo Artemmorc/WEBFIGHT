@@ -29,10 +29,6 @@ let deathAnimationStart = 0;
 let deathAnimationDuration = 1500;
 let playerDead = false;
 
-// Damage flash
-let lastDamageTime = 0;
-const flashDuration = 200; // ms
-
 function checkCollision(x, y, radius) {
     if (!window.state.battle || !window.state.battle.active) return false;
     for (const wall of window.state.battle.walls) {
@@ -112,7 +108,6 @@ function startBattle(customMap = null) {
     }
     
     powerCubesCollected = 0;
-    lastDamageTime = 0;
     
     window.state.battle = {
         active: true,
@@ -231,7 +226,7 @@ function startBattle(customMap = null) {
         inBush: false, lastDamageTime: Date.now(),
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000,
         power: 0,
-        revealUntil: 0 // timestamp until which unit is revealed (after shooting)
+        revealUntil: 0
     };
 
     for(let i=0; i<9; i++) {
@@ -296,11 +291,16 @@ function updateGame() {
             battle.camera.y = startY + (targetY - startY) * t;
         } else {
             window.state.preBattle = false;
-            fightTextEl.style.opacity = '1';
-            setTimeout(() => {
-                fightTextEl.style.opacity = '0';
+            // Show FIGHT! text
+            if (fightTextEl) {
+                fightTextEl.style.opacity = '1';
+                setTimeout(() => {
+                    fightTextEl.style.opacity = '0';
+                    document.getElementById('battle-ui').style.display = 'flex';
+                }, 800);
+            } else {
                 document.getElementById('battle-ui').style.display = 'flex';
-            }, 800);
+            }
         }
         return;
     }
@@ -361,7 +361,6 @@ function updateGame() {
                     t.hp -= damage;
                     if (t.id === 'player') {
                         t.lastDamageTime = now;
-                        lastDamageTime = now; // for flash
                     }
                 }
                 return false;
@@ -413,7 +412,7 @@ function updateGame() {
         if (closest && minDist < 400 && now - bot.lastShot > 2000) {
             spawnBullet(bot, Math.atan2(closest.y - bot.y, closest.x - bot.x), false);
             bot.lastShot = now;
-            bot.revealUntil = now + 500; // revealed for 0.5s
+            bot.revealUntil = now + 500;
         }
     });
 
@@ -431,7 +430,6 @@ function updateGame() {
         }
     });
 
-    // Faster HP regen
     if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
@@ -610,18 +608,10 @@ function drawGame() {
         }
     }
     
-    // Bushes with distance-based transparency
+    // Bushes (solid – no distance transparency)
     window.state.battle.bushes.forEach(b => {
-        const bushCenterX = b.x + 32;
-        const bushCenterY = b.y + 32;
-        const distToPlayer = p ? Math.hypot(p.x - bushCenterX, p.y - bushCenterY) : 0;
-        // Max distance for opacity calculation (e.g., 5000 pixels)
-        const maxDist = 2000;
-        const alpha = Math.max(0.2, 1 - (distToPlayer / maxDist));
-        ctx.globalAlpha = Math.min(1, alpha);
         ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
     });
-    ctx.globalAlpha = 1;
     
     // Water
     window.state.battle.water?.forEach(w => {
@@ -667,13 +657,13 @@ function drawGame() {
     const drawChar = (c, isPlayer, viewer) => {
         if(c.hp <= 0) return;
         
-        // Visibility check (skip if not visible)
+        // Visibility check
         if (!isPlayer && !canSee(viewer, c, now)) return;
         
         ctx.save();
         ctx.translate(c.x, c.y);
 
-        // If this is the player and they are in a bush, make them 25% transparent
+        // Player in bush becomes semi-transparent
         if (isPlayer && isInBush(c.x, c.y)) {
             ctx.globalAlpha = 0.75;
         }
@@ -719,7 +709,7 @@ function drawGame() {
             ctx.fillRect(-bw/2, -36, (c.ammo / c.maxAmmo) * bw, 6);
         }
         ctx.restore();
-        ctx.globalAlpha = 1; // reset
+        ctx.globalAlpha = 1;
     };
 
     if (playerDead) {
@@ -742,13 +732,6 @@ function drawGame() {
     ctx.rect(-2000, -2000, fullSize+4000, fullSize+4000);
     ctx.arc(fullSize/2, fullSize/2, window.state.battle.poisonRadius, 0, Math.PI*2, true);
     ctx.fill();
-
-    // Damage flash
-    if (now - lastDamageTime < flashDuration) {
-        const flashAlpha = 0.3 * (1 - (now - lastDamageTime) / flashDuration);
-        ctx.fillStyle = `rgba(255, 0, 0, ${flashAlpha})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
 
     ctx.restore();
 }
@@ -849,7 +832,7 @@ function spawnBullet(owner, angle, isSuper) {
     if (owner.id === 'player') {
         owner.lastAttackTime = Date.now();
         owner.angle = angle;
-        owner.revealUntil = Date.now() + 500; // revealed after shooting
+        owner.revealUntil = Date.now() + 500;
     }
     if (owner.id === 'player' && !isSuper && owner.ammo <= 0.9) return;
     if (owner.id === 'player' && !isSuper) owner.ammo--;
