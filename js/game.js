@@ -37,6 +37,13 @@ function checkCollision(x, y, radius) {
             return true;
         }
     }
+    // Add water as impassable if desired
+    for (const water of window.state.battle.water || []) {
+        if (x + radius > water.x && x - radius < water.x + window.CONFIG.TILE_SIZE &&
+            y + radius > water.y && y - radius < water.y + window.CONFIG.TILE_SIZE) {
+            return true; // water blocks movement
+        }
+    }
     return false;
 }
 
@@ -45,7 +52,7 @@ function startBattlePre() {
     document.getElementById('prematch-loading').classList.add('active');
     setTimeout(() => {
         document.getElementById('prematch-loading').classList.remove('active');
-        startBattle();
+        startBattle(); // use random map
         window.state.preBattle = true;
         const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
         window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
@@ -55,7 +62,7 @@ function startBattlePre() {
     }, 500);
 }
 
-function startBattle() {
+function startBattle(customMap = null) {
     window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('battle-screen').classList.remove('hidden');
@@ -79,17 +86,37 @@ function startBattle() {
         bullets: [],
         walls: [],
         bushes: [],
+        water: [],
+        powerCubes: [],
+        barrels: [],
         bots: [],
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
     };
 
-    for(let i=0; i<window.CONFIG.MAP_SIZE; i++) {
-        for(let j=0; j<window.CONFIG.MAP_SIZE; j++) {
-            const rand = Math.random();
-            if(rand < 0.08)
-                window.state.battle.walls.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
-            else if(rand < 0.20)
-                window.state.battle.bushes.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
+    if (customMap) {
+        // Build from custom map data
+        for (let y = 0; y < window.CONFIG.MAP_SIZE; y++) {
+            for (let x = 0; x < window.CONFIG.MAP_SIZE; x++) {
+                const type = customMap[y][x];
+                const worldX = x * window.CONFIG.TILE_SIZE;
+                const worldY = y * window.CONFIG.TILE_SIZE;
+                if (type === 1) window.state.battle.walls.push({ x: worldX, y: worldY });
+                else if (type === 2) window.state.battle.bushes.push({ x: worldX, y: worldY });
+                else if (type === 3) window.state.battle.water.push({ x: worldX, y: worldY });
+                else if (type === 4) window.state.battle.powerCubes.push({ x: worldX, y: worldY });
+                else if (type === 5) window.state.battle.barrels.push({ x: worldX, y: worldY });
+            }
+        }
+    } else {
+        // Random generation (existing)
+        for(let i=0; i<window.CONFIG.MAP_SIZE; i++) {
+            for(let j=0; j<window.CONFIG.MAP_SIZE; j++) {
+                const rand = Math.random();
+                if(rand < 0.08)
+                    window.state.battle.walls.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
+                else if(rand < 0.20)
+                    window.state.battle.bushes.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
+            }
         }
     }
 
@@ -102,6 +129,10 @@ function startBattle() {
             if (tries > 500) break;
         } while (
             window.state.battle.walls.some(w =>
+                x + radius > w.x && x - radius < w.x + window.CONFIG.TILE_SIZE &&
+                y + radius > w.y && y - radius < w.y + window.CONFIG.TILE_SIZE
+            ) ||
+            window.state.battle.water.some(w =>
                 x + radius > w.x && x - radius < w.x + window.CONFIG.TILE_SIZE &&
                 y + radius > w.y && y - radius < w.y + window.CONFIG.TILE_SIZE
             )
@@ -154,16 +185,13 @@ function updateGame() {
     if (playerDead) {
         const elapsed = Date.now() - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
-            // Zoom out slightly from death location (not to center)
             const targetZoom = 0.5;
             const startZoom = 0.8;
             const t = elapsed / deathAnimationDuration;
             battle.camera.zoom = startZoom + (targetZoom - startZoom) * t;
-            // Keep camera centered on player's death position
             battle.camera.x = p.x - (canvas.width/2)/battle.camera.zoom;
             battle.camera.y = p.y - (canvas.height/2)/battle.camera.zoom;
         } else {
-            // Death animation finished – show after-game menu and reset
             playerDead = false;
             battle.active = false;
             showAfterGame(window.state.lastRank, window.state.lastCoins);
@@ -214,7 +242,6 @@ function updateGame() {
         if (!checkCollision(newX, newY, 25)) {
             p.y = Math.max(25, Math.min(mapLimit - 25, newY));
         }
-        // Update angle based on movement direction
         p.angle = Math.atan2(dy, dx);
     }
 
@@ -315,12 +342,10 @@ function updateGame() {
     }
 
     if (p.hp <= 0) {
-        // Player died – start death animation
         playerDead = true;
         deathAnimationStart = Date.now();
         window.state.lastRank = aliveCount;
         window.state.lastCoins = 0;
-        // Disable further updates
         return;
     }
 
@@ -365,31 +390,29 @@ function hideAfterGame() {
     }, 300);
 }
 
-// Inside game.js, replace the drawBrawler function with this:
-
+// ========== TOP-DOWN BRAWLER DRAWING ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
     
-    // Shadow for depth
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 3;
     
-    // Body (torso) – an ellipse
+    // Body
     const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 20);
     gradBody.addColorStop(0, '#a855f7');
     gradBody.addColorStop(1, '#4a1d6d');
     ctx.fillStyle = gradBody;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2); // smaller than before
+    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Head – smaller circle, placed higher
+    // Head
     ctx.fillStyle = '#c084fc';
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#a855f7';
@@ -399,7 +422,7 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.strokeStyle = '#2d2d2d';
     ctx.stroke();
     
-    // Eyes (glowing)
+    // Eyes
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
@@ -410,32 +433,25 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     
-    // Hat / hood
+    // Hat
     ctx.fillStyle = '#5d3a1a';
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'black';
     ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillRect(-8, -32, 16, 4);
     
-    // Cloak (shoulders) – two arcs at sides
+    // Cloak shoulders
     ctx.fillStyle = '#4a2e1e';
-    ctx.beginPath();
-    ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     
-    // Weapon (shotgun) – a rectangle extending forward
+    // Weapon
     ctx.fillStyle = '#4a3729';
     ctx.shadowBlur = 6;
     ctx.fillRect(10, -3, 24, 5);
     ctx.fillRect(28, -6, 5, 11);
-    // Highlight
     ctx.fillStyle = '#7a5a3a';
     ctx.fillRect(12, -2, 8, 2);
-    
-    // No extra glow circle – removed.
     
     ctx.restore();
 }
@@ -455,12 +471,14 @@ function drawGame() {
     const startRow = Math.max(0, Math.floor(window.state.battle.camera.y / window.CONFIG.TILE_SIZE));
     const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) / window.CONFIG.TILE_SIZE));
     
+    // Draw floor
     for(let i=startCol; i<endCol; i++) {
         for(let j=startRow; j<endRow; j++) {
             ctx.drawImage(window.Textures.floor, i*64, j*64, 64, 64);
         }
     }
     
+    // Draw bushes
     window.state.battle.bushes.forEach(b => {
         if (b.x + 64 > window.state.battle.camera.x && b.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
             b.y + 64 > window.state.battle.camera.y && b.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
@@ -468,6 +486,30 @@ function drawGame() {
         }
     });
     
+    // Draw water
+    window.state.battle.water?.forEach(w => {
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(w.x, w.y, 64, 64);
+    });
+    
+    // Draw power cubes
+    window.state.battle.powerCubes?.forEach(p => {
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(p.x, p.y, 64, 64);
+        // optionally draw a small cube
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(p.x+16, p.y+16, 32, 32);
+    });
+    
+    // Draw barrels
+    window.state.battle.barrels?.forEach(b => {
+        ctx.fillStyle = '#b91c1c';
+        ctx.fillRect(b.x, b.y, 64, 64);
+        ctx.fillStyle = '#7f1d1d';
+        ctx.fillRect(b.x+8, b.y+8, 48, 48);
+    });
+    
+    // Draw walls
     window.state.battle.walls.forEach(w => {
         if (w.x + 64 > window.state.battle.camera.x && w.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
             w.y + 64 > window.state.battle.camera.y && w.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
@@ -481,7 +523,6 @@ function drawGame() {
         ctx.save();
         ctx.translate(c.x, c.y);
 
-        // Nickname
         ctx.fillStyle = 'white';
         ctx.font = 'bold 24px Luckiest Guy';
         ctx.textAlign = 'center';
@@ -489,7 +530,6 @@ function drawGame() {
 
         drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
 
-        // HP Bar
         const bw = 70;
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
         ctx.fillRect(-bw/2, -50, bw, 12);
@@ -505,11 +545,10 @@ function drawGame() {
         ctx.restore();
     };
 
-    // If death animation, fade out player
     if (playerDead) {
         const elapsed = Date.now() - deathAnimationStart;
         const t = Math.min(1, elapsed / deathAnimationDuration);
-        ctx.globalAlpha = 1 - t; // fade out
+        ctx.globalAlpha = 1 - t;
         drawChar(window.state.battle.player, true);
         ctx.globalAlpha = 1;
     } else {
@@ -550,7 +589,6 @@ window.onkeyup = (e) => {
 };
 
 function updateKeyboardMovement() {
-    console.log('updateKeyboardMovement called, keys:', window.keys);
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     let kx = 0, ky = 0;
     if (window.keys.w) ky -= 1;
