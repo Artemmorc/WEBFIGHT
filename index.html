@@ -6,7 +6,7 @@
     <title>Brawl Stars – Mystery Desert</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="css/style.css?v=6">
+    <link rel="stylesheet" href="css/style.css?v=7">
     <!-- Fallback for PLAY button -->
     <script>
         window.startBattlePre = window.startBattlePre || function() { 
@@ -110,8 +110,9 @@
     <div class="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-10">
         <button onclick="toggleShop(true)" class="bg-blue-600 hover:bg-blue-500 btn-bs px-8 py-5 rounded-xl text-2xl">SHOP</button>
         <button onclick="toggleBrawlers(true)" class="bg-blue-600 hover:bg-blue-500 btn-bs px-8 py-5 rounded-xl text-2xl">BRAWLERS</button>
-        <button onclick="alert('News coming soon!')" class="bg-purple-600 hover:bg-purple-500 btn-bs px-8 py-5 rounded-xl text-2xl">NEWS</button>
-        <!-- Admin button (hidden by default) -->
+        <!-- NEWS button now calls handleNewsClick() -->
+        <button onclick="handleNewsClick()" class="bg-purple-600 hover:bg-purple-500 btn-bs px-8 py-5 rounded-xl text-2xl">NEWS</button>
+        <!-- Admin button container (hidden by default) with two buttons stacked -->
         <div id="adminBtnContainer" class="mt-6 hidden">
             <button onclick="toggleAdminPanel()" class="bg-purple-600 px-8 py-5 rounded-xl border-2 border-white text-2xl btn-bs">ADMIN</button>
             <button onclick="openMapEditor()" class="bg-purple-600 px-8 py-5 rounded-xl border-2 border-white text-2xl btn-bs mt-4">MAP EDITOR</button>
@@ -264,7 +265,7 @@
     </div>
 </div>
 
-<!-- ADMIN PANEL -->
+<!-- ADMIN PANEL (smaller) -->
 <div id="adminPanel">
     <h2 class="text-3xl text-yellow-400 mb-4">ADMIN CONSOLE</h2>
     <div class="space-y-4">
@@ -296,7 +297,7 @@
     </div>
 </div>
 
-<!-- MAP EDITOR (with server slots) -->
+<!-- MAP EDITOR (60x60 with server storage) -->
 <div id="map-editor" class="absolute inset-0 bg-gray-900 z-[400] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4">
         <h1 class="text-4xl text-yellow-400">MAP EDITOR (60x60)</h1>
@@ -304,7 +305,7 @@
             <button onclick="closeMapEditor()" class="bg-red-500 px-6 py-2 rounded-xl border-2 border-white text-2xl">CLOSE</button>
         </div>
     </div>
-    <!-- Toolbar with labels -->
+    <!-- Toolbar -->
     <div class="flex flex-col gap-4 mb-4">
         <div class="flex gap-2 items-center flex-wrap">
             <span class="text-white font-bold mr-2">Brush:</span>
@@ -313,7 +314,7 @@
                 <span class="text-white text-sm">Wall</span>
             </div>
             <div class="flex items-center gap-1">
-                <div id="palette-bush" class="w-10 h-10 bg-[#2d6a4f] border-4 border-white cursor-pointer" onclick="selectTile(2)" title="Bush"></div>
+                <div id="palette-bush" class="w-10 h-10 bg-[#b45309] border-4 border-white cursor-pointer" onclick="selectTile(2)" title="Bush (wheat)"></div>
                 <span class="text-white text-sm">Bush</span>
             </div>
             <div class="flex items-center gap-1">
@@ -321,8 +322,8 @@
                 <span class="text-white text-sm">Water</span>
             </div>
             <div class="flex items-center gap-1">
-                <div id="palette-powercube" class="w-10 h-10 bg-[#fbbf24] border-4 border-white cursor-pointer" onclick="selectTile(4)" title="Power Cube"></div>
-                <span class="text-white text-sm">Cube</span>
+                <div id="palette-powercube" class="w-10 h-10 bg-[#fbbf24] border-4 border-white cursor-pointer" onclick="selectTile(4)" title="Power Cube Box"></div>
+                <span class="text-white text-sm">Cube Box</span>
             </div>
             <div class="flex items-center gap-1">
                 <div id="palette-barrel" class="w-10 h-10 bg-[#b91c1c] border-4 border-white cursor-pointer" onclick="selectTile(5)" title="Barrel"></div>
@@ -364,13 +365,40 @@
     </div>
 </div>
 
+<!-- NEWS VIEWER MODAL -->
+<div id="news-viewer" class="absolute inset-0 bg-gray-900 z-[450] hidden flex flex-col p-8 overflow-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl text-yellow-400">NEWS</h1>
+        <button onclick="closeNewsViewer()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+    </div>
+    <div id="news-list" class="space-y-6">
+        <!-- News items will be inserted here -->
+    </div>
+</div>
+
+<!-- NEWS EDITOR MODAL (admin only) -->
+<div id="news-editor" class="absolute inset-0 bg-gray-900 z-[500] hidden flex flex-col p-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl text-yellow-400">EDIT NEWS</h1>
+        <button onclick="closeNewsEditor()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+    </div>
+    <div class="space-y-4">
+        <input type="text" id="news-title" placeholder="Title" class="w-full p-4 rounded-xl text-black text-2xl">
+        <textarea id="news-content" placeholder="Content (HTML allowed)" rows="10" class="w-full p-4 rounded-xl text-black text-xl"></textarea>
+        <div class="flex gap-4">
+            <button onclick="saveNewsAsDraft()" class="bg-blue-500 px-8 py-4 rounded-xl text-2xl">Save Draft</button>
+            <button onclick="publishNews()" class="bg-green-500 px-8 py-4 rounded-xl text-2xl">Publish</button>
+            <button onclick="clearNewsEditor()" class="bg-gray-500 px-8 py-4 rounded-xl text-2xl">Clear</button>
+        </div>
+    </div>
+</div>
+
 <!-- SCRIPTS -->
 <script src="js/config.js?v=3"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/ui.js?v=2"></script>
 <script src="js/starrdrop.js?v=2"></script>
-<script src="js/main.js?v=3"></script>
-<script src="js/game.js?v=7"></script>
+<script src="js/main.js?v=4"></script>
+<script src="js/game.js?v=8"></script>
 </body>
 </html>
-
