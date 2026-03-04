@@ -443,7 +443,7 @@ async function saveNews(published) {
     }
 }
 
-// ========== MAINTENANCE MODE (GLOBAL, WITH COUNTDOWN) ==========
+// ========== MAINTENANCE MODE (VISUAL COUNTDOWN ONLY) ==========
 let maintenanceInterval = null;
 let warningTimeout = null;
 let timerInterval = null;
@@ -473,28 +473,18 @@ async function checkMaintenance() {
         return;
     }
 
-    // Maintenance active
-    if (now >= start && now < end) {
-        if (!window.currentProfile?.is_admin) {
-            document.getElementById('maintenance-overlay').classList.remove('hidden');
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'none';
-            startMaintenanceTimer(end);
-        } else {
-            document.getElementById('maintenance-overlay').classList.add('hidden');
-        }
-        return;
-    }
-
-    // Maintenance ended – delete record
-    if (now >= end) {
-        await window.sb.from('maintenance').delete().eq('id', 1);
+    // Maintenance active – record exists and start time passed
+    if (!window.currentProfile?.is_admin) {
+        document.getElementById('maintenance-overlay').classList.remove('hidden');
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('menu-screen').style.display = 'none';
+        startMaintenanceTimer(end); // show countdown based on end
+    } else {
         document.getElementById('maintenance-overlay').classList.add('hidden');
     }
 }
 
 function showMaintenanceWarning(minutes) {
-    // Remove any existing warning
     if (warningTimeout) {
         clearTimeout(warningTimeout);
         const oldWarning = document.querySelector('.fixed.top-4.left-1\\/2');
@@ -513,14 +503,13 @@ function startMaintenanceTimer(endTime) {
     if (timerInterval) clearInterval(timerInterval);
     const timerSpan = document.getElementById('maintenance-timer');
     if (!timerSpan) return;
-    timerInterval = setInterval(async () => {
+    timerInterval = setInterval(() => {
         const now = Date.now();
         if (now >= endTime) {
             timerSpan.innerText = '0:00';
+            // Do NOT delete maintenance – just stop countdown
             clearInterval(timerInterval);
-            // End maintenance
-            await window.sb.from('maintenance').delete().eq('id', 1);
-            document.getElementById('maintenance-overlay').classList.add('hidden');
+            timerInterval = null;
             return;
         }
         const remaining = endTime - now;
