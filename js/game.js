@@ -1,10 +1,9 @@
 // ========== GLOBAL FALLBACKS ==========
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
 window.state = window.state || { battle: { active: false } };
-const sb = window.sb;
 window.playerState = window.playerState || { name: 'Mystery' };
 window.CONFIG = window.CONFIG || { 
-    MAP_SIZE: 40, 
+    MAP_SIZE: 60, 
     TILE_SIZE: 64, 
     BRAWLERS: { 
         Mystery: { hp: 3800, speed: 6, color: '#a855f7', ammo: 3, reload: 1.5, type: 'Shotgun', unlocked: true } 
@@ -48,36 +47,6 @@ function checkCollision(x, y, radius) {
     return false;
 }
 
-async function startBattlePre() {
-    console.log('startBattlePre called');
-    document.getElementById('prematch-loading').classList.add('active');
-    
-    // Try to load active map from server
-    let customMap = null;
-    if (!window.currentProfile?.is_admin) { // for non-admin, use active map
-        const { data, error } = await sb
-            .from('maps')
-            .select('map_data')
-            .eq('is_active', true)
-            .maybeSingle();
-        if (!error && data) {
-            customMap = data.map_data;
-        }
-    }
-    
-    setTimeout(() => {
-        document.getElementById('prematch-loading').classList.remove('active');
-        startBattle(customMap); // pass custom map (null if none)
-        window.state.preBattle = true;
-        const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-        window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
-        window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
-        preBattleStart = Date.now();
-        document.getElementById('battle-ui').style.display = 'none';
-    }, 500);
-}
-
-// ========== GAME ENGINE ==========
 async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
@@ -563,7 +532,6 @@ function drawGame() {
     window.state.battle.powerCubes?.forEach(p => {
         ctx.fillStyle = '#fbbf24';
         ctx.fillRect(p.x, p.y, 64, 64);
-        // optionally draw a small cube
         ctx.fillStyle = '#b45309';
         ctx.fillRect(p.x+16, p.y+16, 32, 32);
     });
