@@ -449,8 +449,8 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 6;
     ctx.shadowOffsetY = 3;
     
     // Body
@@ -497,10 +497,7 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
 function drawBox(ctx, x, y) {
     ctx.save();
     ctx.translate(x + 32, y + 32);
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 3;
-    
+    // No shadow – static object
     ctx.fillStyle = '#8b5a2b';
     ctx.fillRect(-25, -25, 50, 50);
     ctx.strokeStyle = '#4a3729';
@@ -510,31 +507,24 @@ function drawBox(ctx, x, y) {
     ctx.fillStyle = '#5d3a1a';
     ctx.fillRect(-25, -10, 50, 5);
     ctx.fillRect(-25, 5, 50, 5);
-    
     ctx.restore();
 }
 
 function drawPowerCube(ctx, x, y) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.shadowColor = '#fbbf24';
-    ctx.shadowBlur = 15;
-    
+    // No shadow – cube glows via color
     ctx.fillStyle = '#fbbf24';
     ctx.fillRect(-10, -10, 20, 20);
     ctx.fillStyle = '#b45309';
     ctx.fillRect(-5, -5, 10, 10);
-    
     ctx.restore();
 }
 
 function drawBarrel(ctx, x, y) {
     ctx.save();
     ctx.translate(x + 32, y + 32);
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 3;
-    
+    // No shadow
     ctx.fillStyle = '#b91c1c';
     ctx.beginPath();
     ctx.ellipse(0, 0, 20, 25, 0, 0, Math.PI*2);
@@ -546,7 +536,6 @@ function drawBarrel(ctx, x, y) {
     ctx.fillStyle = '#4a3729';
     ctx.fillRect(-22, -15, 44, 6);
     ctx.fillRect(-22, 10, 44, 6);
-    
     ctx.restore();
 }
 
