@@ -116,14 +116,11 @@
     <div class="loader-text">LOADING...</div>
 </div>
 
-<!-- MAINTENANCE OVERLAY (shown when maintenance mode is active) -->
-<div id="maintenance-overlay" class="absolute inset-0 bg-black/95 z-[1000] hidden flex flex-col items-center justify-center">
-    <div class="bg-blue-900 border-4 border-yellow-400 rounded-3xl p-10 text-center max-w-2xl">
-        <h1 class="text-6xl text-yellow-400 mb-6">MAINTENANCE</h1>
-        <p class="text-3xl text-white mb-8">The game is under maintenance. Please check back later.</p>
-        <p class="text-xl text-gray-300 mb-8">Maintenance ends in: <span id="maintenance-timer" class="text-yellow-400"></span></p>
-        <button onclick="hardRefresh()" class="bg-orange-500 hover:bg-orange-400 border-4 border-white px-10 py-4 rounded-2xl text-3xl">REFRESH</button>
-    </div>
+<!-- Maintenance Mode -->
+<div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+    <label class="block text-2xl mb-2">Maintenance</label>
+    <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">SCHEDULE (3 min)</button>
+    <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL</button>
 </div>
 
 <!-- PRE-MATCH LOADING OVERLAY -->
@@ -533,3 +530,4 @@
 <script src="js/game.js?v=8"></script>
 </body>
 </html>
+
