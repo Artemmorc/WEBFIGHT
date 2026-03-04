@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Brawl Stars – Mystery Desert</title>
+    <title>WEBFIGHT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/style.css?v=7">
@@ -98,6 +98,13 @@
         /* Ensure news editor inputs work */
         #news-editor input, #news-editor textarea {
             pointer-events: auto !important;
+        }
+        /* News card truncation */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
     </style>
 </head>
@@ -474,7 +481,7 @@
     </div>
 </div>
 
-<!-- NEWS VIEWER MODAL -->
+<!-- NEWS VIEWER MODAL (list of news cards) -->
 <div id="news-viewer" class="absolute inset-0 bg-gray-900 z-[450] hidden flex flex-col p-8 overflow-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-4xl text-yellow-400">NEWS</h1>
@@ -483,8 +490,20 @@
             <button onclick="closeNewsViewer()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
         </div>
     </div>
-    <div id="news-list" class="space-y-6">
-        <!-- News items will be inserted here -->
+    <div id="news-list" class="space-y-4">
+        <!-- News cards will be inserted here -->
+    </div>
+</div>
+
+<!-- NEWS DETAIL MODAL (shows full content of a selected news) -->
+<div id="news-detail" class="absolute inset-0 bg-gray-900 z-[460] hidden flex flex-col p-8 overflow-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl text-yellow-400" id="detail-title"></h1>
+        <button onclick="closeNewsDetail()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+    </div>
+    <div class="bg-black/60 p-6 rounded-xl border-2 border-white/30">
+        <div class="text-gray-300 mb-4" id="detail-date"></div>
+        <div class="text-white text-xl prose prose-invert max-w-none" id="detail-content"></div>
     </div>
 </div>
 
@@ -510,7 +529,7 @@
 <script src="js/auth.js?v=2"></script>
 <script src="js/ui.js?v=2"></script>
 <script src="js/starrdrop.js?v=2"></script>
-<script src="js/main.js?v=6"></script>
+<script src="js/main.js?v=7"></script>
 <script src="js/game.js?v=8"></script>
 </body>
 </html>
