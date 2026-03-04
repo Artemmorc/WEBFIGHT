@@ -403,12 +403,12 @@
             <!-- Maintenance Mode -->
             <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
                 <label class="block text-2xl mb-2">Maintenance</label>
+                <div class="flex gap-2 mb-2">
+                    <input type="number" id="maintenance-minutes" class="w-24 bg-black/60 border-2 border-white/30 p-2 rounded-xl text-xl text-white" value="5" min="1">
+                    <button onclick="scheduleMaintenanceWithDuration()" class="flex-1 bg-orange-500 hover:bg-orange-600 py-3 rounded-xl text-2xl">SCHEDULE (custom)</button>
+                </div>
                 <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">SCHEDULE (3 min)</button>
                 <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL</button>
-            </div>
-            <!-- placeholder -->
-            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30 flex items-center justify-center">
-                <span class="text-2xl opacity-50">More tools soon</span>
             </div>
         </div>
     </div>
@@ -534,3 +534,4 @@
 <script src="js/game.js?v=8"></script>
 </body>
 </html>
+
