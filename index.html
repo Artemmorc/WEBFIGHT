@@ -17,19 +17,19 @@
             }, 500);
         };
     </script>
-    <!-- Force admin panel styles -->
+    <!-- Force admin panel styles (only for admin panel) -->
     <style>
-<style>
-        .modal-overlay {
-            background: transparent !important; /* Remove dark overlay */
+        /* Make only the admin panel overlay transparent */
+        #adminPanel.modal-overlay {
+            background: transparent !important;
             backdrop-filter: none !important;
-            pointer-events: none; /* Allow clicks to pass through to the menu */
+            pointer-events: none;
         }
         #adminPanel {
-            pointer-events: none; /* The overlay itself shouldn't block clicks */
+            pointer-events: none;
         }
         #adminPanel > div {
-            pointer-events: auto; /* But the blue box should be clickable */
+            pointer-events: auto;
             background-color: #1e3a8a !important;
             border: 4px solid white !important;
             border-radius: 1.5rem !important;
@@ -37,7 +37,6 @@
             max-width: 72rem !important;
             width: 100% !important;
             padding: 2rem !important;
-        }
         }
         #adminPanel .bg-black\/40 {
             background-color: rgba(0,0,0,0.4) !important;
@@ -491,5 +490,3 @@
 <script src="js/game.js?v=8"></script>
 </body>
 </html>
-
-
