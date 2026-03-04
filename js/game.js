@@ -24,7 +24,7 @@ let gameLoopId = null;
 let preBattleStart = null;
 const fightTextEl = document.getElementById('fight-text');
 
-// Power cubes collected counter
+// Power cubes collected counter (visual only)
 let powerCubesCollected = 0;
 
 // Death animation variables
@@ -41,30 +41,35 @@ function checkCollision(x, y, radius) {
             return true;
         }
     }
-    // Water (impassable)
+    // Water
     for (const water of window.state.battle.water || []) {
         if (x + radius > water.x && x - radius < water.x + window.CONFIG.TILE_SIZE &&
             y + radius > water.y && y - radius < water.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
-    // Barrels (impassable)
+    // Barrels
     for (const barrel of window.state.battle.barrels || []) {
         if (x + radius > barrel.x && x - radius < barrel.x + window.CONFIG.TILE_SIZE &&
             y + radius > barrel.y && y - radius < barrel.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
+    // Boxes (they block movement)
+    for (const box of window.state.battle.boxes || []) {
+        if (box.hp > 0 && x + radius > box.x && x - radius < box.x + window.CONFIG.TILE_SIZE &&
+            y + radius > box.y && y - radius < box.y + window.CONFIG.TILE_SIZE) {
+            return true;
+        }
+    }
     return false;
 }
 
-// Modified startBattlePre to load active map for everyone
 async function startBattlePre() {
     console.log('startBattlePre called');
     
     document.getElementById('prematch-loading').classList.add('active');
     
-    // Try to load active map from server for everyone
     let customMap = null;
     if (typeof window.sb !== 'undefined') {
         try {
@@ -110,7 +115,6 @@ function startBattle(customMap = null) {
         return;
     }
     
-    // Reset power cubes counter
     powerCubesCollected = 0;
     
     window.state.battle = {
@@ -122,7 +126,8 @@ function startBattle(customMap = null) {
         walls: [],
         bushes: [],
         water: [],
-        powerCubes: [],
+        boxes: [],          // destructible boxes that drop cubes
+        powerCubes: [],     // pickups (spawned from boxes)
         barrels: [],
         spawnPoints: [],
         bots: [],
@@ -138,7 +143,7 @@ function startBattle(customMap = null) {
                 if (type === 1) window.state.battle.walls.push({ x: worldX, y: worldY });
                 else if (type === 2) window.state.battle.bushes.push({ x: worldX, y: worldY });
                 else if (type === 3) window.state.battle.water.push({ x: worldX, y: worldY });
-                else if (type === 4) window.state.battle.powerCubes.push({ x: worldX + 32, y: worldY + 32, collected: false });
+                else if (type === 4) window.state.battle.boxes.push({ x: worldX, y: worldY, hp: 6000 }); // box with 6000 HP
                 else if (type === 5) window.state.battle.barrels.push({ x: worldX, y: worldY });
                 else if (type === 6) window.state.battle.spawnPoints.push({ x: worldX + 32, y: worldY + 32 });
             }
@@ -187,12 +192,15 @@ function startBattle(customMap = null) {
             window.state.battle.barrels.some(b =>
                 x + radius > b.x && x - radius < b.x + window.CONFIG.TILE_SIZE &&
                 y + radius > b.y && y - radius < b.y + window.CONFIG.TILE_SIZE
+            ) ||
+            window.state.battle.boxes.some(b =>
+                b.hp > 0 && x + radius > b.x && x - radius < b.x + window.CONFIG.TILE_SIZE &&
+                y + radius > b.y && y - radius < b.y + window.CONFIG.TILE_SIZE
             )
         );
         return { x, y };
     }
 
-    // Player spawn
     const usedSpawns = [];
     const playerSpawn = pickSpawnPoint(usedSpawns);
     usedSpawns.push(playerSpawn);
@@ -207,7 +215,7 @@ function startBattle(customMap = null) {
         reloading: 0, angle: 0,
         inBush: false, lastDamageTime: Date.now(),
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000,
-        power: 0 // power cubes multiplier
+        power: 0
     };
 
     for(let i=0; i<9; i++) {
@@ -304,46 +312,46 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
-    // Power cube collection
-    for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
-        const cube = battle.powerCubes[i];
-        if (cube.collected) continue;
-        const dist = Math.hypot(p.x - cube.x, p.y - cube.y);
-        if (dist < 30) {
-            cube.collected = true;
-            p.power++;
-            powerCubesCollected++;
-            // Optional: play sound, increase damage etc.
-        }
-    }
-
-    if (p.ammo < p.maxAmmo) {
-        if (Date.now() - p.lastAttackTime > 1500) {
-            p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
-        }
-    }
-
+    // Box destruction by bullets
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
         const nextY = b.y + Math.sin(b.angle) * speed;
 
+        // Check bullet vs boxes
+        for (let box of battle.boxes) {
+            if (box.hp <= 0) continue;
+            if (nextX + 8 > box.x && nextX - 8 < box.x + window.CONFIG.TILE_SIZE &&
+                nextY + 8 > box.y && nextY - 8 < box.y + window.CONFIG.TILE_SIZE) {
+                box.hp -= 800; // damage per bullet
+                if (box.hp <= 0) {
+                    // Spawn a power cube at box location
+                    battle.powerCubes.push({
+                        x: box.x + 32,
+                        y: box.y + 32,
+                        collected: false
+                    });
+                }
+                return false; // bullet destroyed
+            }
+        }
+
+        // Also check walls etc.
         if (checkCollision(nextX, nextY, 8)) {
             return false;
         }
-    
+
         b.x = nextX;
         b.y = nextY;
         b.dist += speed;
-    
+
         if (b.dist > 600) return false;
-    
+
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0) continue;
             if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
                 if (!t.invincibleUntil || Date.now() > t.invincibleUntil) {
-                    // Damage scales with shooter's power (if shooter is player)
                     let damage = 800;
                     if (b.ownerId === 'player' && p.power > 0) {
                         damage += p.power * 200;
@@ -359,6 +367,25 @@ function updateGame() {
         return true;
     });
 
+    // Power cube collection
+    for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
+        const cube = battle.powerCubes[i];
+        if (cube.collected) continue;
+        const dist = Math.hypot(p.x - cube.x, p.y - cube.y);
+        if (dist < 30) {
+            cube.collected = true;
+            p.power++;
+            powerCubesCollected++;
+        }
+    }
+
+    if (p.ammo < p.maxAmmo) {
+        if (Date.now() - p.lastAttackTime > 1500) {
+            p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
+        }
+    }
+
+    // Bot AI (unchanged)
     battle.bots.forEach(bot => {
         if(bot.hp <= 0) return;
         if (Math.random() < 0.02)
@@ -477,7 +504,6 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 3;
     
-    // Body
     const gradBody = ctx.createRadialGradient(-8, -8, 5, 0, 0, 20);
     gradBody.addColorStop(0, '#a855f7');
     gradBody.addColorStop(1, '#4a1d6d');
@@ -489,7 +515,6 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Head
     ctx.fillStyle = '#c084fc';
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#a855f7';
@@ -499,7 +524,6 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.strokeStyle = '#2d2d2d';
     ctx.stroke();
     
-    // Eyes
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'white';
     ctx.fillStyle = 'white';
@@ -510,19 +534,16 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
     
-    // Hat
     ctx.fillStyle = '#5d3a1a';
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'black';
     ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillRect(-8, -32, 16, 4);
     
-    // Cloak shoulders
     ctx.fillStyle = '#4a2e1e';
     ctx.beginPath(); ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
     
-    // Weapon
     ctx.fillStyle = '#4a3729';
     ctx.shadowBlur = 6;
     ctx.fillRect(10, -3, 24, 5);
@@ -533,15 +554,42 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.restore();
 }
 
+function drawBox(ctx, x, y) {
+    ctx.save();
+    ctx.translate(x + 32, y + 32);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    
+    // Wooden crate
+    ctx.fillStyle = '#8b5a2b';
+    ctx.fillRect(-25, -25, 50, 50);
+    ctx.strokeStyle = '#4a3729';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-25, -25, 50, 50);
+    
+    // Planks
+    ctx.fillStyle = '#5d3a1a';
+    ctx.fillRect(-25, -10, 50, 5);
+    ctx.fillRect(-25, 5, 50, 5);
+    
+    // Metal corners
+    ctx.fillStyle = '#4a3729';
+    ctx.fillRect(-28, -28, 6, 6);
+    ctx.fillRect(22, -28, 6, 6);
+    ctx.fillRect(-28, 22, 6, 6);
+    ctx.fillRect(22, 22, 6, 6);
+    
+    ctx.restore();
+}
+
 function drawPowerCube(ctx, x, y) {
     ctx.save();
     ctx.translate(x, y);
     
-    // Glow
     ctx.shadowColor = '#fbbf24';
     ctx.shadowBlur = 20;
     
-    // Main cube
     const grad = ctx.createRadialGradient(-5, -5, 5, 0, 0, 15);
     grad.addColorStop(0, '#fde047');
     grad.addColorStop(1, '#b45309');
@@ -553,7 +601,6 @@ function drawPowerCube(ctx, x, y) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Inner glow
     ctx.shadowBlur = 10;
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.fillRect(-5, -5, 10, 10);
@@ -563,13 +610,12 @@ function drawPowerCube(ctx, x, y) {
 
 function drawBarrel(ctx, x, y) {
     ctx.save();
-    ctx.translate(x + 32, y + 32); // center of tile
+    ctx.translate(x + 32, y + 32);
     
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 4;
     
-    // Barrel body
     const grad = ctx.createLinearGradient(-20, -20, 20, 20);
     grad.addColorStop(0, '#b91c1c');
     grad.addColorStop(1, '#7f1d1d');
@@ -581,14 +627,53 @@ function drawBarrel(ctx, x, y) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Metal bands
     ctx.fillStyle = '#4a3729';
     ctx.fillRect(-22, -15, 44, 6);
     ctx.fillRect(-22, 10, 44, 6);
     
-    // Highlight
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
     ctx.fillRect(-18, -20, 36, 5);
+    
+    ctx.restore();
+}
+
+function drawBush(ctx, x, y) {
+    ctx.save();
+    ctx.translate(x + 32, y + 32);
+    
+    // Yellow/wheat bush
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    
+    // Main bush clump
+    const grad = ctx.createRadialGradient(-10, -10, 5, 0, 0, 25);
+    grad.addColorStop(0, '#fde047');
+    grad.addColorStop(1, '#b45309');
+    ctx.fillStyle = grad;
+    
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Smaller tufts
+    ctx.beginPath();
+    ctx.ellipse(-15, -5, 12, 10, 0.2, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.ellipse(15, 5, 12, 10, -0.1, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Stalks
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 2;
+    for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i*10, -15);
+        ctx.lineTo(i*10, -30);
+        ctx.stroke();
+    }
     
     ctx.restore();
 }
@@ -614,24 +699,36 @@ function drawGame() {
         }
     }
     
+    // Draw bushes with custom function
     window.state.battle.bushes.forEach(b => {
         if (b.x + 64 > window.state.battle.camera.x && b.x < window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom &&
             b.y + 64 > window.state.battle.camera.y && b.y < window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) {
-            ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
+            drawBush(ctx, b.x, b.y);
         }
     });
     
     window.state.battle.water?.forEach(w => {
         ctx.fillStyle = '#0284c7';
         ctx.fillRect(w.x, w.y, 64, 64);
-        // Add wave lines
         ctx.fillStyle = '#7dd3fc';
         for (let i = 0; i < 3; i++) {
             ctx.fillRect(w.x + 10, w.y + 10 + i*20, 44, 4);
         }
     });
     
-    // Draw power cubes (only if not collected)
+    // Draw boxes
+    window.state.battle.boxes?.forEach(b => {
+        if (b.hp > 0) {
+            drawBox(ctx, b.x, b.y);
+            // Draw HP bar
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(b.x + 5, b.y - 10, 54, 8);
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(b.x + 5, b.y - 10, (b.hp / 6000) * 54, 8);
+        }
+    });
+    
+    // Draw power cubes
     window.state.battle.powerCubes?.forEach(p => {
         if (!p.collected) {
             drawPowerCube(ctx, p.x, p.y);
@@ -663,11 +760,20 @@ function drawGame() {
 
         drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
 
-        // Show power cubes count
+        // Show power cubes with small cube icon
         if (isPlayer && c.power > 0) {
-            ctx.fillStyle = '#fbbf24';
-            ctx.font = 'bold 20px Luckiest Guy';
-            ctx.fillText(`+${c.power}`, 40, -50);
+            for (let i = 0; i < c.power; i++) {
+                // Draw small cubes floating near head
+                ctx.save();
+                ctx.translate(-30 + i * 20, -60);
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 8;
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(-5, -5, 10, 10);
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(-2, -2, 4, 4);
+                ctx.restore();
+            }
         }
 
         const bw = 70;
@@ -710,8 +816,6 @@ function drawGame() {
     ctx.fill();
     ctx.restore();
 }
-
-// ... (rest of input handling remains the same)
 
 // ========== INPUT HANDLING ==========
 window.onkeydown = (e) => { 
