@@ -304,13 +304,6 @@ canvas {
     display: none;
     color: white;
 }
-.admin-input {
-    width: 100%;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    border-radius: 0.5rem;
-    color: black;
-}
 
 .fight-text {
     position: absolute;
