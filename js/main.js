@@ -33,7 +33,7 @@ window.SVG_ICONS = {
 
 // ========== GAME CONFIG ==========
 window.CONFIG = {
-    MAP_SIZE: 60, // 60x60
+    MAP_SIZE: 60,
     TILE_SIZE: 64,
     BRAWLERS: {
         'Mystery': { color: '#a855f7', hp: 3800, ammo: 3, speed: 6, reload: 1.5, type: 'Shotgun', pfp: 'M', rarity: 'starter', unlocked: true }
@@ -103,8 +103,8 @@ let mapData = [];
 let currentTile = 0; // 0=empty, 1=wall, 2=bush, 3=water, 4=powercube, 5=barrel, 6=spawn
 let mirrorMode = 'none';
 
-// Load list of maps from server and populate dropdown
 async function loadMapList() {
+    if (!window.sb) return;
     const { data, error } = await window.sb
         .from('maps')
         .select('id, name, is_active')
@@ -130,8 +130,11 @@ async function loadMapList() {
     }
 }
 
-// Save current map to server with given name
 async function saveMapToServer() {
+    if (!window.sb) {
+        alert('Database not available');
+        return;
+    }
     const name = document.getElementById('map-name-input').value.trim();
     if (!name) {
         alert('Please enter a map name');
@@ -148,13 +151,13 @@ async function saveMapToServer() {
         alert('Error saving map: ' + error.message);
     } else {
         alert('Map saved successfully');
-        loadMapList(); // refresh dropdown
+        loadMapList();
         document.getElementById('map-name-input').value = '';
     }
 }
 
-// Load selected map from server into editor
 async function loadMapFromServer() {
+    if (!window.sb) return;
     const select = document.getElementById('map-list-select');
     const mapId = select.value;
     if (!mapId) return;
@@ -172,21 +175,19 @@ async function loadMapFromServer() {
     alert('Map loaded');
 }
 
-// Set the selected map as active (deactivate others)
 async function setActiveMap() {
+    if (!window.sb) return;
     const select = document.getElementById('map-list-select');
     const mapId = select.value;
     if (!mapId) return;
-    // First, set all maps is_active = false
     const { error: resetError } = await window.sb
         .from('maps')
         .update({ is_active: false })
-        .neq('id', 0); // update all
+        .neq('id', 0);
     if (resetError) {
         alert('Error resetting active map: ' + resetError.message);
         return;
     }
-    // Then set the selected one to active
     const { error } = await window.sb
         .from('maps')
         .update({ is_active: true })
@@ -195,14 +196,14 @@ async function setActiveMap() {
         alert('Error setting active map: ' + error.message);
     } else {
         alert('Active map updated');
-        loadMapList(); // refresh
+        loadMapList();
     }
 }
 
 function openMapEditor() {
     document.getElementById('map-editor').classList.remove('hidden');
     initMapData();
-    loadMapList();
+    if (window.sb) loadMapList();
     renderEditorGrid();
     highlightSelectedTile(0);
 }
@@ -300,7 +301,6 @@ function getMirrorPositions(x, y) {
     }
 }
 
-// Legacy browser storage functions (optional)
 function saveMap() {
     localStorage.setItem('customMap', JSON.stringify(mapData));
     alert('Map saved to browser storage');
@@ -335,32 +335,35 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Check if user is already logged in
-window.sb.auth.getSession().then(({ data: { session } }) => {
-    if (session) {
-        console.log('User already logged in', session.user);
-        window.currentUser = session.user;
-        loadProfile().then(() => {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'flex';
-            if (typeof updateStatsUI === 'function') updateStatsUI();
-        });
-    }
-});
+if (window.sb) {
+    window.sb.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+            console.log('User already logged in', session.user);
+            window.currentUser = session.user;
+            loadProfile().then(() => {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('menu-screen').style.display = 'flex';
+                if (typeof updateStatsUI === 'function') updateStatsUI();
+            });
+        }
+    });
 
-// Listen for auth changes
-window.sb.auth.onAuthStateChange((event, session) => {
-    console.log('Auth event:', event, session);
-    if (event === 'SIGNED_IN') {
-        window.currentUser = session.user;
-        loadProfile().then(() => {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'flex';
-            if (typeof updateStatsUI === 'function') updateStatsUI();
-        });
-    } else if (event === 'SIGNED_OUT') {
-        window.currentUser = null;
-        window.currentProfile = null;
-        document.getElementById('menu-screen').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
-    }
-});
+    window.sb.auth.onAuthStateChange((event, session) => {
+        console.log('Auth event:', event, session);
+        if (event === 'SIGNED_IN') {
+            window.currentUser = session.user;
+            loadProfile().then(() => {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('menu-screen').style.display = 'flex';
+                if (typeof updateStatsUI === 'function') updateStatsUI();
+            });
+        } else if (event === 'SIGNED_OUT') {
+            window.currentUser = null;
+            window.currentProfile = null;
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+    });
+} else {
+    console.warn('Supabase not available – running in guest mode');
+}
