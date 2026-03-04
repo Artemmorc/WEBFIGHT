@@ -101,6 +101,93 @@ window.Textures.generate = function() {
     });
 };
 
+// ========== MAINTENANCE MODE ==========
+let maintenanceEndTime = localStorage.getItem('maintenanceEnd');
+if (maintenanceEndTime) maintenanceEndTime = parseInt(maintenanceEndTime, 10);
+
+function checkMaintenance() {
+    const now = Date.now();
+    if (maintenanceEndTime && now < maintenanceEndTime) {
+        // Maintenance active
+        if (!window.currentProfile?.is_admin) {
+            // Non-admin: show maintenance screen
+            document.getElementById('maintenance-overlay').classList.remove('hidden');
+            // Start timer update
+            updateMaintenanceTimer();
+        } else {
+            // Admin: hide maintenance screen
+            document.getElementById('maintenance-overlay').classList.add('hidden');
+        }
+    } else {
+        // Maintenance ended or not set
+        document.getElementById('maintenance-overlay').classList.add('hidden');
+        if (maintenanceEndTime && now >= maintenanceEndTime) {
+            localStorage.removeItem('maintenanceEnd');
+            maintenanceEndTime = null;
+        }
+    }
+}
+
+function updateMaintenanceTimer() {
+    const timerSpan = document.getElementById('maintenance-timer');
+    if (!timerSpan) return;
+    const interval = setInterval(() => {
+        const now = Date.now();
+        if (!maintenanceEndTime || now >= maintenanceEndTime) {
+            timerSpan.innerText = '0:00';
+            clearInterval(interval);
+            // If maintenance ended, hide overlay for non-admins (they will be shown login/menu? Actually they should see login again)
+            if (!window.currentProfile?.is_admin) {
+                // Force page reload or just hide? Better to reload to get fresh state.
+                location.reload();
+            }
+            return;
+        }
+        const remaining = Math.max(0, maintenanceEndTime - now);
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        timerSpan.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+function toggleMaintenance() {
+    if (!window.currentProfile?.is_admin) return;
+    if (maintenanceEndTime && Date.now() < maintenanceEndTime) {
+        // Turn off
+        localStorage.removeItem('maintenanceEnd');
+        maintenanceEndTime = null;
+        alert('Maintenance mode deactivated.');
+    } else {
+        // Turn on for 3 minutes
+        const end = Date.now() + 3 * 60 * 1000;
+        localStorage.setItem('maintenanceEnd', end);
+        maintenanceEndTime = end;
+        alert('Maintenance mode activated for 3 minutes.');
+    }
+    // Close admin panel? Optional
+    toggleAdminPanel();
+}
+
+function hardRefresh() {
+    // Force reload with cache bypass
+    location.reload(true); // Not supported in all browsers, fallback to location.reload()
+    // Alternative: add a cache-busting parameter
+    // location.href = location.href.split('?')[0] + '?t=' + Date.now();
+    location.reload();
+}
+
+// Call checkMaintenance after login and after session restore
+// Modify the session handling to check maintenance after login.
+// In the auth session callback, after setting currentUser and loading profile, call checkMaintenance().
+// Also call it after sign-in.
+// We'll add it to the existing auth event handlers.
+
+// In the existing code, after loadProfile() is called, add checkMaintenance().
+// For example, in the SIGNED_IN event handler, after loadProfile(), add checkMaintenance().
+// Also in the getSession().then() after loadProfile(), add checkMaintenance().
+
+// We'll edit the relevant parts. Since I'm providing the whole file, I'll include them.
+
 // ========== MAP EDITOR WITH SERVER STORAGE ==========
 let mapData = [];
 let currentTile = 0; // 0=empty, 1=wall, 2=bush, 3=water, 4=powercube, 5=barrel, 6=spawn
