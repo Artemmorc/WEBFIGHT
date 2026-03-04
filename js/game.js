@@ -444,7 +444,7 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== SIMPLIFIED DRAWING FUNCTIONS (OPTIMIZED) ==========
+// ========== OPTIMIZED DRAWING FUNCTIONS ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
@@ -497,7 +497,7 @@ function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
 function drawBox(ctx, x, y) {
     ctx.save();
     ctx.translate(x + 32, y + 32);
-    // No shadow – static object
+    // No shadow
     ctx.fillStyle = '#8b5a2b';
     ctx.fillRect(-25, -25, 50, 50);
     ctx.strokeStyle = '#4a3729';
@@ -513,7 +513,6 @@ function drawBox(ctx, x, y) {
 function drawPowerCube(ctx, x, y) {
     ctx.save();
     ctx.translate(x, y);
-    // No shadow – cube glows via color
     ctx.fillStyle = '#fbbf24';
     ctx.fillRect(-10, -10, 20, 20);
     ctx.fillStyle = '#b45309';
@@ -524,7 +523,6 @@ function drawPowerCube(ctx, x, y) {
 function drawBarrel(ctx, x, y) {
     ctx.save();
     ctx.translate(x + 32, y + 32);
-    // No shadow
     ctx.fillStyle = '#b91c1c';
     ctx.beginPath();
     ctx.ellipse(0, 0, 20, 25, 0, 0, Math.PI*2);
@@ -560,7 +558,7 @@ function drawGame() {
         }
     }
     
-    // Bushes (using texture)
+    // Bushes
     window.state.battle.bushes.forEach(b => {
         ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
     });
@@ -579,12 +577,17 @@ function drawGame() {
     window.state.battle.boxes?.forEach(b => {
         if (b.hp > 0) {
             drawBox(ctx, b.x, b.y);
-            // HP bar only if damaged
+            // HP bar and number if damaged
             if (b.hp < 6000) {
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
                 ctx.fillRect(b.x + 5, b.y - 10, 54, 8);
                 ctx.fillStyle = '#f97316';
                 ctx.fillRect(b.x + 5, b.y - 10, (b.hp / 6000) * 54, 8);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Luckiest Guy';
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`${Math.ceil(b.hp)}`, b.x + 25, b.y - 15);
             }
         }
     });
@@ -614,30 +617,40 @@ function drawGame() {
 
         drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
 
-        // Power cubes indicator (small cubes)
+        // Power cubes indicator – icon + count
         if (isPlayer && c.power > 0) {
-            for (let i = 0; i < Math.min(c.power, 5); i++) {
-                ctx.save();
-                ctx.translate(-30 + i * 15, -60);
-                ctx.shadowColor = '#fbbf24';
-                ctx.shadowBlur = 8;
-                ctx.fillStyle = '#fbbf24';
-                ctx.fillRect(-5, -5, 10, 10);
-                ctx.restore();
-            }
+            ctx.save();
+            ctx.translate(40, -60);
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillRect(-10, -10, 20, 20);
+            ctx.fillStyle = '#b45309';
+            ctx.fillRect(-5, -5, 10, 10);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Luckiest Guy';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(`x${c.power}`, 15, 5);
+            ctx.restore();
         }
 
-        // HP bar
+        // HP bar with number
+        const bw = 70;
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(-35, -50, 70, 12);
+        ctx.fillRect(-bw/2, -50, bw, 12);
         ctx.fillStyle = isPlayer ? '#22c55e' : '#ef4444';
-        ctx.fillRect(-35, -50, (c.hp/c.maxHp)*70, 12);
+        const hpPercent = c.hp / c.maxHp;
+        ctx.fillRect(-bw/2, -50, bw * hpPercent, 12);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 14px Luckiest Guy';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 4;
+        ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw/2, -55);
         
         if (isPlayer) {
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(-35, -36, 70, 6);
+            ctx.fillRect(-bw/2, -36, bw, 6);
             ctx.fillStyle = '#f97316';
-            ctx.fillRect(-35, -36, (c.ammo / c.maxAmmo) * 70, 6);
+            ctx.fillRect(-bw/2, -36, (c.ammo / c.maxAmmo) * bw, 6);
         }
         ctx.restore();
     };
@@ -665,17 +678,25 @@ function drawGame() {
     ctx.restore();
 }
 
-// ========== INPUT HANDLING ==========
-window.onkeydown = (e) => { 
-    if (!e || typeof e.key !== 'string') return;
-    const key = e.key.toLowerCase();
-    if (window.keys && key in window.keys) window.keys[key] = true;
+// ========== INPUT HANDLING (WASD with e.code) ==========
+window.onkeydown = (e) => {
+    if (!e) return;
+    switch (e.code) {
+        case 'KeyW': window.keys.w = true; e.preventDefault(); break;
+        case 'KeyA': window.keys.a = true; e.preventDefault(); break;
+        case 'KeyS': window.keys.s = true; e.preventDefault(); break;
+        case 'KeyD': window.keys.d = true; e.preventDefault(); break;
+    }
 };
 
-window.onkeyup = (e) => { 
-    if (!e || typeof e.key !== 'string') return;
-    const key = e.key.toLowerCase();
-    if (window.keys && key in window.keys) window.keys[key] = false;
+window.onkeyup = (e) => {
+    if (!e) return;
+    switch (e.code) {
+        case 'KeyW': window.keys.w = false; e.preventDefault(); break;
+        case 'KeyA': window.keys.a = false; e.preventDefault(); break;
+        case 'KeyS': window.keys.s = false; e.preventDefault(); break;
+        case 'KeyD': window.keys.d = false; e.preventDefault(); break;
+    }
 };
 
 function updateKeyboardMovement() {
