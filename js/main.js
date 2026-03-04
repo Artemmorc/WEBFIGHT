@@ -3,7 +3,7 @@ window.playerState = {
     name: 'Mystery',
     nameColor: '#4ade80',
     selectedIcon: 'Mystery',
-    trophies: 0,
+    trophies: 0, 
     pp: 0,
     coins: 0,
     gems: 0,
