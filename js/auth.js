@@ -1,5 +1,6 @@
 // Create Supabase client and make it globally accessible
-window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.sb = sb;
 
 // Auth variables
 window.currentUser = null;
