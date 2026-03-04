@@ -1,5 +1,5 @@
-// Create Supabase client (uses SUPABASE_URL and SUPABASE_ANON_KEY from config.js)
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Create Supabase client and make it globally accessible
+window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Auth variables
 window.currentUser = null;
