@@ -519,20 +519,15 @@ function drawGame() {
     const now = Date.now();
     const p = window.state.battle.player;
 
-    // Determine which texture to use for the floor (if any)
-    let floorTexture = window.Textures.floor;
-    if (bg === 'water' && window.Textures.waterBg) floorTexture = window.Textures.waterBg;
-    else if (bg === 'grass' && window.Textures.grassBg) floorTexture = window.Textures.grassBg;
-    else if (bg === 'stone' && window.Textures.stoneBg) floorTexture = window.Textures.stoneBg;
-
-    // Floor (tiles)
+    // Floor tiles - always use default desert texture
+    const floorTexture = window.Textures.floor;
     for (let i = startCol; i < endCol; i++) {
         for (let j = startRow; j < endRow; j++) {
             if (floorTexture) {
                 ctx.drawImage(floorTexture, i * 64, j * 64, 64, 64);
             } else {
                 // Fallback if texture missing
-                ctx.fillStyle = bgColor;
+                ctx.fillStyle = '#d4a373';
                 ctx.fillRect(i * 64, j * 64, 64, 64);
             }
         }
