@@ -1,8 +1,8 @@
 // ========== GLOBAL STATE ==========
 window.playerState = {
-    name: 'Mystery',
+    name: 'Mysteria',
     nameColor: '#4ade80',
-    selectedIcon: 'Mystery',
+    selectedIcon: 'Mysteria',
     trophies: 0,
     pp: 0,
     coins: 0,
@@ -12,7 +12,7 @@ window.playerState = {
 
 window.state = {
     screen: 'menu',
-    currentBrawler: 'Mystery',
+    currentBrawler: 'Mysteria',
     starrDropStep: 0,
     starrDropRarity: 'RARE',
     battle: { 
@@ -36,13 +36,20 @@ window.CONFIG = {
     MAP_SIZE: 60,
     TILE_SIZE: 64,
     BRAWLERS: {
-        'Mystery': { color: '#a855f7', hp: 3800, ammo: 3, speed: 6, reload: 1.5, type: 'Shotgun', pfp: 'M', rarity: 'starter', unlocked: true }
+        'Mysteria': { color: '#a855f7', hp: 3800, ammo: 3, speed: 6, reload: 1.5, type: 'Shotgun', pfp: 'M', rarity: 'starter', unlocked: true }
     },
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
 };
 
 // ========== TEXTURES (PRE‑RENDERED CANVAS ELEMENTS) ==========
-window.Textures = { wall: null, bush: null, floor: null };
+window.Textures = { 
+    floor: null, 
+    bush: null, 
+    wall: null,
+    waterBg: null,
+    grassBg: null,
+    stoneBg: null
+};
 window.Textures.generate = function() {
     function createTexture(w, h, drawFn) {
         const canvas = document.createElement('canvas');
@@ -72,7 +79,7 @@ window.Textures.generate = function() {
             ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(64,i); ctx.stroke();
         }
     });
-    // Bush – yellow wheat, full tile
+    // Bush – yellow wheat
     this.bush = createTexture(64, 64, ctx => {
         ctx.fillStyle = '#b45309';
         ctx.fillRect(0, 0, 64, 64);
@@ -89,7 +96,7 @@ window.Textures.generate = function() {
             ctx.stroke();
         }
     });
-    // Floor – grass with small rocks
+    // Default floor (desert)
     this.floor = createTexture(64, 64, ctx => {
         ctx.fillStyle = '#d4a373';
         ctx.fillRect(0, 0, 64, 64);
@@ -104,10 +111,38 @@ window.Textures.generate = function() {
             ctx.fill();
         }
     });
+    // Water background
+    this.waterBg = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#7dd3fc';
+        for (let i = 0; i < 3; i++) {
+            ctx.fillRect(10, 10 + i*20, 44, 4);
+        }
+    });
+    // Grass background
+    this.grassBg = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#2d6a4f';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#409c5c';
+        for (let i = 0; i < 15; i++) {
+            ctx.fillRect(Math.random()*64, Math.random()*64, 4, 2);
+        }
+    });
+    // Stone background
+    this.stoneBg = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#6b6b6b';
+        for (let i = 0; i < 10; i++) {
+            ctx.fillRect(Math.random()*64, Math.random()*64, 8, 2);
+        }
+    });
 };
 
 // ========== MAP EDITOR ==========
 let mapData = [];
+let mapBackground = 'floor'; // default background
 let currentTile = 0;
 let mirrorMode = 'none';
 
@@ -153,6 +188,7 @@ async function saveMapToServer() {
         .insert({
             name: name,
             map_data: mapData,
+            background: mapBackground,
             is_active: false
         });
     if (error) {
@@ -171,7 +207,7 @@ async function loadMapFromServer() {
     if (!mapId) return;
     const { data, error } = await window.sb
         .from('maps')
-        .select('map_data')
+        .select('map_data, background')
         .eq('id', mapId)
         .single();
     if (error) {
@@ -179,6 +215,8 @@ async function loadMapFromServer() {
         return;
     }
     mapData = data.map_data;
+    mapBackground = data.background || 'floor';
+    document.getElementById('background-select').value = mapBackground;
     renderEditorGrid();
     alert('Map loaded');
 }
@@ -214,6 +252,7 @@ function openMapEditor() {
     if (window.sb) loadMapList();
     renderEditorGrid();
     highlightSelectedTile(0);
+    document.getElementById('background-select').value = mapBackground;
 }
 
 function closeMapEditor() {
@@ -309,6 +348,12 @@ function getMirrorPositions(x, y) {
     }
 }
 
+function setMapBackground() {
+    const bg = document.getElementById('background-select').value;
+    mapBackground = bg;
+    alert(`Background set to ${bg}`);
+}
+
 function saveMap() {
     localStorage.setItem('customMap', JSON.stringify(mapData));
     alert('Map saved to browser storage');
@@ -326,7 +371,12 @@ function loadMap() {
 }
 
 function testMap() {
-    startBattle(mapData);
+    // startBattle will be called from game.js; we need to pass the background as well.
+    // We'll modify startBattle in game.js to accept a background parameter.
+    // For now, just call startBattle with mapData.
+    if (typeof startBattle === 'function') {
+        startBattle(mapData);
+    }
     closeMapEditor();
 }
 
@@ -569,6 +619,436 @@ async function cancelMaintenance() {
 
 function hardRefresh() {
     location.reload(true);
+}
+
+// ========== DAILY RESET ==========
+let dailyTimerInterval = null;
+
+async function checkDailyReset() {
+    if (!window.currentProfile) return;
+    const now = new Date();
+    const today9am = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 9, 0, 0));
+    
+    if (window.currentProfile.last_daily) {
+        const last = new Date(window.currentProfile.last_daily);
+        playerState.dailyClaimed = last >= today9am;
+    } else {
+        playerState.dailyClaimed = false;
+    }
+    
+    const claimText = document.getElementById('daily-claim-text');
+    if (claimText) {
+        claimText.innerText = playerState.dailyClaimed ? 'CLAIMED' : 'CLAIM';
+    }
+    
+    if (dailyTimerInterval) clearInterval(dailyTimerInterval);
+    dailyTimerInterval = setInterval(updateDailyTimer, 1000);
+    updateDailyTimer();
+}
+
+function updateDailyTimer() {
+    const now = new Date();
+    const nextReset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 9, 0, 0));
+    if (now >= nextReset) {
+        nextReset.setUTCDate(nextReset.getUTCDate() + 1);
+    }
+    const diff = nextReset - now;
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    const timerSpan = document.getElementById('daily-timer');
+    if (timerSpan) {
+        timerSpan.innerText = `Resets in ${hours}h ${minutes}m ${seconds}s`;
+    }
+}
+
+async function claimDailyReward() {
+    if (playerState.dailyClaimed) return;
+    if (!window.currentUser || !window.currentProfile) {
+        alert('You must be logged in to claim daily reward.');
+        return;
+    }
+    playerState.dailyClaimed = true;
+    playerState.coins += 100;
+    updateStatsUI();
+    
+    const now = new Date().toISOString();
+    const { error } = await window.sb
+        .from('profiles')
+        .update({ 
+            coins: playerState.coins,
+            daily_claimed: true,
+            last_daily: now 
+        })
+        .eq('user_id', window.currentUser.id);
+    
+    if (error) {
+        console.error('Error updating daily claim:', error);
+        alert('Failed to save claim. Please try again.');
+        playerState.dailyClaimed = false;
+        playerState.coins -= 100;
+        updateStatsUI();
+    } else {
+        window.currentProfile.last_daily = now;
+        window.currentProfile.daily_claimed = true;
+        document.getElementById('daily-claim-text').innerText = 'CLAIMED';
+        toggleShop(true);
+    }
+}
+
+// ========== AUTH FUNCTIONS ==========
+async function loadProfile() {
+    if (!window.currentUser) return;
+    const { data, error } = await window.sb
+        .from('profiles')
+        .select('*')
+        .eq('user_id', window.currentUser.id)
+        .single();
+    if (error) {
+        console.error('Profile load error', error);
+        return;
+    }
+    window.currentProfile = data;
+    playerState = {
+        name: data.display_name || 'Mysteria',
+        nameColor: '#4ade80',
+        selectedIcon: 'Mysteria',
+        trophies: data.trophies,
+        pp: data.pp,
+        coins: data.coins,
+        gems: data.gems,
+        dailyClaimed: data.daily_claimed
+    };
+    document.getElementById('displayUsername').innerText = data.username;
+    document.getElementById('displayAccountId').innerText = '#' + data.account_id;
+    if (typeof updateStatsUI === 'function') updateStatsUI();
+    if (data.is_admin) {
+        document.getElementById('adminBtnContainer').classList.remove('hidden');
+    } else {
+        document.getElementById('adminBtnContainer').classList.add('hidden');
+    }
+    checkDailyReset();
+}
+
+async function saveProfileToDB() {
+    if (!window.currentUser || !window.currentProfile) return;
+    const updates = {
+        display_name: playerState.name,
+        trophies: playerState.trophies,
+        pp: playerState.pp,
+        coins: playerState.coins,
+        gems: playerState.gems,
+        daily_claimed: playerState.dailyClaimed
+    };
+    const { error } = await window.sb
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', window.currentUser.id);
+    if (error) console.error('Save error', error);
+}
+
+async function handleLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const msg = document.getElementById('loginMessage');
+    if (!username || !password) {
+        msg.innerText = 'Username and password required';
+        return;
+    }
+    const email = username + '@example.com';
+    const { data, error } = await window.sb.auth.signInWithPassword({ email, password });
+    if (error) {
+        msg.innerText = error.message;
+        return;
+    }
+    window.currentUser = data.user;
+    await loadProfile();
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('menu-screen').style.display = 'flex';
+}
+
+async function handleRegister() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const msg = document.getElementById('loginMessage');
+    if (!username || !password) {
+        msg.innerText = 'Username and password required';
+        return;
+    }
+    const email = username + '@example.com';
+    const { data, error } = await window.sb.auth.signUp({
+        email,
+        password,
+        options: { data: { username } }
+    });
+    if (error) {
+        msg.innerText = error.message;
+        return;
+    }
+    const accountId = generateAccountId();
+    const { error: profileError } = await window.sb
+        .from('profiles')
+        .insert({
+            user_id: data.user.id,
+            username,
+            display_name: username,
+            account_id: accountId,
+            coins: 0,
+            gems: 0,
+            pp: 0,
+            trophies: 0,
+            daily_claimed: false,
+            is_admin: false
+        });
+    if (profileError) {
+        msg.innerText = 'Profile creation failed: ' + profileError.message;
+        return;
+    }
+    msg.innerText = 'Registration successful! You can now login.';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+function generateAccountId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+async function logout() {
+    await window.sb.auth.signOut();
+    window.currentUser = null;
+    window.currentProfile = null;
+    document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    window.keys = { w: false, a: false, s: false, d: false };
+}
+
+function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+}
+
+// Admin functions
+function toggleAdminPanel() {
+    const panel = document.getElementById('adminPanel');
+    panel.classList.toggle('hidden');
+}
+
+async function adminGiveCoins() {
+    if (!window.currentProfile?.is_admin) return;
+    const amount = parseInt(document.getElementById('adminCoins').value);
+    playerState.coins += amount;
+    updateStatsUI();
+    await saveProfileToDB();
+}
+
+async function adminGiveGems() {
+    if (!window.currentProfile?.is_admin) return;
+    const amount = parseInt(document.getElementById('adminGems').value);
+    playerState.gems += amount;
+    updateStatsUI();
+    await saveProfileToDB();
+}
+
+async function adminGivePp() {
+    if (!window.currentProfile?.is_admin) return;
+    const amount = parseInt(document.getElementById('adminPp').value);
+    playerState.pp += amount;
+    updateStatsUI();
+    await saveProfileToDB();
+}
+
+async function adminChangeUsername() {
+    if (!window.currentProfile?.is_admin) return;
+    const newUsername = document.getElementById('adminNewUsername').value.trim();
+    if (!newUsername) return;
+    const { error } = await window.sb
+        .from('profiles')
+        .update({ username: newUsername })
+        .eq('user_id', window.currentUser.id);
+    if (!error) {
+        window.currentProfile.username = newUsername;
+        document.getElementById('displayUsername').innerText = newUsername;
+    }
+}
+
+// ========== UI FUNCTIONS ==========
+function initUI() {
+    window.Textures.generate();
+    updateBrawlerMenu();
+    updateStatsUI();
+    document.getElementById('mode-icon-container').innerHTML = SVG_ICONS.showdown;
+    document.getElementById('icon-trophy-sm').innerHTML = SVG_ICONS.trophy(18);
+    document.getElementById('icon-pp-sm').innerHTML = SVG_ICONS.pp(18);
+    document.getElementById('icon-coins-sm').innerHTML = SVG_ICONS.coin(18);
+    document.getElementById('icon-gems-sm').innerHTML = SVG_ICONS.gem(18);
+    
+    document.getElementById('shop-coins-icon').innerHTML = SVG_ICONS.coin(24);
+    document.getElementById('shop-gems-icon').innerHTML = SVG_ICONS.gem(24);
+    document.getElementById('daily-reward-icon').innerHTML = SVG_ICONS.coin(100);
+    document.getElementById('btn-gem-icon').innerHTML = SVG_ICONS.gem(18);
+    document.getElementById('btn-gem-icon-2').innerHTML = SVG_ICONS.gem(18);
+    document.getElementById('shop-coins-bundle-icon').innerHTML = SVG_ICONS.coin(80);
+    document.getElementById('shop-starr-drop-icon').innerHTML = createStarrDropSVG('RARE', 100);
+    
+    setTimeout(() => {
+        document.getElementById('loading-screen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('loading-screen').style.display = 'none';
+        }, 500);
+    }, 1000);
+}
+
+function updateStatsUI() {
+    document.getElementById('display-player-name').innerText = playerState.name;
+    document.getElementById('display-player-name').style.color = playerState.nameColor;
+    document.getElementById('val-coins').innerText = playerState.coins.toLocaleString();
+    document.getElementById('val-pp').innerText = playerState.pp.toLocaleString();
+    document.getElementById('val-gems').innerText = playerState.gems.toLocaleString();
+    document.getElementById('trophy-count').innerText = playerState.trophies.toLocaleString();
+    document.getElementById('menu-pfp-container').innerHTML = createBrawlerSVG(playerState.selectedIcon, 'small');
+    document.getElementById('menu-pfp-container').style.backgroundColor = 'transparent';
+    
+    if (!document.getElementById('shop-modal').classList.contains('hidden')) {
+        document.getElementById('shop-val-coins').innerText = playerState.coins.toLocaleString();
+        document.getElementById('shop-val-gems').innerText = playerState.gems.toLocaleString();
+    }
+    if (window.currentProfile) {
+        document.getElementById('profileAccountId').innerText = '#' + window.currentProfile.account_id;
+    }
+}
+
+function createBrawlerSVG(name, size) {
+    const b = CONFIG.BRAWLERS[name];
+    const s = size === 'large' ? 200 : 80;
+    const strokeWidth = size === 'large' ? 4 : 2;
+    return `
+    <svg width="${s}" height="${s}" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="38" fill="${b.color}" stroke="black" stroke-width="${strokeWidth}" />
+        <circle cx="38" cy="42" r="6" fill="white" stroke="black" stroke-width="2"/>
+        <circle cx="62" cy="42" r="6" fill="white" stroke="black" stroke-width="2"/>
+        <circle cx="38" cy="44" r="3" fill="black"/>
+        <circle cx="62" cy="44" r="3" fill="black"/>
+        <circle cx="36" cy="40" r="1.5" fill="white"/>
+        <circle cx="60" cy="40" r="1.5" fill="white"/>
+        <path d="M30 25 L70 25 L65 35 L35 35 Z" fill="#8b5a2b" stroke="black" stroke-width="2"/>
+        <rect x="65" y="42" width="25" height="8" rx="2" fill="#4a3729" stroke="black" stroke-width="2"/>
+    </svg>`;
+}
+
+function toggleShop(show) {
+    const shop = document.getElementById('shop-modal');
+    if (show) {
+        shop.classList.remove('hidden');
+        updateStatsUI();
+        if (playerState.dailyClaimed) {
+            document.getElementById('daily-reward-card').style.opacity = '0.5';
+            document.getElementById('daily-reward-card').onclick = null;
+            document.getElementById('daily-claim-text').innerText = 'CLAIMED';
+        } else {
+            document.getElementById('daily-reward-card').style.opacity = '1';
+            document.getElementById('daily-reward-card').onclick = claimDailyReward;
+            document.getElementById('daily-claim-text').innerText = 'CLAIM';
+        }
+    } else {
+        shop.classList.add('hidden');
+    }
+}
+
+async function exchangeGems(cost, amount) {
+    if (playerState.gems >= cost) {
+        playerState.gems -= cost;
+        playerState.coins += amount;
+        updateStatsUI();
+        await saveProfileToDB();
+    } else {
+        alert("Not enough gems!");
+    }
+}
+
+async function purchaseStarrDrop() {
+    if (playerState.gems >= 10) {
+        playerState.gems -= 10;
+        updateStatsUI();
+        await saveProfileToDB();
+        startStarrDropAnimation();
+    } else {
+        alert("Not enough gems!");
+    }
+}
+
+function toggleProfile(show) {
+    const modal = document.getElementById('profile-modal');
+    if (show) {
+        modal.classList.remove('hidden');
+        document.getElementById('input-name').value = playerState.name;
+        
+        const cg = document.getElementById('color-grid');
+        cg.innerHTML = '';
+        CONFIG.COLORS.forEach(c => {
+            const d = document.createElement('div');
+            d.className = `w-full aspect-square rounded-lg cursor-pointer border-4 ${playerState.nameColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`;
+            d.style.backgroundColor = c;
+            d.onclick = () => { playerState.nameColor = c; toggleProfile(true); };
+            cg.appendChild(d);
+        });
+
+        const ig = document.getElementById('icon-grid');
+        ig.innerHTML = '';
+        Object.keys(CONFIG.BRAWLERS).forEach(name => {
+            if (!CONFIG.BRAWLERS[name].unlocked) return;
+            const d = document.createElement('div');
+            d.className = `p-2 bg-black/40 rounded-xl cursor-pointer border-4 flex items-center justify-center transition-all ${playerState.selectedIcon === name ? 'border-yellow-400 scale-105' : 'border-transparent hover:border-white/20'}`;
+            d.style.backgroundColor = CONFIG.BRAWLERS[name].color;
+            d.innerHTML = createBrawlerSVG(name, 'small');
+            d.onclick = () => { playerState.selectedIcon = name; toggleProfile(true); };
+            ig.appendChild(d);
+        });
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+
+async function saveProfile() {
+    playerState.name = document.getElementById('input-name').value || 'Mysteria';
+    updateStatsUI();
+    await saveProfileToDB();
+    toggleProfile(false);
+}
+
+function updateBrawlerMenu() {
+    document.getElementById('brawler-stand').innerHTML = createBrawlerSVG(state.currentBrawler, 'large');
+    document.getElementById('current-brawler-name').innerText = state.currentBrawler;
+}
+
+function toggleBrawlers(show) {
+    const screen = document.getElementById('brawler-screen');
+    if (show) {
+        screen.classList.remove('hidden');
+        const list = document.getElementById('brawler-list');
+        list.innerHTML = '';
+        Object.keys(CONFIG.BRAWLERS).forEach(name => {
+            const b = CONFIG.BRAWLERS[name];
+            const div = document.createElement('div');
+            const bgClass = b.rarity === 'starter' ? 'bg-starter' : 'bg-rare-brawler';
+            const isUnlocked = b.unlocked;
+            
+            div.className = `p-4 rounded-xl border-4 ${state.currentBrawler === name ? 'border-yellow-400' : 'border-black'} ${bgClass} cursor-pointer hover:scale-105 transition-all relative ${!isUnlocked ? 'opacity-80' : ''}`;
+            div.innerHTML = `
+                <div class="h-32 mb-2 flex items-center justify-center ${!isUnlocked ? 'grayscale brightness-50' : ''}">${createBrawlerSVG(name, 'small')}</div>
+                <div class="text-center text-xl text-black">${name}</div>
+                <div class="text-center text-xs opacity-70 text-black uppercase">${b.rarity}</div>
+                ${!isUnlocked ? '<div class="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>' : ''}
+            `;
+            if (isUnlocked) {
+                div.onclick = () => { state.currentBrawler = name; toggleBrawlers(false); updateBrawlerMenu(); };
+            }
+            list.appendChild(div);
+        });
+    } else { screen.classList.add('hidden'); }
 }
 
 // ========== INITIALIZATION ==========
