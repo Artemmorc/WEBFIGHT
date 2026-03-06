@@ -492,12 +492,22 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== OPTIMIZED DRAWING (WITH BACKGROUND SELECTION) ==========
+// ========== OPTIMIZED DRAWING (WITH BACKGROUND COLOR) ==========
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
     ctx.save();
 
+    // First, fill the entire canvas with the background color
+    const bg = window.state.battle.background || 'floor';
+    let bgColor = '#d4a373'; // default desert
+    if (bg === 'water') bgColor = '#0284c7';
+    else if (bg === 'grass') bgColor = '#2d6a4f';
+    else if (bg === 'stone') bgColor = '#4a4a4a';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Now apply camera transform and draw the map
     ctx.scale(window.state.battle.camera.zoom, window.state.battle.camera.zoom);
     ctx.translate(-window.state.battle.camera.x, -window.state.battle.camera.y);
 
@@ -508,22 +518,21 @@ function drawGame() {
     const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height / window.state.battle.camera.zoom) / 64));
     const now = Date.now();
     const p = window.state.battle.player;
-    const bg = window.state.battle.background || 'floor';
 
-    // Determine which texture to use for the floor
+    // Determine which texture to use for the floor (if any)
     let floorTexture = window.Textures.floor;
     if (bg === 'water' && window.Textures.waterBg) floorTexture = window.Textures.waterBg;
     else if (bg === 'grass' && window.Textures.grassBg) floorTexture = window.Textures.grassBg;
     else if (bg === 'stone' && window.Textures.stoneBg) floorTexture = window.Textures.stoneBg;
 
-    // Floor
+    // Floor (tiles)
     for (let i = startCol; i < endCol; i++) {
         for (let j = startRow; j < endRow; j++) {
             if (floorTexture) {
                 ctx.drawImage(floorTexture, i * 64, j * 64, 64, 64);
             } else {
                 // Fallback if texture missing
-                ctx.fillStyle = '#d4a373';
+                ctx.fillStyle = bgColor;
                 ctx.fillRect(i * 64, j * 64, 64, 64);
             }
         }
