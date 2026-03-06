@@ -1,18 +1,18 @@
 // ========== GLOBAL FALLBACKS ==========
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
 window.state = window.state || { battle: { active: false } };
-window.playerState = window.playerState || { name: 'Mystery' };
+window.playerState = window.playerState || { name: 'Mysteria' };
 window.CONFIG = window.CONFIG || { 
     MAP_SIZE: 60, 
     TILE_SIZE: 64, 
     BRAWLERS: { 
-        Mystery: { hp: 3800, speed: 6, color: '#a855f7', ammo: 3, reload: 1.5, type: 'Shotgun', unlocked: true } 
+        Mysteria: { hp: 3800, speed: 6, color: '#a855f7', ammo: 3, reload: 1.5, type: 'Shotgun', unlocked: true } 
     } 
 };
 window.Textures = window.Textures || { floor: null, bush: null, wall: null };
 
 if (!window.state.currentBrawler) {
-    window.state.currentBrawler = 'Mystery';
+    window.state.currentBrawler = 'Mysteria';
 }
 
 console.log('game.js loaded, window.keys =', window.keys);
@@ -89,16 +89,18 @@ async function startBattlePre() {
     document.getElementById('prematch-loading').classList.add('active');
     
     let customMap = null;
+    let mapBackground = 'floor'; // default
     if (typeof window.sb !== 'undefined') {
         try {
             const { data, error } = await window.sb
                 .from('maps')
-                .select('map_data')
+                .select('map_data, background')
                 .eq('is_active', true)
                 .maybeSingle();
             if (!error && data) {
                 customMap = data.map_data;
-                console.log('Loaded active map from server');
+                mapBackground = data.background || 'floor';
+                console.log('Loaded active map from server, background:', mapBackground);
             }
         } catch (e) {
             console.warn('Could not load active map, using random', e);
@@ -107,7 +109,7 @@ async function startBattlePre() {
     
     setTimeout(() => {
         document.getElementById('prematch-loading').classList.remove('active');
-        startBattle(customMap);
+        startBattle(customMap, mapBackground);
         window.state.preBattle = true;
         const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
         window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
@@ -117,7 +119,7 @@ async function startBattlePre() {
     }, 500);
 }
 
-function startBattle(customMap = null) {
+function startBattle(customMap = null, background = 'floor') {
     window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('battle-screen').classList.remove('hidden');
@@ -126,7 +128,7 @@ function startBattle(customMap = null) {
     canvas.height = window.innerHeight;
     
     const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-    const brawlerName = window.state.currentBrawler || 'Mystery';
+    const brawlerName = window.state.currentBrawler || 'Mysteria';
     const bData = window.CONFIG.BRAWLERS[brawlerName];
     if (!bData) {
         console.error('Brawler data not found for', brawlerName);
@@ -149,7 +151,8 @@ function startBattle(customMap = null) {
         barrels: [],
         spawnPoints: [],
         bots: [],
-        joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
+        joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } },
+        background: background // store background for drawing
     };
 
     if (customMap) {
@@ -167,6 +170,7 @@ function startBattle(customMap = null) {
             }
         }
     } else {
+        // Random generation
         for(let i=0; i<window.CONFIG.MAP_SIZE; i++) {
             for(let j=0; j<window.CONFIG.MAP_SIZE; j++) {
                 const rand = Math.random();
@@ -241,9 +245,9 @@ function startBattle(customMap = null) {
         window.state.battle.bots.push({
             id: 'bot_'+i, name: 'Bot-'+(i+1),
             x: botSpawn.x, y: botSpawn.y,
-            hp: window.CONFIG.BRAWLERS['Mystery'].hp, 
-            maxHp: window.CONFIG.BRAWLERS['Mystery'].hp,
-            type: 'Mystery', speed: window.CONFIG.BRAWLERS['Mystery'].speed,
+            hp: window.CONFIG.BRAWLERS['Mysteria'].hp, 
+            maxHp: window.CONFIG.BRAWLERS['Mysteria'].hp,
+            type: 'Mysteria', speed: window.CONFIG.BRAWLERS['Mysteria'].speed,
             angle: Math.random()*Math.PI*2, lastShot: 0,
             inBush: false, invincibleUntil: Date.now() + 3000,
             power: 0,
@@ -488,49 +492,7 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== OPTIMIZED DRAWING (WITH ROTATION AND GUN) ==========
-function drawBrawler(ctx, type, x, y, angle, size = 80) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    
-    // Body (ellipse)
-    ctx.fillStyle = '#a855f7';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#2d2d2d';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    // Head (circle)
-    ctx.fillStyle = '#c084fc';
-    ctx.beginPath();
-    ctx.arc(0, -20, 10, 0, Math.PI*2);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Eyes
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#2d1b0e';
-    ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
-    
-    // Hat
-    ctx.fillStyle = '#5d3a1a';
-    ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillRect(-8, -32, 16, 4);
-    
-    // Weapon (shotgun) – positioned relative to rotation
-    ctx.fillStyle = '#4a3729';
-    ctx.fillRect(10, -3, 24, 5);
-    ctx.fillRect(28, -6, 5, 11);
-    
-    ctx.restore();
-}
-
+// ========== OPTIMIZED DRAWING (WITH BACKGROUND SELECTION) ==========
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
@@ -546,20 +508,38 @@ function drawGame() {
     const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height / window.state.battle.camera.zoom) / 64));
     const now = Date.now();
     const p = window.state.battle.player;
+    const bg = window.state.battle.background || 'floor';
+
+    // Determine which texture to use for the floor
+    let floorTexture = window.Textures.floor;
+    if (bg === 'water' && window.Textures.waterBg) floorTexture = window.Textures.waterBg;
+    else if (bg === 'grass' && window.Textures.grassBg) floorTexture = window.Textures.grassBg;
+    else if (bg === 'stone' && window.Textures.stoneBg) floorTexture = window.Textures.stoneBg;
 
     // Floor
     for (let i = startCol; i < endCol; i++) {
         for (let j = startRow; j < endRow; j++) {
-            ctx.drawImage(window.Textures.floor, i * 64, j * 64, 64, 64);
+            if (floorTexture) {
+                ctx.drawImage(floorTexture, i * 64, j * 64, 64, 64);
+            } else {
+                // Fallback if texture missing
+                ctx.fillStyle = '#d4a373';
+                ctx.fillRect(i * 64, j * 64, 64, 64);
+            }
         }
     }
 
     // Bushes
     window.state.battle.bushes.forEach(b => {
-        ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
+        if (window.Textures.bush) {
+            ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
+        } else {
+            ctx.fillStyle = '#b45309';
+            ctx.fillRect(b.x, b.y, 64, 64);
+        }
     });
 
-    // Water
+    // Water (if any, drawn on top)
     window.state.battle.water?.forEach(w => {
         ctx.fillStyle = '#0284c7';
         ctx.fillRect(w.x, w.y, 64, 64);
@@ -609,7 +589,12 @@ function drawGame() {
 
     // Walls
     window.state.battle.walls.forEach(w => {
-        ctx.drawImage(window.Textures.wall, w.x, w.y, 64, 64);
+        if (window.Textures.wall) {
+            ctx.drawImage(window.Textures.wall, w.x, w.y, 64, 64);
+        } else {
+            ctx.fillStyle = '#8b5a2b';
+            ctx.fillRect(w.x, w.y, 64, 64);
+        }
     });
 
     const drawChar = (c, isPlayer, viewer) => {
@@ -689,6 +674,48 @@ function drawGame() {
     ctx.arc(fullSize / 2, fullSize / 2, window.state.battle.poisonRadius, 0, Math.PI * 2, true);
     ctx.fill();
 
+    ctx.restore();
+}
+
+function drawBrawler(ctx, type, x, y, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    
+    // Body
+    ctx.fillStyle = '#a855f7';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Head
+    ctx.fillStyle = '#c084fc';
+    ctx.beginPath();
+    ctx.arc(0, -20, 10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Eyes
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2d1b0e';
+    ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
+    
+    // Hat
+    ctx.fillStyle = '#5d3a1a';
+    ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(-8, -32, 16, 4);
+    
+    // Weapon (shotgun)
+    ctx.fillStyle = '#4a3729';
+    ctx.fillRect(10, -3, 24, 5);
+    ctx.fillRect(28, -6, 5, 11);
+    
     ctx.restore();
 }
 
@@ -800,7 +827,7 @@ function spawnBullet(owner, angle, isSuper) {
     }
     if (owner.id === 'player' && !isSuper && owner.ammo <= 0.9) return;
     if (owner.id === 'player' && !isSuper) owner.ammo--;
-    const count = (owner.type === 'Mystery') ? 5 : 1;
+    const count = (owner.type === 'Mysteria') ? 5 : 1;
     for (let i = 0; i < count; i++) {
         const spread = (i - (count - 1) / 2) * 0.15;
         window.state.battle.bullets.push({
