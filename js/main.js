@@ -41,34 +41,39 @@ window.CONFIG = {
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
 };
 
-// ========== TEXTURES ==========
+// ========== TEXTURES (PRE‑RENDERED CANVAS ELEMENTS) ==========
 window.Textures = { wall: null, bush: null, floor: null };
 window.Textures.generate = function() {
-    const createTex = (w, h, drawFn) => {
-        const c = document.createElement('canvas');
-        c.width = w; c.height = h;
-        drawFn(c.getContext('2d'));
-        return c;
-    };
-    this.wall = createTex(64, 64, ctx => {
-        ctx.fillStyle = '#c19a6b';
+    function createTexture(w, h, drawFn) {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        drawFn(canvas.getContext('2d'));
+        return canvas;
+    }
+    // Wall – brick pattern
+    this.wall = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#8b5a2b';
         ctx.fillRect(0, 0, 64, 64);
-        ctx.fillStyle = '#a17a4b';
+        ctx.fillStyle = '#b87333';
         for (let i = 0; i < 64; i += 32) {
             for (let j = 0; j < 64; j += 16) {
                 ctx.fillRect(i+2, j+2, 28, 12);
-                ctx.fillStyle = '#8b5a2b';
+                ctx.fillStyle = '#6b4f3a';
                 ctx.fillRect(i+2, j+2, 28, 2);
             }
         }
-        ctx.strokeStyle = '#6b4f3a';
+        ctx.strokeStyle = '#4a3729';
         ctx.lineWidth = 2;
-        for (let i = 0; i <= 64; i += 32) ctx.beginPath(), ctx.moveTo(i,0), ctx.lineTo(i,64), ctx.stroke();
-        for (let i = 0; i <= 64; i += 16) ctx.beginPath(), ctx.moveTo(0,i), ctx.lineTo(64,i), ctx.stroke();
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.fillRect(0, 0, 64, 32);
+        for (let i = 0; i <= 64; i += 32) {
+            ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,64); ctx.stroke();
+        }
+        for (let i = 0; i <= 64; i += 16) {
+            ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(64,i); ctx.stroke();
+        }
     });
-    this.bush = createTex(64, 64, ctx => {
+    // Bush – yellow wheat, full tile
+    this.bush = createTexture(64, 64, ctx => {
         ctx.fillStyle = '#b45309';
         ctx.fillRect(0, 0, 64, 64);
         ctx.fillStyle = '#a16207';
@@ -84,7 +89,8 @@ window.Textures.generate = function() {
             ctx.stroke();
         }
     });
-    this.floor = createTex(64, 64, ctx => {
+    // Floor – grass with small rocks
+    this.floor = createTexture(64, 64, ctx => {
         ctx.fillStyle = '#d4a373';
         ctx.fillRect(0, 0, 64, 64);
         for (let i = 0; i < 15; i++) {
@@ -326,14 +332,13 @@ function testMap() {
 
 // ========== NEWS SYSTEM ==========
 async function handleNewsClick() {
-    await openNewsViewer(); // viewer first for everyone
+    await openNewsViewer();
 }
 
 async function openNewsViewer() {
     const viewer = document.getElementById('news-viewer');
     viewer.classList.remove('hidden');
     await loadNewsList();
-    // Show create button if admin
     const createBtn = document.getElementById('news-create-btn');
     if (window.currentProfile?.is_admin) {
         createBtn.classList.remove('hidden');
@@ -439,12 +444,11 @@ async function saveNews(published) {
         alert('News saved');
         clearNewsEditor();
         closeNewsEditor();
-        if (published) loadNewsList(); // refresh viewer if it's open
+        if (published) loadNewsList();
     }
 }
 
-// ========== MAINTENANCE MODE (with separate visual timer) ==========
-let maintenanceInterval = null;
+// ========== MAINTENANCE MODE ==========
 let warningTimeout = null;
 let timerInterval = null;
 
@@ -465,7 +469,6 @@ async function checkMaintenance() {
     const duration = (data.duration_minutes || 10) * 60 * 1000;
     const end = start + duration;
 
-    // Pre‑maintenance warning (if start is in the future)
     if (now < start) {
         const minutesUntil = Math.ceil((start - now) / 60000);
         showMaintenanceWarning(minutesUntil);
@@ -473,70 +476,49 @@ async function checkMaintenance() {
         return;
     }
 
-    // Maintenance active – show overlay for non‑admins
-    if (!window.currentProfile?.is_admin) {
-        document.getElementById('maintenance-overlay').classList.remove('hidden');
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('menu-screen').style.display = 'none';
-        // Start visual timer if a visual_end_time exists, otherwise fallback to old duration
-        startMaintenanceTimer(data);
-    } else {
+    if (now >= start && now < end) {
+        if (!window.currentProfile?.is_admin) {
+            document.getElementById('maintenance-overlay').classList.remove('hidden');
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'none';
+            startMaintenanceTimer(end);
+        } else {
+            document.getElementById('maintenance-overlay').classList.add('hidden');
+        }
+        return;
+    }
+
+    if (now >= end) {
+        await window.sb.from('maintenance').delete().eq('id', 1);
         document.getElementById('maintenance-overlay').classList.add('hidden');
     }
 }
 
 function showMaintenanceWarning(minutes) {
-    if (warningTimeout) {
-        clearTimeout(warningTimeout);
-        const oldWarning = document.querySelector('.fixed.top-4.left-1\\/2');
-        if (oldWarning) oldWarning.remove();
-    }
+    if (warningTimeout) clearTimeout(warningTimeout);
+    const old = document.querySelector('.fixed.top-4.left-1\\/2');
+    if (old) old.remove();
     const warning = document.createElement('div');
     warning.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-600 text-white px-6 py-4 rounded-xl text-2xl z-[1100] animate-bounce shadow-2xl border-4 border-white';
     warning.innerText = `⚠️ MAINTENANCE IN ${minutes} MINUTE${minutes > 1 ? 'S' : ''} ⚠️`;
     document.body.appendChild(warning);
-    warningTimeout = setTimeout(() => {
-        warning.remove();
-    }, 5000);
+    warningTimeout = setTimeout(() => warning.remove(), 5000);
 }
 
-function startMaintenanceTimer(data) {
+function startMaintenanceTimer(endTime) {
     if (timerInterval) clearInterval(timerInterval);
     const timerSpan = document.getElementById('maintenance-timer');
     if (!timerSpan) return;
-
-    // If there's a visual_end_time, use that for countdown
-    if (data.visual_end_time) {
-        const visualEnd = new Date(data.visual_end_time).getTime();
-        timerInterval = setInterval(() => {
-            const now = Date.now();
-            if (now >= visualEnd) {
-                timerSpan.innerText = '0:00';
-                clearInterval(timerInterval);
-                timerInterval = null;
-                return;
-            }
-            const remaining = visualEnd - now;
-            const minutes = Math.floor(remaining / 60000);
-            const seconds = Math.floor((remaining % 60000) / 1000);
-            timerSpan.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }, 1000);
-        return;
-    }
-
-    // Fallback to old duration-based countdown (if no visual timer)
-    const start = new Date(data.start_time).getTime();
-    const duration = (data.duration_minutes || 10) * 60 * 1000;
-    const end = start + duration;
-    timerInterval = setInterval(() => {
+    timerInterval = setInterval(async () => {
         const now = Date.now();
-        if (now >= end) {
+        if (now >= endTime) {
             timerSpan.innerText = '0:00';
             clearInterval(timerInterval);
-            timerInterval = null;
+            await window.sb.from('maintenance').delete().eq('id', 1);
+            document.getElementById('maintenance-overlay').classList.add('hidden');
             return;
         }
-        const remaining = end - now;
+        const remaining = endTime - now;
         const minutes = Math.floor(remaining / 60000);
         const seconds = Math.floor((remaining % 60000) / 1000);
         timerSpan.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -557,34 +539,19 @@ async function scheduleMaintenance() {
     }
 }
 
-async function setVisualTimer() {
+async function scheduleMaintenanceWithDuration() {
     if (!window.currentProfile?.is_admin) return;
-    const minutesInput = document.getElementById('visual-minutes');
-    let minutes = parseInt(minutesInput.value, 10);
-    if (isNaN(minutes) || minutes < 1) minutes = 10;
-    const visualEnd = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    const minutesInput = document.getElementById('maintenance-minutes');
+    let duration = parseInt(minutesInput.value, 10);
+    if (isNaN(duration) || duration < 1) duration = 5;
+    const startTime = new Date(Date.now() + 3 * 60 * 1000).toISOString();
     const { error } = await window.sb
         .from('maintenance')
-        .update({ visual_end_time: visualEnd })
-        .eq('id', 1);
+        .upsert({ id: 1, start_time: startTime, duration_minutes: duration });
     if (error) {
-        alert('Error setting visual timer: ' + error.message);
+        alert('Error scheduling maintenance: ' + error.message);
     } else {
-        alert(`Visual timer set to ${minutes} minutes.`);
-        toggleAdminPanel();
-    }
-}
-
-async function clearVisualTimer() {
-    if (!window.currentProfile?.is_admin) return;
-    const { error } = await window.sb
-        .from('maintenance')
-        .update({ visual_end_time: null })
-        .eq('id', 1);
-    if (error) {
-        alert('Error clearing visual timer: ' + error.message);
-    } else {
-        alert('Visual timer cleared.');
+        alert(`Maintenance scheduled to start in 3 minutes (duration ${duration} min).`);
         toggleAdminPanel();
     }
 }
@@ -614,12 +581,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof initUI === 'function') initUI();
         }, 500);
     }
-    // Start periodic maintenance check
     setInterval(checkMaintenance, 5000);
     checkMaintenance();
 });
 
-// Check if user is already logged in
 if (window.sb) {
     window.sb.auth.getSession().then(({ data: { session } }) => {
         if (session) {
