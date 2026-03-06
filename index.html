@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Brawl Stars – Mystery Desert</title>
+    <title>WEBFIGHT – Mystery Desert</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/style.css?v=7">
     <!-- Fallback for PLAY button -->
-    <script> 
+    <script>
         window.startBattlePre = window.startBattlePre || function() { 
             console.warn('Game engine not ready – retrying...');
             setTimeout(() => { 
@@ -145,7 +145,7 @@
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
     <div class="login-box">
-        <h1 class="text-5xl text-center text-yellow-400 mb-6">MYSTERY DESERT</h1>
+        <h1 class="text-5xl text-center text-yellow-400 mb-6">WEBFIGHT</h1>
         <input type="text" id="loginUsername" placeholder="Username">
         <input type="password" id="loginPassword" placeholder="Password">
         <button onclick="handleLogin()" class="bg-green-500 hover:bg-green-600">LOGIN</button>
@@ -169,7 +169,7 @@
             <div onclick="toggleProfile(true)" class="flex items-center gap-3 bg-black/50 p-2 rounded-xl border-2 border-white/30 cursor-pointer hover:bg-black/70 transition-all">
                 <div class="w-14 h-14 rounded-lg border-2 border-white flex items-center justify-center overflow-hidden bg-gray-700" id="menu-pfp-container"></div>
                 <div>
-                    <div id="display-player-name" class="text-green-400 text-xl leading-tight">Mystery</div>
+                    <div id="display-player-name" class="text-green-400 text-xl leading-tight">Mysteria</div>
                     <div class="flex items-center gap-1 text-sm text-yellow-400">
                         <span id="icon-trophy-sm"></span> <span id="trophy-count" class="font-bold">0</span>
                     </div>
@@ -203,7 +203,7 @@
     <!-- CENTER: brawler stand -->
     <div class="flex-1 flex flex-col items-center justify-center relative z-10">
         <div id="brawler-stand" class="w-72 h-72 flex items-center justify-center brawler-shadow transition-all duration-500"></div>
-        <div class="absolute bottom-10 bg-black/60 px-10 py-3 rounded-full border-2 border-white/30 text-3xl uppercase tracking-widest" id="current-brawler-name">Mystery</div>
+        <div class="absolute bottom-10 bg-black/60 px-10 py-3 rounded-full border-2 border-white/30 text-3xl uppercase tracking-widest" id="current-brawler-name">Mysteria</div>
     </div>
 
     <!-- LEFT SIDE BUTTONS (SHOP, BRAWLERS, NEWS) + ADMIN -->
@@ -279,7 +279,8 @@
             <div onclick="claimDailyReward()" id="daily-reward-card" class="shop-card rounded-2xl p-6 flex flex-col items-center justify-between text-center min-h-[320px]">
                 <span class="text-xl text-white/90">DAILY FREEBIE</span>
                 <div id="daily-reward-icon" class="w-36 h-36 flex items-center justify-center"></div>
-                <div class="bg-green-500 w-full py-3 rounded-lg border-2 border-black text-2xl font-bold" id="daily-claim-text">FREE!</div>
+                <div class="bg-green-500 w-full py-3 rounded-lg border-2 border-black text-2xl font-bold" id="daily-claim-text">CLAIM</div>
+                <div class="text-sm text-white/70 mt-2" id="daily-timer"></div>
             </div>
             <div onclick="purchaseStarrDrop()" class="shop-card rounded-2xl p-6 flex flex-col items-center justify-between text-center min-h-[320px]">
                 <span class="text-xl text-white/90">STARR DROP</span>
@@ -403,21 +404,22 @@
             <!-- Maintenance Mode -->
             <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
                 <label class="block text-2xl mb-2">Maintenance</label>
-                <!-- Actual maintenance scheduling (affects login) -->
-                <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">SCHEDULE (3 min)</button>
-                <!-- Visual timer (countdown only) -->
-                <div class="flex gap-2 mt-4">
-                    <input type="number" id="visual-minutes" class="w-24 bg-black/60 border-2 border-white/30 p-2 rounded-xl text-xl text-white" value="10" min="1">
-                    <button onclick="setVisualTimer()" class="flex-1 bg-blue-500 hover:bg-blue-600 py-3 rounded-xl text-2xl">SET VISUAL TIMER</button>
+                <div class="flex gap-2 mb-2">
+                    <input type="number" id="maintenance-minutes" class="w-24 bg-black/60 border-2 border-white/30 p-2 rounded-xl text-xl text-white" value="5" min="1">
+                    <button onclick="scheduleMaintenanceWithDuration()" class="flex-1 bg-orange-500 hover:bg-orange-600 py-3 rounded-xl text-2xl">SCHEDULE</button>
                 </div>
-                <button onclick="clearVisualTimer()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CLEAR VISUAL TIMER</button>
-                <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL MAINTENANCE</button>
+                <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">3 MIN</button>
+                <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL</button>
+            </div>
+            <!-- placeholder -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30 flex items-center justify-center">
+                <span class="text-2xl opacity-50">More tools soon</span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- MAP EDITOR -->
+<!-- MAP EDITOR (with background selector) -->
 <div id="map-editor" class="absolute inset-0 bg-gray-900 z-[400] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4">
         <h1 class="text-4xl text-yellow-400">MAP EDITOR (60x60)</h1>
@@ -467,6 +469,17 @@
             <button onclick="setMirrorMode('all')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">All</button>
         </div>
     </div>
+    <!-- Background selector -->
+    <div class="flex gap-4 mb-4 items-center flex-wrap">
+        <span class="text-white font-bold">Background:</span>
+        <select id="background-select" class="px-4 py-2 rounded text-black">
+            <option value="floor">Desert (default)</option>
+            <option value="water">Water</option>
+            <option value="grass">Grass</option>
+            <option value="stone">Stone</option>
+        </select>
+        <button onclick="setMapBackground()" class="bg-blue-500 px-4 py-2 rounded text-white">SET BACKGROUND</button>
+    </div>
     <!-- Server map controls -->
     <div class="flex gap-4 mb-4 items-center flex-wrap">
         <span class="text-white font-bold">Server Maps:</span>
@@ -485,7 +498,7 @@
     </div>
 </div>
 
-<!-- NEWS VIEWER MODAL (list of news cards) -->
+<!-- NEWS VIEWER MODAL -->
 <div id="news-viewer" class="absolute inset-0 bg-gray-900 z-[450] hidden flex flex-col p-8 overflow-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-4xl text-yellow-400">NEWS</h1>
@@ -499,7 +512,7 @@
     </div>
 </div>
 
-<!-- NEWS DETAIL MODAL (shows full content of a selected news) -->
+<!-- NEWS DETAIL MODAL -->
 <div id="news-detail" class="absolute inset-0 bg-gray-900 z-[460] hidden flex flex-col p-8 overflow-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-4xl text-yellow-400" id="detail-title"></h1>
@@ -533,10 +546,7 @@
 <script src="js/auth.js?v=2"></script>
 <script src="js/ui.js?v=2"></script>
 <script src="js/starrdrop.js?v=2"></script>
-<script src="js/main.js?v=7"></script>
-<script src="js/game.js?v=8"></script>
+<script src="js/main.js?v=8"></script>
+<script src="js/game.js?v=9"></script>
 </body>
 </html>
-
-
-
