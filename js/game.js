@@ -29,27 +29,32 @@ let deathAnimationStart = 0;
 let deathAnimationDuration = 1500;
 let playerDead = false;
 
+// Cache for UI elements to avoid repeated DOM lookups
+let brawlersLeftEl = document.getElementById('brawlers-left');
+let battleUiEl = document.getElementById('battle-ui');
+
 function checkCollision(x, y, radius) {
     if (!window.state.battle || !window.state.battle.active) return false;
-    for (const wall of window.state.battle.walls) {
+    const battle = window.state.battle;
+    for (const wall of battle.walls) {
         if (x + radius > wall.x && x - radius < wall.x + window.CONFIG.TILE_SIZE &&
             y + radius > wall.y && y - radius < wall.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
-    for (const water of window.state.battle.water || []) {
+    for (const water of battle.water || []) {
         if (x + radius > water.x && x - radius < water.x + window.CONFIG.TILE_SIZE &&
             y + radius > water.y && y - radius < water.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
-    for (const barrel of window.state.battle.barrels || []) {
+    for (const barrel of battle.barrels || []) {
         if (x + radius > barrel.x && x - radius < barrel.x + window.CONFIG.TILE_SIZE &&
             y + radius > barrel.y && y - radius < barrel.y + window.CONFIG.TILE_SIZE) {
             return true;
         }
     }
-    for (const box of window.state.battle.boxes || []) {
+    for (const box of battle.boxes || []) {
         if (box.hp > 0 && x + radius > box.x && x - radius < box.x + window.CONFIG.TILE_SIZE &&
             y + radius > box.y && y - radius < box.y + window.CONFIG.TILE_SIZE) {
             return true;
@@ -87,7 +92,7 @@ async function startBattlePre() {
         window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
         window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
         preBattleStart = Date.now();
-        document.getElementById('battle-ui').style.display = 'none';
+        battleUiEl.style.display = 'none';
     }, 500);
 }
 
@@ -163,8 +168,11 @@ function startBattle(customMap = null) {
     }
 
     function canSee(observer, target, currentTime) {
+        // Revealed by shooting or damage?
         if (target.revealUntil && target.revealUntil > currentTime) return true;
+        // If target not in bush, visible
         if (!isInBush(target.x, target.y)) return true;
+        // If observer is within 3 tiles, can see into bush
         const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
         return distance < 3 * window.CONFIG.TILE_SIZE;
     }
@@ -288,15 +296,14 @@ function updateGame() {
             battle.camera.y = startY + (targetY - startY) * t;
         } else {
             window.state.preBattle = false;
-            // Show FIGHT! text
             if (fightTextEl) {
                 fightTextEl.style.opacity = '1';
                 setTimeout(() => {
                     fightTextEl.style.opacity = '0';
-                    document.getElementById('battle-ui').style.display = 'flex';
+                    battleUiEl.style.display = 'flex';
                 }, 800);
             } else {
-                document.getElementById('battle-ui').style.display = 'flex';
+                battleUiEl.style.display = 'flex';
             }
         }
         return;
@@ -321,12 +328,13 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
-    // Box destruction
+    // Box destruction and bullet updates
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
         const nextY = b.y + Math.sin(b.angle) * speed;
 
+        // Check collision with boxes
         for (let box of battle.boxes) {
             if (box.hp <= 0) continue;
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
@@ -346,6 +354,7 @@ function updateGame() {
         b.dist += speed;
         if (b.dist > 600) return false;
 
+        // Hit detection on players and bots
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0) continue;
@@ -356,6 +365,8 @@ function updateGame() {
                         damage += p.power * 200;
                     }
                     t.hp -= damage;
+                    // Reveal on damage (for 1 second)
+                    t.revealUntil = now + 1000;
                     if (t.id === 'player') {
                         t.lastDamageTime = now;
                     }
@@ -378,13 +389,14 @@ function updateGame() {
         }
     }
 
+    // Ammo regen
     if (p.ammo < p.maxAmmo && now - p.lastAttackTime > 1500) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
     // Bot AI
-    battle.bots.forEach(bot => {
-        if(bot.hp <= 0) return;
+    for (let bot of battle.bots) {
+        if(bot.hp <= 0) continue;
         if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
         
         let nx = bot.x + Math.cos(bot.angle) * bot.speed;
@@ -409,12 +421,12 @@ function updateGame() {
         if (closest && minDist < 400 && now - bot.lastShot > 2000) {
             spawnBullet(bot, Math.atan2(closest.y - bot.y, closest.x - bot.x), false);
             bot.lastShot = now;
-            bot.revealUntil = now + 500;
+            bot.revealUntil = now + 500; // reveal after shooting
         }
-    });
+    }
 
     const aliveCount = (p.hp > 0 ? 1 : 0) + battle.bots.filter(b => b.hp > 0).length;
-    document.getElementById('brawlers-left').innerText = aliveCount;
+    brawlersLeftEl.innerText = aliveCount;
 
     battle.poisonRadius -= 0.05;
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
@@ -427,7 +439,7 @@ function updateGame() {
         }
     });
 
-    // Faster HP regen
+    // HP regen
     if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
@@ -480,7 +492,7 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== DRAWING FUNCTIONS ==========
+// ========== DRAWING FUNCTIONS (optimized) ==========
 function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
     ctx.save();
     ctx.translate(x, y);
@@ -732,13 +744,12 @@ function drawGame() {
     ctx.restore();
 }
 
-// ========== INPUT HANDLING (with input field detection) ==========
+// ========== INPUT HANDLING ==========
 window.onkeydown = (e) => {
     if (!e) return;
-    // If an input or textarea is focused, don't prevent default
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-        return; // allow typing
+        return;
     }
     switch (e.code) {
         case 'KeyW': window.keys.w = true; e.preventDefault(); break;
@@ -837,7 +848,7 @@ function spawnBullet(owner, angle, isSuper) {
     if (owner.id === 'player') {
         owner.lastAttackTime = Date.now();
         owner.angle = angle;
-        owner.revealUntil = Date.now() + 500;
+        owner.revealUntil = Date.now() + 500; // reveal after shooting
     }
     if (owner.id === 'player' && !isSuper && owner.ammo <= 0.9) return;
     if (owner.id === 'player' && !isSuper) owner.ammo--;
