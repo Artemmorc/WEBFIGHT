@@ -29,7 +29,7 @@ let deathAnimationStart = 0;
 let deathAnimationDuration = 1500;
 let playerDead = false;
 
-// Cache for UI elements to avoid repeated DOM lookups
+// Cached DOM elements
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 
@@ -168,11 +168,8 @@ function startBattle(customMap = null) {
     }
 
     function canSee(observer, target, currentTime) {
-        // Revealed by shooting or damage?
         if (target.revealUntil && target.revealUntil > currentTime) return true;
-        // If target not in bush, visible
         if (!isInBush(target.x, target.y)) return true;
-        // If observer is within 3 tiles, can see into bush
         const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
         return distance < 3 * window.CONFIG.TILE_SIZE;
     }
@@ -328,13 +325,12 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
-    // Box destruction and bullet updates
+    // Box destruction
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
         const nextY = b.y + Math.sin(b.angle) * speed;
 
-        // Check collision with boxes
         for (let box of battle.boxes) {
             if (box.hp <= 0) continue;
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
@@ -354,7 +350,6 @@ function updateGame() {
         b.dist += speed;
         if (b.dist > 600) return false;
 
-        // Hit detection on players and bots
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0) continue;
@@ -365,8 +360,7 @@ function updateGame() {
                         damage += p.power * 200;
                     }
                     t.hp -= damage;
-                    // Reveal on damage (for 1 second)
-                    t.revealUntil = now + 1000;
+                    t.revealUntil = now + 1000; // reveal on damage
                     if (t.id === 'player') {
                         t.lastDamageTime = now;
                     }
@@ -389,7 +383,6 @@ function updateGame() {
         }
     }
 
-    // Ammo regen
     if (p.ammo < p.maxAmmo && now - p.lastAttackTime > 1500) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
@@ -421,7 +414,7 @@ function updateGame() {
         if (closest && minDist < 400 && now - bot.lastShot > 2000) {
             spawnBullet(bot, Math.atan2(closest.y - bot.y, closest.x - bot.x), false);
             bot.lastShot = now;
-            bot.revealUntil = now + 500; // reveal after shooting
+            bot.revealUntil = now + 500;
         }
     }
 
@@ -439,7 +432,6 @@ function updateGame() {
         }
     });
 
-    // HP regen
     if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
@@ -492,151 +484,53 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== DRAWING FUNCTIONS (optimized) ==========
-function drawBrawler(ctx, type, x, y, size = 80, angle = 0) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 3;
-    
-    ctx.fillStyle = '#a855f7';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#2d2d2d';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    ctx.fillStyle = '#c084fc';
-    ctx.beginPath();
-    ctx.arc(0, -20, 10, 0, Math.PI*2);
-    ctx.fill();
-    ctx.stroke();
-    
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#2d1b0e';
-    ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
-    
-    ctx.fillStyle = '#5d3a1a';
-    ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillRect(-8, -32, 16, 4);
-    
-    ctx.fillStyle = '#4a2e1e';
-    ctx.beginPath(); ctx.ellipse(-14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(14, -5, 6, 8, 0, 0, Math.PI*2); ctx.fill();
-    
-    ctx.fillStyle = '#4a3729';
-    ctx.fillRect(10, -3, 24, 5);
-    ctx.fillRect(28, -6, 5, 11);
-    ctx.restore();
-}
-
-function drawBox(ctx, x, y) {
-    ctx.save();
-    ctx.translate(x + 32, y + 32);
-    ctx.fillStyle = '#8b5a2b';
-    ctx.fillRect(-25, -25, 50, 50);
-    ctx.strokeStyle = '#4a3729';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-25, -25, 50, 50);
-    
-    ctx.fillStyle = '#5d3a1a';
-    ctx.fillRect(-25, -10, 50, 5);
-    ctx.fillRect(-25, 5, 50, 5);
-    ctx.restore();
-}
-
-function drawPowerCube(ctx, x, y) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(-10, -10, 20, 20);
-    ctx.fillStyle = '#b45309';
-    ctx.fillRect(-5, -5, 10, 10);
-    ctx.restore();
-}
-
-function drawBarrel(ctx, x, y) {
-    ctx.save();
-    ctx.translate(x + 32, y + 32);
-    ctx.fillStyle = '#b91c1c';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 20, 25, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#2d2d2d';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    ctx.fillStyle = '#4a3729';
-    ctx.fillRect(-22, -15, 44, 6);
-    ctx.fillRect(-22, 10, 44, 6);
-    ctx.restore();
-}
-
-function isInBush(x, y) {
-    for (let bush of window.state.battle.bushes) {
-        if (x >= bush.x && x < bush.x + window.CONFIG.TILE_SIZE &&
-            y >= bush.y && y < bush.y + window.CONFIG.TILE_SIZE) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function canSee(observer, target, currentTime) {
-    if (target.revealUntil && target.revealUntil > currentTime) return true;
-    if (!isInBush(target.x, target.y)) return true;
-    const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
-    return distance < 3 * window.CONFIG.TILE_SIZE;
-}
-
+// ========== OPTIMIZED DRAWING (USING TEXTURES) ==========
 function drawGame() {
-    ctx.clearRect(0,0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
     ctx.save();
-    
+
     ctx.scale(window.state.battle.camera.zoom, window.state.battle.camera.zoom);
     ctx.translate(-window.state.battle.camera.x, -window.state.battle.camera.y);
-    
+
     const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
     const startCol = Math.max(0, Math.floor(window.state.battle.camera.x / 64));
-    const endCol = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.x + canvas.width/window.state.battle.camera.zoom) / 64));
+    const endCol = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.x + canvas.width / window.state.battle.camera.zoom) / 64));
     const startRow = Math.max(0, Math.floor(window.state.battle.camera.y / 64));
-    const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height/window.state.battle.camera.zoom) / 64));
+    const endRow = Math.min(window.CONFIG.MAP_SIZE, Math.ceil((window.state.battle.camera.y + canvas.height / window.state.battle.camera.zoom) / 64));
     const now = Date.now();
     const p = window.state.battle.player;
-    
+
     // Floor
-    for(let i=startCol; i<endCol; i++) {
-        for(let j=startRow; j<endRow; j++) {
-            ctx.drawImage(window.Textures.floor, i*64, j*64, 64, 64);
+    for (let i = startCol; i < endCol; i++) {
+        for (let j = startRow; j < endRow; j++) {
+            ctx.drawImage(window.Textures.floor, i * 64, j * 64, 64, 64);
         }
     }
-    
-    // Bushes (solid)
+
+    // Bushes
     window.state.battle.bushes.forEach(b => {
         ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
     });
-    
-    // Water
+
+    // Water (simple fill – still cheap)
     window.state.battle.water?.forEach(w => {
         ctx.fillStyle = '#0284c7';
         ctx.fillRect(w.x, w.y, 64, 64);
         ctx.fillStyle = '#7dd3fc';
         for (let i = 0; i < 3; i++) {
-            ctx.fillRect(w.x + 10, w.y + 10 + i*20, 44, 4);
+            ctx.fillRect(w.x + 10, w.y + 10 + i * 20, 44, 4);
         }
     });
-    
-    // Boxes
+
+    // Boxes (simple fill + HP bar)
     window.state.battle.boxes?.forEach(b => {
         if (b.hp > 0) {
-            drawBox(ctx, b.x, b.y);
+            ctx.fillStyle = '#8b5a2b';
+            ctx.fillRect(b.x, b.y, 64, 64);
+            ctx.strokeStyle = '#4a3729';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(b.x, b.y, 64, 64);
             if (b.hp < 6000) {
                 ctx.fillStyle = 'rgba(0,0,0,0.7)';
                 ctx.fillRect(b.x + 5, b.y - 10, 54, 8);
@@ -644,45 +538,78 @@ function drawGame() {
                 ctx.fillRect(b.x + 5, b.y - 10, (b.hp / 6000) * 54, 8);
                 ctx.fillStyle = 'white';
                 ctx.font = 'bold 12px Luckiest Guy';
-                ctx.shadowColor = 'black';
-                ctx.shadowBlur = 4;
                 ctx.fillText(`${Math.ceil(b.hp)}`, b.x + 25, b.y - 15);
             }
         }
     });
-    
-    // Power cubes
+
+    // Power cubes (simple fill)
     window.state.battle.powerCubes?.forEach(p => {
-        if (!p.collected) drawPowerCube(ctx, p.x, p.y);
+        if (!p.collected) {
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillRect(p.x - 10, p.y - 10, 20, 20);
+            ctx.fillStyle = '#b45309';
+            ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
+        }
     });
-    
-    // Barrels
-    window.state.battle.barrels?.forEach(b => drawBarrel(ctx, b.x, b.y));
-    
+
+    // Barrels (simple fill)
+    window.state.battle.barrels?.forEach(b => {
+        ctx.fillStyle = '#b91c1c';
+        ctx.fillRect(b.x, b.y, 64, 64);
+        ctx.fillStyle = '#4a3729';
+        ctx.fillRect(b.x + 8, b.y + 8, 48, 48);
+    });
+
     // Walls
     window.state.battle.walls.forEach(w => {
         ctx.drawImage(window.Textures.wall, w.x, w.y, 64, 64);
     });
 
     const drawChar = (c, isPlayer, viewer) => {
-        if(c.hp <= 0) return;
-        
+        if (c.hp <= 0) return;
         if (!isPlayer && !canSee(viewer, c, now)) return;
-        
+
         ctx.save();
         ctx.translate(c.x, c.y);
+        if (isPlayer && isInBush(c.x, c.y)) ctx.globalAlpha = 0.75;
 
-        if (isPlayer && isInBush(c.x, c.y)) {
-            ctx.globalAlpha = 0.75;
-        }
-
+        // Name
         ctx.fillStyle = 'white';
         ctx.font = 'bold 24px Luckiest Guy';
         ctx.textAlign = 'center';
         ctx.fillText(c.name, 0, -70);
 
-        drawBrawler(ctx, c.type, 0, 0, 80, c.angle);
+        // Brawler body (simplified, no shadow)
+        ctx.fillStyle = '#a855f7';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#2d2d2d';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
+        // Head
+        ctx.fillStyle = '#c084fc';
+        ctx.beginPath();
+        ctx.arc(0, -20, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Eyes
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2d1b0e';
+        ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI * 2); ctx.fill();
+
+        // Hat
+        ctx.fillStyle = '#5d3a1a';
+        ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(-8, -32, 16, 4);
+
+        // Power cubes indicator
         if (isPlayer && c.power > 0) {
             ctx.save();
             ctx.translate(40, -60);
@@ -692,29 +619,25 @@ function drawGame() {
             ctx.fillRect(-5, -5, 10, 10);
             ctx.fillStyle = 'white';
             ctx.font = 'bold 20px Luckiest Guy';
-            ctx.shadowColor = 'black';
-            ctx.shadowBlur = 4;
             ctx.fillText(`x${c.power}`, 15, 5);
             ctx.restore();
         }
 
+        // HP bar
         const bw = 70;
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(-bw/2, -50, bw, 12);
+        ctx.fillRect(-bw / 2, -50, bw, 12);
         ctx.fillStyle = isPlayer ? '#22c55e' : '#ef4444';
-        const hpPercent = c.hp / c.maxHp;
-        ctx.fillRect(-bw/2, -50, bw * hpPercent, 12);
+        ctx.fillRect(-bw / 2, -50, (c.hp / c.maxHp) * bw, 12);
         ctx.fillStyle = 'white';
         ctx.font = 'bold 14px Luckiest Guy';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 4;
-        ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw/2, -55);
-        
+        ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw / 2, -55);
+
         if (isPlayer) {
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(-bw/2, -36, bw, 6);
+            ctx.fillRect(-bw / 2, -36, bw, 6);
             ctx.fillStyle = '#f97316';
-            ctx.fillRect(-bw/2, -36, (c.ammo / c.maxAmmo) * bw, 6);
+            ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
         }
         ctx.restore();
         ctx.globalAlpha = 1;
@@ -729,16 +652,19 @@ function drawGame() {
         window.state.battle.bots.forEach(b => drawChar(b, false, p));
     }
 
+    // Bullets
     window.state.battle.bullets.forEach(b => {
         ctx.fillStyle = b.super ? '#fbbf24' : 'white';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
+        ctx.fill();
     });
 
     // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
-    ctx.rect(-2000, -2000, fullSize+4000, fullSize+4000);
-    ctx.arc(fullSize/2, fullSize/2, window.state.battle.poisonRadius, 0, Math.PI*2, true);
+    ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
+    ctx.arc(fullSize / 2, fullSize / 2, window.state.battle.poisonRadius, 0, Math.PI * 2, true);
     ctx.fill();
 
     ctx.restore();
@@ -848,7 +774,7 @@ function spawnBullet(owner, angle, isSuper) {
     if (owner.id === 'player') {
         owner.lastAttackTime = Date.now();
         owner.angle = angle;
-        owner.revealUntil = Date.now() + 500; // reveal after shooting
+        owner.revealUntil = Date.now() + 500;
     }
     if (owner.id === 'player' && !isSuper && owner.ammo <= 0.9) return;
     if (owner.id === 'player' && !isSuper) owner.ammo--;
