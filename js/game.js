@@ -33,7 +33,7 @@ let playerDead = false;
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 
-// ========== BUSH VISIBILITY FUNCTIONS (now top‑level) ==========
+// ========== BUSH VISIBILITY FUNCTIONS ==========
 function isInBush(x, y) {
     const battle = window.state.battle;
     if (!battle) return false;
@@ -488,7 +488,49 @@ function hideAfterGame() {
     }, 300);
 }
 
-// ========== OPTIMIZED DRAWING (USING TEXTURES) ==========
+// ========== OPTIMIZED DRAWING (WITH ROTATION AND GUN) ==========
+function drawBrawler(ctx, type, x, y, angle, size = 80) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    
+    // Body (ellipse)
+    ctx.fillStyle = '#a855f7';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Head (circle)
+    ctx.fillStyle = '#c084fc';
+    ctx.beginPath();
+    ctx.arc(0, -20, 10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Eyes
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2d1b0e';
+    ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI*2); ctx.fill();
+    
+    // Hat
+    ctx.fillStyle = '#5d3a1a';
+    ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(-8, -32, 16, 4);
+    
+    // Weapon (shotgun) – positioned relative to rotation
+    ctx.fillStyle = '#4a3729';
+    ctx.fillRect(10, -3, 24, 5);
+    ctx.fillRect(28, -6, 5, 11);
+    
+    ctx.restore();
+}
+
 function drawGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
@@ -517,7 +559,7 @@ function drawGame() {
         ctx.drawImage(window.Textures.bush, b.x, b.y, 64, 64);
     });
 
-    // Water (simple fill – still cheap)
+    // Water
     window.state.battle.water?.forEach(w => {
         ctx.fillStyle = '#0284c7';
         ctx.fillRect(w.x, w.y, 64, 64);
@@ -527,7 +569,7 @@ function drawGame() {
         }
     });
 
-    // Boxes (simple fill + HP bar)
+    // Boxes
     window.state.battle.boxes?.forEach(b => {
         if (b.hp > 0) {
             ctx.fillStyle = '#8b5a2b';
@@ -547,7 +589,7 @@ function drawGame() {
         }
     });
 
-    // Power cubes (simple fill)
+    // Power cubes
     window.state.battle.powerCubes?.forEach(p => {
         if (!p.collected) {
             ctx.fillStyle = '#fbbf24';
@@ -557,7 +599,7 @@ function drawGame() {
         }
     });
 
-    // Barrels (simple fill)
+    // Barrels
     window.state.battle.barrels?.forEach(b => {
         ctx.fillStyle = '#b91c1c';
         ctx.fillRect(b.x, b.y, 64, 64);
@@ -574,44 +616,16 @@ function drawGame() {
         if (c.hp <= 0) return;
         if (!isPlayer && !canSee(viewer, c, now)) return;
 
+        // Draw brawler (rotated)
+        drawBrawler(ctx, c.type, c.x, c.y, c.angle);
+
+        // Name and UI (not rotated)
         ctx.save();
         ctx.translate(c.x, c.y);
-        if (isPlayer && isInBush(c.x, c.y)) ctx.globalAlpha = 0.75;
-
-        // Name
         ctx.fillStyle = 'white';
         ctx.font = 'bold 24px Luckiest Guy';
         ctx.textAlign = 'center';
         ctx.fillText(c.name, 0, -70);
-
-        // Brawler body (simplified, no shadow)
-        ctx.fillStyle = '#a855f7';
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#2d2d2d';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Head
-        ctx.fillStyle = '#c084fc';
-        ctx.beginPath();
-        ctx.arc(0, -20, 10, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        // Eyes
-        ctx.fillStyle = 'white';
-        ctx.beginPath(); ctx.arc(-4, -22, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(4, -22, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#2d1b0e';
-        ctx.beginPath(); ctx.arc(-4, -21, 1.2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(4, -21, 1.2, 0, Math.PI * 2); ctx.fill();
-
-        // Hat
-        ctx.fillStyle = '#5d3a1a';
-        ctx.beginPath(); ctx.ellipse(0, -30, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(-8, -32, 16, 4);
 
         // Power cubes indicator
         if (isPlayer && c.power > 0) {
@@ -644,17 +658,21 @@ function drawGame() {
             ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
         }
         ctx.restore();
-        ctx.globalAlpha = 1;
     };
 
-    if (playerDead) {
-        ctx.globalAlpha = 1 - Math.min(1, (now - deathAnimationStart) / deathAnimationDuration);
-        drawChar(p, true, p);
-        ctx.globalAlpha = 1;
-    } else {
-        drawChar(p, true, p);
-        window.state.battle.bots.forEach(b => drawChar(b, false, p));
+    // Apply bush transparency for player
+    if (isInBush(p.x, p.y)) {
+        ctx.globalAlpha = 0.75;
     }
+    drawChar(p, true, p);
+    ctx.globalAlpha = 1;
+
+    // Draw bots (only if visible)
+    window.state.battle.bots.forEach(b => {
+        if (canSee(p, b, now)) {
+            drawChar(b, false, p);
+        }
+    });
 
     // Bullets
     window.state.battle.bullets.forEach(b => {
