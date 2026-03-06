@@ -33,6 +33,27 @@ let playerDead = false;
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 
+// ========== BUSH VISIBILITY FUNCTIONS (now top‑level) ==========
+function isInBush(x, y) {
+    const battle = window.state.battle;
+    if (!battle) return false;
+    for (let bush of battle.bushes) {
+        if (x >= bush.x && x < bush.x + window.CONFIG.TILE_SIZE &&
+            y >= bush.y && y < bush.y + window.CONFIG.TILE_SIZE) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function canSee(observer, target, currentTime) {
+    if (target.revealUntil && target.revealUntil > currentTime) return true;
+    if (!isInBush(target.x, target.y)) return true;
+    const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
+    return distance < 3 * window.CONFIG.TILE_SIZE;
+}
+
+// ========== COLLISION ==========
 function checkCollision(x, y, radius) {
     if (!window.state.battle || !window.state.battle.active) return false;
     const battle = window.state.battle;
@@ -155,23 +176,6 @@ function startBattle(customMap = null) {
                     window.state.battle.bushes.push({ x: i*window.CONFIG.TILE_SIZE, y: j*window.CONFIG.TILE_SIZE });
             }
         }
-    }
-
-    function isInBush(x, y) {
-        for (let bush of window.state.battle.bushes) {
-            if (x >= bush.x && x < bush.x + window.CONFIG.TILE_SIZE &&
-                y >= bush.y && y < bush.y + window.CONFIG.TILE_SIZE) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function canSee(observer, target, currentTime) {
-        if (target.revealUntil && target.revealUntil > currentTime) return true;
-        if (!isInBush(target.x, target.y)) return true;
-        const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
-        return distance < 3 * window.CONFIG.TILE_SIZE;
     }
 
     function pickSpawnPoint(excludeList = []) {
