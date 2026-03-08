@@ -15,6 +15,7 @@ window.state = {
     currentBrawler: 'Mysteria',
     starrDropStep: 0,
     starrDropRarity: 'RARE',
+    starrDropTaps: 0,          // <--- new
     battle: { 
         active: false, 
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
