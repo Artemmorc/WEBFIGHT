@@ -36,10 +36,12 @@ async function loadProfile() {
             window.brawlerProgress[p.brawler_name] = p.trophies;
         });
     } else {
+        // Initialize with 0 for each brawler
         Object.keys(CONFIG.BRAWLERS).forEach(name => {
             window.brawlerProgress[name] = 0;
         });
     }
+    // Sum total trophies
     window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + b, 0);
     
     window.playerState = {
