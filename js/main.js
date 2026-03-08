@@ -631,13 +631,41 @@ function removePollOption() {
 }
 
 function clearNewsEditor() {
+    // Clear text fields
     document.getElementById('news-title').value = '';
     document.getElementById('news-content').value = '';
     document.getElementById('poll-question').value = '';
-    document.getElementById('poll-options').innerHTML = `
-        <input type="text" placeholder="Option 1" class="poll-option w-full p-2 rounded text-black mt-1">
-        <input type="text" placeholder="Option 2" class="poll-option w-full p-2 rounded text-black mt-1">
-    `;
+    
+    // Reset slider to 2
+    const slider = document.getElementById('poll-option-count');
+    if (slider) {
+        slider.value = '2';
+    }
+    document.getElementById('poll-count-display').innerText = '2';
+    
+    // Reset poll options to 2 default inputs
+    const container = document.getElementById('poll-options');
+    container.innerHTML = '';
+    for (let i = 1; i <= 2; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Option ${i}`;
+        input.className = 'poll-option w-full p-2 rounded text-black mt-1';
+        container.appendChild(input);
+    }
+}
+
+function updatePollOptions(count) {
+    document.getElementById('poll-count-display').innerText = count;
+    const container = document.getElementById('poll-options');
+    container.innerHTML = '';
+    for (let i = 1; i <= count; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Option ${i}`;
+        input.className = 'poll-option w-full p-2 rounded text-black mt-1';
+        container.appendChild(input);
+    }
 }
 
 async function saveNewsAsDraft() {
