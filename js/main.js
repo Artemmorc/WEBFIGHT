@@ -21,7 +21,8 @@ window.state = {
         active: false, 
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
     },
-    preBattle: false
+    preBattle: false,
+    lastMatch: null
 };
 
 window.brawlerProgress = {};
