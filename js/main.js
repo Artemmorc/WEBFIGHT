@@ -179,7 +179,7 @@ window.Textures.generate = function() {
 
 // ========== MAP EDITOR ==========
 let mapData = [];
-let mapBackground = 'floor'; // default background
+let mapBackground = 'floor';
 let currentTile = 0;
 let mirrorMode = 'none';
 
@@ -614,9 +614,30 @@ function closeNewsEditor() {
     document.getElementById('news-editor').classList.add('hidden');
 }
 
+function addPollOption() {
+    const container = document.getElementById('poll-options');
+    const newInput = document.createElement('input');
+    newInput.type = 'text';
+    newInput.placeholder = `Option ${container.children.length + 1}`;
+    newInput.className = 'poll-option w-full p-2 rounded text-black mt-1';
+    container.appendChild(newInput);
+}
+
+function removePollOption() {
+    const container = document.getElementById('poll-options');
+    if (container.children.length > 2) {
+        container.removeChild(container.lastChild);
+    }
+}
+
 function clearNewsEditor() {
     document.getElementById('news-title').value = '';
     document.getElementById('news-content').value = '';
+    document.getElementById('poll-question').value = '';
+    document.getElementById('poll-options').innerHTML = `
+        <input type="text" placeholder="Option 1" class="poll-option w-full p-2 rounded text-black mt-1">
+        <input type="text" placeholder="Option 2" class="poll-option w-full p-2 rounded text-black mt-1">
+    `;
 }
 
 async function saveNewsAsDraft() {
@@ -635,17 +656,45 @@ async function saveNews(published) {
         alert('Title and content required');
         return;
     }
-    const { error } = await window.sb
+    
+    // Insert news
+    const { data: newsData, error } = await window.sb
         .from('news')
-        .insert({ title, content, published, author_id: window.currentUser.id });
+        .insert({ title, content, published, author_id: window.currentUser.id })
+        .select()
+        .single();
     if (error) {
         alert('Error saving news: ' + error.message);
-    } else {
-        alert('News saved');
-        clearNewsEditor();
-        closeNewsEditor();
-        if (published) loadNewsList();
+        return;
     }
+    
+    // If there's a poll, create it
+    const pollQuestion = document.getElementById('poll-question').value.trim();
+    if (pollQuestion) {
+        const optionInputs = document.querySelectorAll('.poll-option');
+        const options = [];
+        optionInputs.forEach(inp => {
+            const val = inp.value.trim();
+            if (val) options.push(val);
+        });
+        if (options.length >= 2) {
+            const { data: poll } = await window.sb
+                .from('news_polls')
+                .insert({ news_id: newsData.id, question: pollQuestion })
+                .select()
+                .single();
+            if (poll) {
+                for (let opt of options) {
+                    await window.sb.from('poll_options').insert({ poll_id: poll.id, option_text: opt });
+                }
+            }
+        }
+    }
+    
+    alert('News saved');
+    clearNewsEditor();
+    closeNewsEditor();
+    if (published) loadNewsList();
 }
 
 // ========== MAINTENANCE (NO DURATION) ==========
@@ -705,6 +754,23 @@ async function scheduleMaintenance() {
         alert('Error scheduling maintenance: ' + error.message);
     } else {
         alert('Maintenance scheduled to start in 3 minutes.');
+        toggleAdminPanel();
+    }
+}
+
+async function scheduleMaintenanceWithDuration() {
+    if (!window.currentProfile?.is_admin) return;
+    const minutesInput = document.getElementById('maintenance-minutes');
+    let duration = parseInt(minutesInput.value, 10);
+    if (isNaN(duration) || duration < 1) duration = 5;
+    const startTime = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+    const { error } = await window.sb
+        .from('maintenance')
+        .upsert({ id: 1, start_time: startTime, duration_minutes: duration });
+    if (error) {
+        alert('Error scheduling maintenance: ' + error.message);
+    } else {
+        alert(`Maintenance scheduled to start in 3 minutes (duration ${duration} min).`);
         toggleAdminPanel();
     }
 }
