@@ -1,4 +1,4 @@
-// ========== STARR DROP (NEW VERSION) ==========
+// ========== STARR DROP (NEW VERSION – FIXED) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -39,12 +39,18 @@ function updateStarrDropUI() {
 }
 
 document.getElementById('starr-drop-container').onclick = () => {
-    // If already legendary or reward shown, do nothing
-    if (window.state.starrDropRarity === 'LEGENDARY' || !document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
-    
-    // Upgrade chances: roll 0-1, map to steps 1-4
+    // If reward already shown, do nothing
+    if (!document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
+
+    // If legendary, reveal reward on next tap
+    if (window.state.starrDropRarity === 'LEGENDARY') {
+        revealReward();
+        return;
+    }
+
+    // Upgrade chances (make legendary rare)
     const steps = [1, 2, 3, 4];
-    const probs = [0.4, 0.3, 0.2, 0.1]; // 40% +1, 30% +2, 20% +3, 10% +4
+    const probs = [0.5, 0.3, 0.15, 0.05]; // 5% chance for +4 (legendary)
     const rand = Math.random();
     let cum = 0;
     let upgradeSteps = 1;
@@ -55,17 +61,17 @@ document.getElementById('starr-drop-container').onclick = () => {
             break;
         }
     }
-    
+
     const currentIdx = rarities.indexOf(window.state.starrDropRarity);
     let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
     window.state.starrDropRarity = rarities[newIdx];
-    
+
     const container = document.getElementById('starr-drop-container');
     container.classList.add('starr-drop-shake');
     setTimeout(() => container.classList.remove('starr-drop-shake'), 400);
-    
+
     updateStarrDropUI();
-    
+
     if (window.state.starrDropRarity === 'LEGENDARY') {
         document.getElementById('starr-drop-hint').innerText = 'LEGENDARY! TAP TO OPEN';
     }
@@ -76,16 +82,16 @@ function revealReward() {
     document.getElementById('starr-drop-content').classList.add('hidden');
     document.getElementById('star-svg-container').style.animation = 'none';
     document.getElementById('starr-drop-reward').classList.remove('hidden');
-    
+
     const rIdx = rarities.indexOf(window.state.starrDropRarity);
     const multiplier = rIdx + 1; // 1-5
     const isLegendary = window.state.starrDropRarity === 'LEGENDARY';
-    
+
     const rewardType = Math.random() > 0.5 ? 'COINS' : 'PP';
     let amount = multiplier * (50 + Math.floor(Math.random() * 50));
-    
+
     document.getElementById('reward-title').innerText = isLegendary ? '⭐ LEGENDARY ⭐' : 'REWARD';
-    
+
     if (rewardType === 'COINS') {
         document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.coin(180);
         document.getElementById('reward-desc').innerText = `${amount} Coins!`;
@@ -95,14 +101,14 @@ function revealReward() {
         document.getElementById('reward-desc').innerText = `${amount} Power Points!`;
         window.playerState.pp += amount;
     }
-    
+
     if (isLegendary) {
         document.getElementById('starr-drop-screen').style.backgroundColor = 'rgba(255,215,0,0.3)';
         setTimeout(() => {
             document.getElementById('starr-drop-screen').style.backgroundColor = '';
         }, 500);
     }
-    
+
     if (typeof updateStatsUI === 'function') updateStatsUI();
     if (typeof saveProfileToDB === 'function') saveProfileToDB();
     document.getElementById('close-starr-drop').classList.remove('opacity-0', 'pointer-events-none');
