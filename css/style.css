@@ -361,6 +361,26 @@ canvas {
     #adminPanel {
         width: 90%;
     }
+    /* ========== AFTER-GAME MENU IMPROVEMENTS ========== */
+    .aftergame-daily-wins {
+        font-size: 2rem;
+        color: #fbbf24;
+        margin: 1rem 0;
+    }
+    .aftergame-starrdrop {
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 1rem;
+        padding: 1rem;
+        margin: 1rem auto;
+        width: 120px;
+        transition: all 0.2s;
+    }
+    .aftergame-starrdrop svg {
+        width: 64px;
+        height: 64px;
+        display: block;
+        margin: 0 auto;
+    }
 }
 
 /* ========== LANDSCAPE ORIENTATION FIX ========== */
