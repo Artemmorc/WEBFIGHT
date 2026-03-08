@@ -455,9 +455,22 @@ function updateGame() {
     if (aliveCount === 1 && p.hp > 0) {
         const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         window.playerState.coins += coinsEarned;
-        window.playerState.trophies += 10;
+    
+        // Add trophies to current brawler
+        const brawlerName = window.state.currentBrawler;
+        const currentTrophies = window.brawlerProgress[brawlerName] || 0;
+        const trophyGain = 10; // adjust as needed
+        window.brawlerProgress[brawlerName] = currentTrophies + trophyGain;
+    
+        // Update total trophies
+        window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + b, 0);
+    
         if (typeof updateStatsUI === 'function') updateStatsUI();
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
+    
+        // Save brawler progress to DB
+        saveBrawlerProgress(brawlerName, window.brawlerProgress[brawlerName]);
+    
         showAfterGame(1, coinsEarned);
         exitBattle();
         return;
