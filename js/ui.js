@@ -171,13 +171,14 @@ function toggleBrawlers(show) {
             const div = document.createElement('div');
             const bgClass = b.rarity === 'starter' ? 'bg-starter' : 'bg-rare-brawler';
             const isUnlocked = b.unlocked;
+            const trophies = window.brawlerProgress[name] || 0;   // <--- per-brawler trophies
             
             div.className = `p-4 rounded-xl border-4 ${window.state.currentBrawler === name ? 'border-yellow-400' : 'border-black'} ${bgClass} cursor-pointer hover:scale-105 transition-all relative ${!isUnlocked ? 'opacity-80' : ''}`;
             div.innerHTML = `
                 <div class="h-32 mb-2 flex items-center justify-center ${!isUnlocked ? 'grayscale brightness-50' : ''}">${createBrawlerSVG(name, 'small')}</div>
                 <div class="text-center text-xl text-black">${name}</div>
                 <div class="text-center text-xs opacity-70 text-black uppercase">${b.rarity}</div>
-                ${isUnlocked ? `<div class="text-center text-yellow-400">🏆 ${window.brawlerProgress?.[name] || 0}</div>` : ''}
+                ${isUnlocked ? `<div class="text-center text-yellow-400">🏆 ${trophies}</div>` : ''}
                 ${!isUnlocked ? '<div class="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>' : ''}
             `;
             if (isUnlocked) {
