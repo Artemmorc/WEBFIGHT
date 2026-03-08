@@ -78,25 +78,341 @@ function loadBrawlerImages() {
     });
 }
 
-// ========== TEXTURES ==========
-window.Textures = { floor: null, bush: null, wall: null, waterBg: null, grassBg: null, stoneBg: null };
+// ========== TEXTURES (PRE‑RENDERED CANVAS ELEMENTS) ==========
+window.Textures = { 
+    floor: null, 
+    bush: null, 
+    wall: null,
+    waterBg: null,
+    grassBg: null,
+    stoneBg: null
+};
 window.Textures.generate = function() {
     function createTexture(w, h, drawFn) {
         const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
+        canvas.width = w;
+        canvas.height = h;
         drawFn(canvas.getContext('2d'));
         return canvas;
     }
-    // ... (keep your existing texture generation code – too long to repeat, but it's unchanged)
+    // Wall – brick pattern
+    this.wall = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#8b5a2b';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#b87333';
+        for (let i = 0; i < 64; i += 32) {
+            for (let j = 0; j < 64; j += 16) {
+                ctx.fillRect(i+2, j+2, 28, 12);
+                ctx.fillStyle = '#6b4f3a';
+                ctx.fillRect(i+2, j+2, 28, 2);
+            }
+        }
+        ctx.strokeStyle = '#4a3729';
+        ctx.lineWidth = 2;
+        for (let i = 0; i <= 64; i += 32) {
+            ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,64); ctx.stroke();
+        }
+        for (let i = 0; i <= 64; i += 16) {
+            ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(64,i); ctx.stroke();
+        }
+    });
+    // Bush – yellow wheat
+    this.bush = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#a16207';
+        for (let i = 0; i < 20; i++) {
+            ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
+        }
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 2;
+        for (let x = 8; x < 64; x += 16) {
+            ctx.beginPath();
+            ctx.moveTo(x, 64);
+            ctx.lineTo(x, 32);
+            ctx.stroke();
+        }
+    });
+    // Default floor (desert)
+    this.floor = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#d4a373';
+        ctx.fillRect(0, 0, 64, 64);
+        for (let i = 0; i < 15; i++) {
+            ctx.fillStyle = `hsl(30, 50%, ${40 + Math.random()*20}%)`;
+            ctx.fillRect(Math.random()*64, Math.random()*64, 3, 2);
+        }
+        for (let i = 0; i < 3; i++) {
+            ctx.fillStyle = '#8b5a2b';
+            ctx.beginPath();
+            ctx.arc(5+Math.random()*54, 5+Math.random()*54, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+    });
+    // Water background
+    this.waterBg = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#7dd3fc';
+        for (let i = 0; i < 3; i++) {
+            ctx.fillRect(10, 10 + i*20, 44, 4);
+        }
+    });
+    // Grass background
+    this.grassBg = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#2d6a4f';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#409c5c';
+        for (let i = 0; i < 15; i++) {
+            ctx.fillRect(Math.random()*64, Math.random()*64, 4, 2);
+        }
+    });
+    // Stone background
+    this.stoneBg = createTexture(64, 64, ctx => {
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#6b6b6b';
+        for (let i = 0; i < 10; i++) {
+            ctx.fillRect(Math.random()*64, Math.random()*64, 8, 2);
+        }
+    });
 };
 
 // ========== MAP EDITOR ==========
 let mapData = [];
-let mapBackground = 'floor';
+let mapBackground = 'floor'; // default background
 let currentTile = 0;
 let mirrorMode = 'none';
 
-// ... (all map editor functions remain the same – I'll omit them for brevity)
+async function loadMapList() {
+    if (!window.sb) return;
+    const { data, error } = await window.sb
+        .from('maps')
+        .select('id, name, is_active')
+        .order('name');
+    if (error) {
+        console.error('Error loading maps:', error);
+        return;
+    }
+    const select = document.getElementById('map-list-select');
+    select.innerHTML = '<option value="">-- Select a map to load --</option>';
+    let activeId = null;
+    data.forEach(map => {
+        const option = document.createElement('option');
+        option.value = map.id;
+        option.textContent = map.name + (map.is_active ? ' (active)' : '');
+        select.appendChild(option);
+        if (map.is_active) activeId = map.id;
+    });
+    if (activeId) {
+        document.getElementById('active-map-indicator').textContent = `Active map ID: ${activeId}`;
+    } else {
+        document.getElementById('active-map-indicator').textContent = 'No active map';
+    }
+}
+
+async function saveMapToServer() {
+    if (!window.sb) {
+        alert('Database not available');
+        return;
+    }
+    const name = document.getElementById('map-name-input').value.trim();
+    if (!name) {
+        alert('Please enter a map name');
+        return;
+    }
+    const { error } = await window.sb
+        .from('maps')
+        .insert({
+            name: name,
+            map_data: mapData,
+            background: mapBackground,
+            is_active: false
+        });
+    if (error) {
+        alert('Error saving map: ' + error.message);
+    } else {
+        alert('Map saved successfully');
+        loadMapList();
+        document.getElementById('map-name-input').value = '';
+    }
+}
+
+async function loadMapFromServer() {
+    if (!window.sb) return;
+    const select = document.getElementById('map-list-select');
+    const mapId = select.value;
+    if (!mapId) return;
+    const { data, error } = await window.sb
+        .from('maps')
+        .select('map_data, background')
+        .eq('id', mapId)
+        .single();
+    if (error) {
+        alert('Error loading map: ' + error.message);
+        return;
+    }
+    mapData = data.map_data;
+    mapBackground = data.background || 'floor';
+    document.getElementById('background-select').value = mapBackground;
+    renderEditorGrid();
+    alert('Map loaded');
+}
+
+async function setActiveMap() {
+    if (!window.sb) return;
+    const select = document.getElementById('map-list-select');
+    const mapId = select.value;
+    if (!mapId) return;
+    const { error: resetError } = await window.sb
+        .from('maps')
+        .update({ is_active: false })
+        .neq('id', 0);
+    if (resetError) {
+        alert('Error resetting active map: ' + resetError.message);
+        return;
+    }
+    const { error } = await window.sb
+        .from('maps')
+        .update({ is_active: true })
+        .eq('id', mapId);
+    if (error) {
+        alert('Error setting active map: ' + error.message);
+    } else {
+        alert('Active map updated');
+        loadMapList();
+    }
+}
+
+function openMapEditor() {
+    document.getElementById('map-editor').classList.remove('hidden');
+    initMapData();
+    if (window.sb) loadMapList();
+    renderEditorGrid();
+    highlightSelectedTile(0);
+    document.getElementById('background-select').value = mapBackground;
+}
+
+function closeMapEditor() {
+    document.getElementById('map-editor').classList.add('hidden');
+}
+
+function initMapData() {
+    mapData = [];
+    for (let y = 0; y < 60; y++) {
+        let row = [];
+        for (let x = 0; x < 60; x++) {
+            row.push(0);
+        }
+        mapData.push(row);
+    }
+}
+
+function renderEditorGrid() {
+    const grid = document.getElementById('editor-grid');
+    grid.innerHTML = '';
+    for (let y = 0; y < 60; y++) {
+        for (let x = 0; x < 60; x++) {
+            const cell = document.createElement('div');
+            cell.className = 'w-10 h-10 border border-gray-700 cursor-pointer';
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+            updateCellColor(cell, mapData[y][x]);
+            cell.onclick = () => placeTile(x, y);
+            grid.appendChild(cell);
+        }
+    }
+}
+
+function updateCellColor(cell, type) {
+    const colors = ['#d4a373', '#8b5a2b', '#b45309', '#0284c7', '#fbbf24', '#b91c1c', '#22c55e'];
+    cell.style.backgroundColor = colors[type] || colors[0];
+}
+
+function selectTile(type) {
+    currentTile = type;
+    highlightSelectedTile(type);
+}
+
+function highlightSelectedTile(type) {
+    document.querySelectorAll('[id^="palette-"]').forEach(el => {
+        el.style.borderColor = 'white';
+    });
+    const ids = ['erase', 'wall', 'bush', 'water', 'powercube', 'barrel', 'spawn'];
+    const id = ids[type];
+    const el = document.getElementById(`palette-${id}`);
+    if (el) el.style.borderColor = 'yellow';
+}
+
+function setMirrorMode(mode) {
+    mirrorMode = mode;
+}
+
+function placeTile(x, y) {
+    const positions = getMirrorPositions(x, y);
+    positions.forEach(pos => {
+        if (pos.x >= 0 && pos.x < 60 && pos.y >= 0 && pos.y < 60) {
+            mapData[pos.y][pos.x] = currentTile;
+            const cell = document.querySelector(`[data-x="${pos.x}"][data-y="${pos.y}"]`);
+            if (cell) updateCellColor(cell, currentTile);
+        }
+    });
+}
+
+function getMirrorPositions(x, y) {
+    const max = 59;
+    switch (mirrorMode) {
+        case 'none':
+            return [{x, y}];
+        case 'horizontal':
+            return [{x, y}, {x: max - x, y}];
+        case 'vertical':
+            return [{x, y}, {x, y: max - y}];
+        case 'diagonal':
+            return [{x, y}, {x: y, y: x}];
+        case 'all':
+            return [
+                {x, y},
+                {x: max - x, y},
+                {x, y: max - y},
+                {x: max - x, y: max - y},
+                {x: y, y: x},
+                {x: max - y, y: max - x},
+                {x: y, y: max - x},
+                {x: max - y, y: x}
+            ];
+        default:
+            return [{x, y}];
+    }
+}
+
+function setMapBackground() {
+    const bg = document.getElementById('background-select').value;
+    mapBackground = bg;
+    alert(`Background set to ${bg}`);
+}
+
+function saveMap() {
+    localStorage.setItem('customMap', JSON.stringify(mapData));
+    alert('Map saved to browser storage');
+}
+
+function loadMap() {
+    const saved = localStorage.getItem('customMap');
+    if (saved) {
+        mapData = JSON.parse(saved);
+        renderEditorGrid();
+        alert('Map loaded');
+    } else {
+        alert('No saved map found');
+    }
+}
+
+function testMap() {
+    if (typeof startBattle === 'function') {
+        startBattle(mapData);
+    }
+    closeMapEditor();
+}
 
 // ========== NEWS SYSTEM (with reactions & polls) ==========
 async function handleNewsClick() {
@@ -201,7 +517,7 @@ async function loadNewsList() {
                 
                 if (userVoted) {
                     // Show results
-                    const totalVotes = await window.sb
+                    const { count: totalVotes } = await window.sb
                         .from('poll_votes')
                         .select('*', { count: 'exact', head: true })
                         .eq('poll_id', poll.id);
@@ -211,7 +527,7 @@ async function loadNewsList() {
                             .select('*', { count: 'exact', head: true })
                             .eq('poll_id', poll.id)
                             .eq('option_id', opt.id);
-                        const percent = totalVotes.count ? Math.round((count / totalVotes.count) * 100) : 0;
+                        const percent = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
                         const optEl = document.createElement('div');
                         optEl.className = 'text-white text-sm mt-1';
                         optEl.innerText = `${escapeHTML(opt.option_text)}: ${percent}% (${count})`;
