@@ -138,7 +138,14 @@
         <div class="aftergame-title">BATTLE ENDED</div>
         <div class="aftergame-rank" id="aftergame-rank">Rank #?</div>
         <div class="aftergame-reward" id="aftergame-reward">+0 coins</div>
-        <button class="aftergame-button" onclick="hideAfterGame()">BACK TO MENU</button>
+
+        <!-- Daily wins progress -->
+        <div class="aftergame-daily-wins" id="aftergame-daily-wins">Daily Wins: 0/3</div>
+
+        <!-- Starrdrop indicator (hidden by default) -->
+        <div id="aftergame-starrdrop" class="aftergame-starrdrop hidden"></div>
+
+        <button class="aftergame-button" onclick="hideAfterGame()">CONTINUE</button>
     </div>
 </div>
 
@@ -572,6 +579,7 @@
 <script src="js/game.js?v=9"></script>
 </body>
 </html>
+
 
 
 
