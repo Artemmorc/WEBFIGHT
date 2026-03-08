@@ -1,4 +1,4 @@
-// ========== STARR DROP (NEW VERSION – FIXED) ==========
+// ========== STARR DROP (FIXED) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -26,6 +26,7 @@ function resetStarrDrop() {
     document.getElementById('starr-drop-content').classList.remove('hidden');
     document.getElementById('star-svg-container').innerHTML = createStarrDropSVG('RARE', 250);
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
+    document.getElementById('starr-drop-hint').innerText = 'TAP TO UPGRADE!'; // reset hint
     updateStarrDropUI();
 }
 
@@ -48,9 +49,9 @@ document.getElementById('starr-drop-container').onclick = () => {
         return;
     }
 
-    // Upgrade chances (make legendary rare)
+    // Upgrade chances (lower chance for legendary)
     const steps = [1, 2, 3, 4];
-    const probs = [0.5, 0.3, 0.15, 0.05]; // 5% chance for +4 (legendary)
+    const probs = [0.6, 0.25, 0.1, 0.05]; // 5% chance for +4 (legendary)
     const rand = Math.random();
     let cum = 0;
     let upgradeSteps = 1;
