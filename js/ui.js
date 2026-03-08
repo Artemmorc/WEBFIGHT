@@ -57,6 +57,7 @@ function createBrawlerSVG(name, size) {
     if (size === 'small' && window.BrawlerImages.icon) {
         return `<img src="images/mysteria_icon.png" style="width: 80px; height: 80px; object-fit: contain;">`;
     }
+    // Fallback to drawn SVG
     const b = CONFIG.BRAWLERS[name];
     const s = size === 'xlarge' ? 400 : size === 'large' ? 200 : 80;
     const strokeWidth = size === 'xlarge' ? 8 : size === 'large' ? 4 : 2;
