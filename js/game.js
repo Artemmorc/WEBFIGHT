@@ -682,6 +682,18 @@ function drawGame() {
 }
 
 function drawBrawler(ctx, type, x, y, angle) {
+    // If custom game image is loaded, use it
+    if (window.BrawlerImages && window.BrawlerImages.game) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        // Draw the image centered, size 80x80 (adjust if your image is different)
+        ctx.drawImage(window.BrawlerImages.game, -40, -40, 80, 80);
+        ctx.restore();
+        return;
+    }
+
+    // Fallback to drawn brawler (original code)
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
