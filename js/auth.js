@@ -131,7 +131,7 @@ async function loadProfile() {
     window.playerState = {
         name: data.display_name,
         nameColor: '#4ade80',
-        selectedIcon: 'Mystery',
+        selectedIcon: 'Mysteria',
         trophies: data.trophies,
         pp: data.pp,
         coins: data.coins,
@@ -141,6 +141,9 @@ async function loadProfile() {
 
     document.getElementById('displayUsername').innerText = data.username;
     document.getElementById('displayAccountId').innerText = '#' + data.account_id;
+    
+    await loadBrawlerProgress();   // <--- load per-brawler trophies
+
     if (typeof updateStatsUI === 'function') updateStatsUI();
 
     if (data.is_admin) {
@@ -150,12 +153,48 @@ async function loadProfile() {
     }
 }
 
+async function loadBrawlerProgress() {
+    if (!window.currentUser) return;
+    const { data, error } = await window.sb
+        .from('brawler_progress')
+        .select('brawler_name, trophies')
+        .eq('user_id', window.currentUser.id);
+
+    if (error) {
+        console.error('Error loading brawler progress:', error);
+        return;
+    }
+
+    window.brawlerProgress = {};
+    let totalTrophies = 0;
+    data.forEach(row => {
+        window.brawlerProgress[row.brawler_name] = row.trophies;
+        totalTrophies += row.trophies;
+    });
+
+    // Update playerState.trophies with the sum
+    window.playerState.trophies = totalTrophies;
+    if (typeof updateStatsUI === 'function') updateStatsUI();
+}
+
+async function saveBrawlerProgress(brawlerName, trophies) {
+    if (!window.currentUser) return;
+    const { error } = await window.sb
+        .from('brawler_progress')
+        .upsert({
+            user_id: window.currentUser.id,
+            brawler_name: brawlerName,
+            trophies: trophies
+        }, { onConflict: 'user_id, brawler_name' });
+    if (error) console.error('Error saving brawler progress:', error);
+}
+
 async function saveProfileToDB() {
     if (!window.currentUser || !window.currentProfile) return;
 
     const updates = {
         display_name: window.playerState.name,
-        trophies: window.playerState.trophies,
+        trophies: window.playerState.trophies,   // total trophies (sum)
         pp: window.playerState.pp,
         coins: window.playerState.coins,
         gems: window.playerState.gems,
@@ -173,7 +212,7 @@ async function saveProfileToDB() {
 // Admin functions
 function toggleAdminPanel() {
     const panel = document.getElementById('adminPanel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    panel.classList.toggle('hidden');
 }
 
 async function adminGiveCoins() {
@@ -213,3 +252,7 @@ async function adminChangeUsername() {
         document.getElementById('displayUsername').innerText = newUsername;
     }
 }
+
+// Expose new functions globally
+window.loadBrawlerProgress = loadBrawlerProgress;
+window.saveBrawlerProgress = saveBrawlerProgress;
