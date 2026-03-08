@@ -78,7 +78,7 @@ function loadBrawlerImages() {
     });
 }
 
-// ========== TEXTURES (PRE‑RENDERED CANVAS ELEMENTS) ==========
+// ========== TEXTURES ==========
 window.Textures = { 
     floor: null, 
     bush: null, 
@@ -414,7 +414,7 @@ function testMap() {
     closeMapEditor();
 }
 
-// ========== NEWS SYSTEM (with reactions & polls) ==========
+// ========== NEWS SYSTEM ==========
 async function handleNewsClick() {
     await openNewsViewer();
 }
@@ -460,7 +460,7 @@ async function loadNewsList() {
         `;
         card.onclick = () => showNewsDetail(news);
         
-        // Fetch reactions for this news
+        // Fetch reactions
         const { data: reactions } = await window.sb
             .from('news_reactions')
             .select('emoji, user_id')
@@ -491,7 +491,7 @@ async function loadNewsList() {
             card.appendChild(reactionDiv);
         }
         
-        // Fetch polls for this news
+        // Fetch polls
         const { data: polls } = await window.sb
             .from('news_polls')
             .select('*')
@@ -507,7 +507,6 @@ async function loadNewsList() {
                     .select('*')
                     .eq('poll_id', poll.id);
                 
-                // Check if user already voted
                 const { data: votes } = await window.sb
                     .from('poll_votes')
                     .select('option_id')
@@ -516,7 +515,6 @@ async function loadNewsList() {
                 const userVoted = votes && votes.length > 0;
                 
                 if (userVoted) {
-                    // Show results
                     const { count: totalVotes } = await window.sb
                         .from('poll_votes')
                         .select('*', { count: 'exact', head: true })
@@ -534,7 +532,6 @@ async function loadNewsList() {
                         pollDiv.appendChild(optEl);
                     }
                 } else {
-                    // Show vote buttons
                     for (const opt of options) {
                         const btn = document.createElement('button');
                         btn.className = 'bg-blue-600 text-white px-3 py-1 rounded mr-2 mt-2 text-sm';
@@ -630,23 +627,11 @@ function removePollOption() {
     }
 }
 
-function clearNewsEditor() {
-    // Clear text fields
-    document.getElementById('news-title').value = '';
-    document.getElementById('news-content').value = '';
-    document.getElementById('poll-question').value = '';
-    
-    // Reset slider to 2
-    const slider = document.getElementById('poll-option-count');
-    if (slider) {
-        slider.value = '2';
-    }
-    document.getElementById('poll-count-display').innerText = '2';
-    
-    // Reset poll options to 2 default inputs
+function updatePollOptions(count) {
+    document.getElementById('poll-count-display').innerText = count;
     const container = document.getElementById('poll-options');
     container.innerHTML = '';
-    for (let i = 1; i <= 2; i++) {
+    for (let i = 1; i <= count; i++) {
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = `Option ${i}`;
@@ -655,11 +640,20 @@ function clearNewsEditor() {
     }
 }
 
-function updatePollOptions(count) {
-    document.getElementById('poll-count-display').innerText = count;
+function clearNewsEditor() {
+    document.getElementById('news-title').value = '';
+    document.getElementById('news-content').value = '';
+    document.getElementById('poll-question').value = '';
+    
+    const slider = document.getElementById('poll-option-count');
+    if (slider) {
+        slider.value = '2';
+    }
+    document.getElementById('poll-count-display').innerText = '2';
+    
     const container = document.getElementById('poll-options');
     container.innerHTML = '';
-    for (let i = 1; i <= count; i++) {
+    for (let i = 1; i <= 2; i++) {
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = `Option ${i}`;
@@ -685,7 +679,6 @@ async function saveNews(published) {
         return;
     }
     
-    // Insert news
     const { data: newsData, error } = await window.sb
         .from('news')
         .insert({ title, content, published, author_id: window.currentUser.id })
@@ -696,7 +689,6 @@ async function saveNews(published) {
         return;
     }
     
-    // If there's a poll, create it
     const pollQuestion = document.getElementById('poll-question').value.trim();
     if (pollQuestion) {
         const optionInputs = document.querySelectorAll('.poll-option');
@@ -725,7 +717,7 @@ async function saveNews(published) {
     if (published) loadNewsList();
 }
 
-// ========== MAINTENANCE (NO DURATION) ==========
+// ========== MAINTENANCE ==========
 let warningTimeout = null;
 
 async function checkMaintenance() {
@@ -918,7 +910,7 @@ async function loadProfile() {
             window.brawlerProgress[name] = 0;
         });
     }
-    // Sum total trophies
+    // Sum total trophies and update playerState
     playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + b, 0);
     
     playerState = {
@@ -929,7 +921,7 @@ async function loadProfile() {
         coins: data.coins,
         gems: data.gems,
         dailyClaimed: data.daily_claimed,
-        trophies: playerState.trophies
+        trophies: playerState.trophies  // now updated
     };
     
     document.getElementById('displayUsername').innerText = data.username;
