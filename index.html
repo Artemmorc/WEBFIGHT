@@ -200,9 +200,9 @@
         </div>
     </div>
 
-    <!-- CENTER: brawler stand (moved up 30px) -->
+    <!-- CENTER: brawler stand (moved up 60px) -->
     <div class="flex-1 flex flex-col items-center justify-center relative z-10">
-        <div id="brawler-stand" class="flex items-center justify-center brawler-shadow transition-all duration-500" style="min-height: 400px; margin-top: -30px;"></div>
+        <div id="brawler-stand" class="flex items-center justify-center brawler-shadow transition-all duration-500" style="min-height: 400px; margin-top: -60px;"></div>
         <div class="absolute bottom-10 bg-black/60 px-10 py-3 rounded-full border-2 border-white/30 text-3xl uppercase tracking-widest" id="current-brawler-name">Mysteria</div>
     </div>
 
@@ -524,7 +524,7 @@
     </div>
 </div>
 
-<!-- NEWS EDITOR MODAL (with poll) -->
+<!-- NEWS EDITOR MODAL (with poll and slider) -->
 <div id="news-editor" class="absolute inset-0 bg-gray-900 z-[500] hidden flex flex-col p-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-4xl text-yellow-400">EDIT NEWS</h1>
@@ -534,16 +534,21 @@
         <input type="text" id="news-title" placeholder="Title" class="w-full p-4 rounded-xl text-black text-2xl">
         <textarea id="news-content" placeholder="Content (HTML allowed)" rows="10" class="w-full p-4 rounded-xl text-black text-xl"></textarea>
         
-        <!-- Poll section -->
+        <!-- Poll section with slider -->
         <div class="mt-4">
             <label class="text-white text-xl">Poll (optional)</label>
             <input type="text" id="poll-question" placeholder="Poll question" class="w-full p-2 rounded text-black mt-2">
+            
+            <div class="flex items-center gap-4 mt-4">
+                <span class="text-white">Number of options:</span>
+                <input type="range" id="poll-option-count" min="2" max="6" value="2" class="w-48" oninput="updatePollOptions(this.value)">
+                <span id="poll-count-display" class="text-white">2</span>
+            </div>
+            
             <div id="poll-options" class="mt-2">
                 <input type="text" placeholder="Option 1" class="poll-option w-full p-2 rounded text-black mt-1">
                 <input type="text" placeholder="Option 2" class="poll-option w-full p-2 rounded text-black mt-1">
             </div>
-            <button onclick="addPollOption()" class="bg-blue-500 text-white px-4 py-2 rounded mt-2">Add Option</button>
-            <button onclick="removePollOption()" class="bg-red-500 text-white px-4 py-2 rounded mt-2 ml-2">Remove Last</button>
         </div>
         
         <div class="flex gap-4">
@@ -558,8 +563,8 @@
 <script src="js/config.js?v=3"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/ui.js?v=2"></script>
-<script src="js/starrdrop.js?v=3"></script>
-<script src="js/main.js?v=9"></script>
+<script src="js/starrdrop.js?v=4"></script>
+<script src="js/main.js?v=10"></script>
 <script src="js/game.js?v=9"></script>
 </body>
 </html>
