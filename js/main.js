@@ -7,6 +7,7 @@ window.playerState = {
     pp: 0,
     coins: 0,
     gems: 0,
+    dailyWins: 0,
     dailyClaimed: false
 };
 
