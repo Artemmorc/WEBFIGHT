@@ -18,8 +18,8 @@ function startStarrDropAnimation() {
 }
 
 function resetStarrDrop() {
-    state.starrDropStep = 0;
-    state.starrDropRarity = 'RARE';
+    window.state.starrDropStep = 0;
+    window.state.starrDropRarity = 'RARE';
     document.getElementById('close-starr-drop').classList.add('opacity-0', 'pointer-events-none');
     document.getElementById('starr-drop-hint').classList.remove('hidden');
     document.getElementById('starr-drop-reward').classList.add('hidden');
@@ -30,18 +30,17 @@ function resetStarrDrop() {
 }
 
 function updateStarrDropUI() {
-    const rIdx = rarities.indexOf(state.starrDropRarity);
+    const rIdx = rarities.indexOf(window.state.starrDropRarity);
     const textEl = document.getElementById('starr-drop-rarity');
-    textEl.innerText = state.starrDropRarity;
+    textEl.innerText = window.state.starrDropRarity;
     textEl.className = `text-6xl mb-4 ${rarityClasses[rIdx]}`;
-    document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(state.starrDropRarity, 250);
+    document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(window.state.starrDropRarity, 250);
     document.getElementById('star-glow').style.backgroundColor = rarityColors[rIdx];
 }
 
-// Called when tapping the star
 document.getElementById('starr-drop-container').onclick = () => {
     // If already legendary or reward shown, do nothing
-    if (state.starrDropRarity === 'LEGENDARY' || document.getElementById('starr-drop-reward').classList.contains('hidden') === false) return;
+    if (window.state.starrDropRarity === 'LEGENDARY' || !document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
     
     // Upgrade chances: roll 0-1, map to steps 1-4
     const steps = [1, 2, 3, 4];
@@ -57,19 +56,17 @@ document.getElementById('starr-drop-container').onclick = () => {
         }
     }
     
-    const currentIdx = rarities.indexOf(state.starrDropRarity);
+    const currentIdx = rarities.indexOf(window.state.starrDropRarity);
     let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
-    state.starrDropRarity = rarities[newIdx];
+    window.state.starrDropRarity = rarities[newIdx];
     
-    // Shake effect
     const container = document.getElementById('starr-drop-container');
     container.classList.add('starr-drop-shake');
     setTimeout(() => container.classList.remove('starr-drop-shake'), 400);
     
     updateStarrDropUI();
     
-    // If reached legendary, change hint
-    if (state.starrDropRarity === 'LEGENDARY') {
+    if (window.state.starrDropRarity === 'LEGENDARY') {
         document.getElementById('starr-drop-hint').innerText = 'LEGENDARY! TAP TO OPEN';
     }
 };
@@ -80,27 +77,25 @@ function revealReward() {
     document.getElementById('star-svg-container').style.animation = 'none';
     document.getElementById('starr-drop-reward').classList.remove('hidden');
     
-    const rIdx = rarities.indexOf(state.starrDropRarity);
+    const rIdx = rarities.indexOf(window.state.starrDropRarity);
     const multiplier = rIdx + 1; // 1-5
-    const isLegendary = state.starrDropRarity === 'LEGENDARY';
+    const isLegendary = window.state.starrDropRarity === 'LEGENDARY';
     
-    // Decide reward type (coins or PP)
     const rewardType = Math.random() > 0.5 ? 'COINS' : 'PP';
-    let amount = multiplier * (50 + Math.floor(Math.random() * 50)); // 50-100 times multiplier
+    let amount = multiplier * (50 + Math.floor(Math.random() * 50));
     
     document.getElementById('reward-title').innerText = isLegendary ? '⭐ LEGENDARY ⭐' : 'REWARD';
     
     if (rewardType === 'COINS') {
-        document.getElementById('reward-visual').innerHTML = SVG_ICONS.coin(180);
+        document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.coin(180);
         document.getElementById('reward-desc').innerText = `${amount} Coins!`;
-        playerState.coins += amount;
+        window.playerState.coins += amount;
     } else {
-        document.getElementById('reward-visual').innerHTML = SVG_ICONS.pp(180);
+        document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.pp(180);
         document.getElementById('reward-desc').innerText = `${amount} Power Points!`;
-        playerState.pp += amount;
+        window.playerState.pp += amount;
     }
     
-    // If legendary, trigger coin rain animation (simulated with a flash)
     if (isLegendary) {
         document.getElementById('starr-drop-screen').style.backgroundColor = 'rgba(255,215,0,0.3)';
         setTimeout(() => {
@@ -108,15 +103,9 @@ function revealReward() {
         }, 500);
     }
     
-    updateStatsUI();
-    saveProfileToDB();
+    if (typeof updateStatsUI === 'function') updateStatsUI();
+    if (typeof saveProfileToDB === 'function') saveProfileToDB();
     document.getElementById('close-starr-drop').classList.remove('opacity-0', 'pointer-events-none');
-}
-
-// Override the old revealReward function (already in game.js, but we need to hook it)
-// We'll keep the original name but replace its body
-function revealReward() {
-    // This function is already defined above; we'll just call it.
 }
 
 function finishStarrDrop() {
