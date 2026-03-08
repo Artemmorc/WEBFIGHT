@@ -1,4 +1,4 @@
-// ========== STARR DROP (FIXED CHANCES) ==========
+// ========== STARR DROP (FIXED CHANCES, MAX 4 TAPS) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -20,6 +20,7 @@ function startStarrDropAnimation() {
 function resetStarrDrop() {
     window.state.starrDropStep = 0;
     window.state.starrDropRarity = 'RARE';
+    window.state.starrDropTaps = 0;
     document.getElementById('close-starr-drop').classList.add('opacity-0', 'pointer-events-none');
     document.getElementById('starr-drop-hint').classList.remove('hidden');
     document.getElementById('starr-drop-reward').classList.add('hidden');
@@ -43,8 +44,8 @@ document.getElementById('starr-drop-container').onclick = () => {
     // If reward already shown, do nothing
     if (!document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
 
-    // If legendary, reveal reward on next tap
-    if (window.state.starrDropRarity === 'LEGENDARY') {
+    // If legendary or already tapped 4 times, reveal reward
+    if (window.state.starrDropRarity === 'LEGENDARY' || window.state.starrDropTaps >= 4) {
         revealReward();
         return;
     }
@@ -66,6 +67,7 @@ document.getElementById('starr-drop-container').onclick = () => {
     const currentIdx = rarities.indexOf(window.state.starrDropRarity);
     let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
     window.state.starrDropRarity = rarities[newIdx];
+    window.state.starrDropTaps++;
 
     const container = document.getElementById('starr-drop-container');
     container.classList.add('starr-drop-shake');
