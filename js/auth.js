@@ -179,7 +179,7 @@ async function loadBrawlerProgress() {
     if (!window.currentUser) return;
     const { data, error } = await window.sb
         .from('brawler_progress')
-        .select('brawler_name, trophies')
+        .select('brawler_name, trophies, power_level')
         .eq('user_id', window.currentUser.id);
 
     if (error) {
@@ -190,23 +190,31 @@ async function loadBrawlerProgress() {
     window.brawlerProgress = {};
     let totalTrophies = 0;
     data.forEach(row => {
-        window.brawlerProgress[row.brawler_name] = row.trophies;
+        window.brawlerProgress[row.brawler_name] = {
+            trophies: row.trophies,
+            level: row.power_level || 1
+        };
         totalTrophies += row.trophies;
     });
 
-    // Update playerState.trophies with the sum
+    // Ensure Mysteria has entry if missing
+    if (!window.brawlerProgress['Mysteria']) {
+        window.brawlerProgress['Mysteria'] = { trophies: 0, level: 1 };
+    }
+
     window.playerState.trophies = totalTrophies;
     if (typeof updateStatsUI === 'function') updateStatsUI();
 }
 
-async function saveBrawlerProgress(brawlerName, trophies) {
+async function saveBrawlerProgress(brawlerName, trophies, level) {
     if (!window.currentUser) return;
     const { error } = await window.sb
         .from('brawler_progress')
         .upsert({
             user_id: window.currentUser.id,
             brawler_name: brawlerName,
-            trophies: trophies
+            trophies: trophies,
+            power_level: level
         }, { onConflict: 'user_id, brawler_name' });
     if (error) console.error('Error saving brawler progress:', error);
 }
@@ -233,7 +241,44 @@ async function saveProfileToDB() {
     if (error) console.error('Save error', error);
 }
 
-// Admin functions
+// ========== UPGRADE FUNCTION ==========
+async function upgradeBrawler(brawlerName) {
+    if (!window.currentUser) return;
+    const progress = window.brawlerProgress[brawlerName];
+    if (!progress) return;
+    const currentLevel = progress.level;
+    if (currentLevel >= 11) {
+        alert('Already max level!');
+        return;
+    }
+    const costIndex = currentLevel - 1; // level 1 -> index 0
+    const cost = window.UPGRADE_COSTS[costIndex];
+    if (!cost) return;
+
+    if (window.playerState.coins < cost.coins || window.playerState.pp < cost.pp) {
+        alert('Not enough resources!');
+        return;
+    }
+
+    // Deduct resources
+    window.playerState.coins -= cost.coins;
+    window.playerState.pp -= cost.pp;
+    progress.level = currentLevel + 1;
+
+    // Save to DB
+    await saveBrawlerProgress(brawlerName, progress.trophies, progress.level);
+    await saveProfileToDB(); // saves coins/pp
+
+    // Update UI
+    if (typeof updateStatsUI === 'function') updateStatsUI();
+    // Refresh brawler selection if open
+    if (!document.getElementById('brawler-screen').classList.contains('hidden')) {
+        toggleBrawlers(true);
+    }
+    alert(`${brawlerName} upgraded to level ${progress.level}!`);
+}
+
+// Admin functions (unchanged)
 function toggleAdminPanel() {
     const panel = document.getElementById('adminPanel');
     panel.classList.toggle('hidden');
@@ -286,6 +331,7 @@ window.saveProfileToDB = saveProfileToDB;
 window.saveBrawlerProgress = saveBrawlerProgress;
 window.loadBrawlerProgress = loadBrawlerProgress;
 window.checkDailyWinReset = checkDailyWinReset;
+window.upgradeBrawler = upgradeBrawler;
 window.toggleAdminPanel = toggleAdminPanel;
 window.adminGiveCoins = adminGiveCoins;
 window.adminGiveGems = adminGiveGems;
