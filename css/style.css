@@ -425,3 +425,23 @@ canvas {
         z-index: 9999;
     }
 }
+
+/* Kill feed messages */
+.kill-message {
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 1.2rem;
+    border: 2px solid #fbbf24;
+    backdrop-filter: blur(4px);
+    animation: fadeOut 3s forwards;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    text-shadow: 2px 2px 0 black;
+}
+@keyframes fadeOut {
+    0% { opacity: 1; transform: translateX(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-20px); }
+}
