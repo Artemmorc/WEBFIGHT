@@ -33,6 +33,22 @@ let playerDead = false;
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 
+// ========== SAFETY AFTER TAB RETURN ==========
+let justReturnedFromHidden = false;
+let justReturnedTimer = null;
+
+document.addEventListener('visibilitychange', function() {
+    console.log('Visibility changed to', document.visibilityState);
+    if (document.visibilityState === 'visible') {
+        justReturnedFromHidden = true;
+        if (justReturnedTimer) clearTimeout(justReturnedTimer);
+        justReturnedTimer = setTimeout(() => {
+            justReturnedFromHidden = false;
+            console.log('Invincibility after return ended');
+        }, 2000); // 2 seconds of invincibility
+    }
+});
+
 // ========== BUSH VISIBILITY FUNCTIONS ==========
 function isInBush(x, y) {
     const battle = window.state.battle;
@@ -349,6 +365,7 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
+    // Box destruction
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
@@ -377,7 +394,10 @@ function updateGame() {
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0) continue;
             if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
-                if (!t.invincibleUntil || now > t.invincibleUntil) {
+                // Skip damage if player just returned from hidden
+                if (t.id === 'player' && justReturnedFromHidden) {
+                    // No damage
+                } else if (!t.invincibleUntil || now > t.invincibleUntil) {
                     const attackerType = 'Mysteria';
                     const stats = typeof window.getBrawlerStats === 'function'
                         ? window.getBrawlerStats(attackerType, b.level)
@@ -398,6 +418,7 @@ function updateGame() {
         return true;
     });
 
+    // Power cube collection
     for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
         const cube = battle.powerCubes[i];
         if (!cube.collected && Math.hypot(p.x - cube.x, p.y - cube.y) < 30) {
@@ -413,6 +434,7 @@ function updateGame() {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
+    // Bot AI
     for (let bot of battle.bots) {
         if(bot.hp <= 0) continue;
         if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
@@ -451,7 +473,9 @@ function updateGame() {
     [...battle.bots, p].forEach(ent => {
         if(ent.hp <= 0) return;
         const dist = Math.hypot(ent.x - centerX, ent.y - centerY);
-        if (dist > battle.poisonRadius && (!ent.invincibleUntil || now > ent.invincibleUntil)) {
+        if (ent.id === 'player' && justReturnedFromHidden) {
+            // Skip poison damage
+        } else if (dist > battle.poisonRadius && (!ent.invincibleUntil || now > ent.invincibleUntil)) {
             ent.hp -= 2;
             if (ent.id === 'player') ent.lastDamageTime = now;
         }
@@ -513,6 +537,7 @@ function updateGame() {
 }
 
 function exitBattle() {
+    console.log('exitBattle called');
     if (window.state.battle) {
         window.state.battle.active = false;
     }
@@ -903,11 +928,6 @@ function spawnBullet(owner, angle, isSuper) {
         });
     }
 }
-
-// ========== DUMMY VISIBILITY LISTENER (does nothing) ==========
-document.addEventListener('visibilitychange', function() {
-    console.log('Visibility changed to', document.visibilityState, ' – no action');
-});
 
 // Expose functions
 window.startBattlePre = startBattlePre;
