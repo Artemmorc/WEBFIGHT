@@ -34,7 +34,8 @@ let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 const superBtn = document.getElementById('super-btn');
 const killFeed = document.getElementById('kill-feed');
-console.log('killFeed element:', killFeed); // debug
+
+if (!killFeed) console.error('Kill feed element not found! Add <div id="kill-feed"> to index.html');
 
 // ========== AIMING VARIABLES ==========
 let mouseInsideCanvas = false;
@@ -50,10 +51,11 @@ function addKillMessage(killerName, victimName) {
         time: Date.now()
     };
     killMessages.push(msg);
-    console.log('Kill message added:', msg.text); // debug
+    console.log('Kill message added:', msg.text);
     // Remove after 3 seconds
     setTimeout(() => {
         killMessages = killMessages.filter(m => m !== msg);
+        console.log('Kill message removed');
     }, 3000);
 }
 
@@ -95,7 +97,6 @@ function setupJoystick(id, stickId, type) {
         const normY = dy / max;
         window.state.battle.joystick[type] = { x: normX, y: normY };
 
-        // If this is the attack joystick, update aim direction
         if (type === 'attack' && (normX !== 0 || normY !== 0)) {
             window.state.battle.aimAngle = Math.atan2(normY, normX);
             window.state.battle.isAiming = true;
@@ -110,7 +111,6 @@ function setupJoystick(id, stickId, type) {
                 const ang = Math.atan2(joy.y, joy.x);
                 spawnBullet(window.state.battle.player, ang, false);
             }
-            // Clear aim
             window.state.battle.isAiming = false;
         }
         active = false;
@@ -118,22 +118,18 @@ function setupJoystick(id, stickId, type) {
         window.state.battle.joystick[type] = { x: 0, y: 0 };
     };
 
-    // Touch events
     base.addEventListener('touchstart', handleStart, { passive: false });
     window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd, { passive: false });
     window.addEventListener('touchcancel', handleEnd, { passive: false });
 
-    // Mouse events
     base.addEventListener('mousedown', handleStart);
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleEnd);
 
-    // Update rect on resize
     window.addEventListener('resize', updateRect);
 }
 
-// ========== UPDATE MOVE JOYSTICK VISUAL FROM KEYBOARD ==========
 function updateMoveJoystickVisual() {
     const stick = document.getElementById('move-joy-stick');
     if (!stick) return;
@@ -144,7 +140,7 @@ function updateMoveJoystickVisual() {
     stick.style.transform = `translate(${dx}px, ${dy}px)`;
 }
 
-// ========== MOUSE AIMING (PC) ==========
+// Mouse aiming
 canvas.addEventListener('mouseenter', () => {
     if (window.state.battle && window.state.battle.active) {
         mouseInsideCanvas = true;
@@ -185,7 +181,7 @@ window.addEventListener('mouseup', (e) => {
     mouseDown = false;
 });
 
-// ========== BUSH VISIBILITY FUNCTIONS ==========
+// ========== BUSH VISIBILITY ==========
 function isInBush(x, y) {
     const battle = window.state.battle;
     if (!battle) return false;
@@ -455,7 +451,6 @@ function updateGame() {
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
     const now = Date.now();
 
-    // Handle player death animation
     if (playerDead) {
         const elapsed = now - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
@@ -467,6 +462,7 @@ function updateGame() {
             playerDead = false;
             battle.active = false;
             if (window.state.lastMatch) {
+                console.log('Calling showAfterGame from player death with rank:', window.state.lastMatch.rank);
                 showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
             }
             exitBattle();
@@ -573,16 +569,13 @@ function updateGame() {
                         t.lastDamageTime = now;
                     }
 
-                    // Super charge for player when dealing damage with normal attack
                     if (b.ownerId === 'player' && !b.super) {
                         p.superCharge = Math.min(p.superMax, p.superCharge + 10);
                     }
 
-                    // Check if target died
                     if (t.hp <= 0 && !t.dying) {
                         t.dying = true;
                         t.deathTime = now;
-                        // Determine killer name
                         let killerName = 'Unknown';
                         if (b.ownerId === 'player') {
                             killerName = p.name;
@@ -611,7 +604,6 @@ function updateGame() {
         }
     }
 
-    // Ammo recharge – constant, no delay after shooting
     if (p.ammo < p.maxAmmo && !p.dying) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
@@ -650,9 +642,7 @@ function updateGame() {
     const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
     const aliveCount = (p.hp > 0 && !p.dying ? 1 : 0) + aliveBots;
     brawlersLeftEl.innerText = aliveCount;
-    console.log('aliveCount:', aliveCount, 'player hp:', p.hp, 'player dying:', p.dying); // debug
 
-    // Poison gas
     battle.poisonRadius -= 0.05;
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
     [...battle.bots, p].forEach(ent => {
@@ -664,13 +654,11 @@ function updateGame() {
         }
     });
 
-    // Natural regen (health)
     if (!p.dying && now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
     if (p.hp <= 0 && !p.dying) {
-        console.log('Player died');
         p.dying = true;
         p.deathTime = now;
         playerDead = true;
@@ -680,11 +668,11 @@ function updateGame() {
             coinsEarned: 0,
             starrdropEarned: false
         };
+        console.log('Player died, setting lastMatch rank:', aliveCount+1);
         return;
     }
 
     if (aliveCount === 1 && p.hp > 0 && !p.dying) {
-        console.log('Player won!');
         const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         window.playerState.coins += coinsEarned;
         
@@ -715,6 +703,7 @@ function updateGame() {
             starrdropEarned: starrdropEarned
         };
         
+        console.log('Victory! Calling showAfterGame');
         showAfterGame(1, coinsEarned, starrdropEarned);
         exitBattle();
         return;
@@ -742,12 +731,16 @@ function exitBattle() {
 }
 
 function showAfterGame(rank, coins, starrdropEarned = false) {
+    console.log('showAfterGame called with rank:', rank, 'coins:', coins, 'starrdrop:', starrdropEarned);
     const menu = document.getElementById('aftergame-menu');
     if (!menu) {
-        console.error('aftergame-menu not found');
+        console.error('aftergame-menu not found!');
         return;
     }
-    console.log('Showing aftergame menu, rank:', rank, 'coins:', coins);
+    // Force menu to appear
+    menu.style.display = 'flex';
+    menu.style.opacity = '1';
+    menu.style.zIndex = '100000'; // very high
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
     
@@ -769,9 +762,10 @@ function showAfterGame(rank, coins, starrdropEarned = false) {
         }
     }
     
-    menu.style.opacity = '0';
-    menu.style.display = 'flex';
-    setTimeout(() => menu.style.opacity = '1', 50);
+    // Ensure battle screen is still visible behind menu
+    const battleScreen = document.getElementById('battle-screen');
+    battleScreen.style.zIndex = '1000';
+    battleScreen.style.display = 'block';
 }
 
 function hideAfterGame() {
@@ -944,7 +938,6 @@ function drawGame() {
                 ctx.fillRect(-bw / 2, -36, bw, 6);
                 ctx.fillStyle = '#f97316';
                 ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
-
                 ctx.fillStyle = 'rgba(0,0,0,0.7)';
                 ctx.fillRect(-bw / 2, -28, bw, 4);
                 ctx.fillStyle = '#fbbf24';
@@ -973,7 +966,6 @@ function drawGame() {
         ctx.fill();
     });
 
-    // ========== DRAW AIMING LINE ==========
     if (mouseInsideCanvas && p && window.state.battle.isAiming && !p.dying) {
         const angle = window.state.battle.aimAngle;
         const startX = p.x;
@@ -1014,7 +1006,6 @@ function drawGame() {
         ctx.globalAlpha = 1;
     }
 
-    // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
@@ -1023,7 +1014,6 @@ function drawGame() {
 
     ctx.restore();
 
-    // Update super button appearance
     if (p && p.superCharge >= p.superMax && !p.dying) {
         superBtn.style.opacity = '1';
         superBtn.style.backgroundColor = '#fbbf24';
@@ -1137,11 +1127,9 @@ function updateKeyboardMovement() {
     updateMoveJoystickVisual();
 }
 
-// Initialize joysticks with mouse support
 setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
-// Super button: aimable
 document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
     if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
@@ -1201,7 +1189,6 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
-// Expose functions
 window.startBattlePre = startBattlePre;
 window.showAfterGame = showAfterGame;
 window.hideAfterGame = hideAfterGame;
