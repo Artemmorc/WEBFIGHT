@@ -1,4 +1,4 @@
-console.log('game.js loaded – no exit on visibility');
+console.log('game.js loaded');
 
 // ========== GLOBAL FALLBACKS ==========
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
@@ -32,59 +32,73 @@ let playerDead = false;
 // Cached DOM elements
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
+const superBtn = document.getElementById('super-btn');
 
-// ========== SAFETY AFTER TAB RETURN ==========
-let justReturnedFromHidden = false;
-let justReturnedTimer = null;
+// ========== JOYSTICK SETUP (MOUSE + TOUCH) ==========
+function setupJoystick(id, stickId, type) {
+    const base = document.getElementById(id);
+    const stick = document.getElementById(stickId);
+    let active = false;
+    let rect = base.getBoundingClientRect();
 
-document.addEventListener('visibilitychange', function() {
-    console.log('Visibility changed to', document.visibilityState);
-    if (document.visibilityState === 'visible') {
-        const battleScreen = document.getElementById('battle-screen');
-        const menuScreen = document.getElementById('menu-screen');
-        const afterGameMenu = document.getElementById('aftergame-menu');
-        console.log('Battle active:', window.state.battle?.active);
-        console.log('battle-screen hidden class:', battleScreen?.classList.contains('hidden'));
-        console.log('battle-screen computed display:', window.getComputedStyle(battleScreen).display);
-        console.log('battle-screen computed opacity:', window.getComputedStyle(battleScreen).opacity);
-        console.log('battle-screen computed z-index:', window.getComputedStyle(battleScreen).zIndex);
-        console.log('menu-screen computed display:', window.getComputedStyle(menuScreen).display);
-        console.log('menu-screen computed opacity:', window.getComputedStyle(menuScreen).opacity);
-        console.log('aftergame-menu computed display:', window.getComputedStyle(afterGameMenu).display);
-        // Log all modals hidden status
-        console.log('shop-modal hidden class:', document.getElementById('shop-modal').classList.contains('hidden'));
-        console.log('profile-modal hidden class:', document.getElementById('profile-modal').classList.contains('hidden'));
-        console.log('brawler-screen hidden class:', document.getElementById('brawler-screen').classList.contains('hidden'));
-        console.log('adminPanel hidden class:', document.getElementById('adminPanel').classList.contains('hidden'));
-        console.log('map-editor hidden class:', document.getElementById('map-editor').classList.contains('hidden'));
-        console.log('news-viewer hidden class:', document.getElementById('news-viewer').classList.contains('hidden'));
-        console.log('news-detail hidden class:', document.getElementById('news-detail').classList.contains('hidden'));
-        console.log('news-editor hidden class:', document.getElementById('news-editor').classList.contains('hidden'));
-        console.log('starr-drop-screen hidden class:', document.getElementById('starr-drop-screen').classList.contains('hidden'));
-        
-        // Log canvas info
-        console.log('canvas width:', canvas.width, 'height:', canvas.height);
-        console.log('canvas client width:', canvas.clientWidth, 'client height:', canvas.clientHeight);
-        console.log('canvas style display:', canvas.style.display);
-        console.log('canvas computed display:', getComputedStyle(canvas).display);
-        console.log('canvas computed z-index:', getComputedStyle(canvas).zIndex);
-        
-        // Force a repaint by slightly resizing the canvas
-        if (window.state.battle && window.state.battle.active) {
-            const oldWidth = canvas.width;
-            canvas.width = oldWidth + 1;
-            canvas.width = oldWidth;
-            console.log('Forced canvas repaint');
+    const updateRect = () => {
+        rect = base.getBoundingClientRect();
+    };
+
+    const handleStart = (e) => {
+        e.preventDefault();
+        active = true;
+        updateRect();
+        handleMove(e);
+    };
+
+    const handleMove = (e) => {
+        if (!active) return;
+        e.preventDefault();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        let dx = clientX - centerX;
+        let dy = clientY - centerY;
+        const dist = Math.hypot(dx, dy);
+        const max = 50;
+        if (dist > max) {
+            dx = (dx / dist) * max;
+            dy = (dy / dist) * max;
         }
-        
-        justReturnedFromHidden = true;
-        if (justReturnedTimer) clearTimeout(justReturnedTimer);
-        justReturnedTimer = setTimeout(() => {
-            justReturnedFromHidden = false;
-            console.log('Invincibility after return ended');
-        }, 2000);
-    }
-});
+        stick.style.transform = `translate(${dx}px, ${dy}px)`;
+        window.state.battle.joystick[type] = { x: dx / max, y: dy / max };
+    };
+
+    const handleEnd = (e) => {
+        e.preventDefault();
+        if (active && type === 'attack') {
+            const joy = window.state.battle.joystick.attack;
+            if (Math.hypot(joy.x, joy.y) > 0.5) {
+                const ang = Math.atan2(joy.y, joy.x);
+                spawnBullet(window.state.battle.player, ang, false);
+            }
+        }
+        active = false;
+        stick.style.transform = 'translate(0,0)';
+        window.state.battle.joystick[type] = { x: 0, y: 0 };
+    };
+
+    // Touch events
+    base.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd, { passive: false });
+    window.addEventListener('touchcancel', handleEnd, { passive: false });
+
+    // Mouse events
+    base.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    // Update rect on resize
+    window.addEventListener('resize', updateRect);
+}
 
 // ========== BUSH VISIBILITY FUNCTIONS ==========
 function isInBush(x, y) {
@@ -298,7 +312,9 @@ function startBattle(customMap = null, background = 'floor') {
         inBush: false, lastDamageTime: Date.now(),
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000,
         power: 0,
-        revealUntil: 0
+        revealUntil: 0,
+        superCharge: 0, // 0 to 100
+        superMax: 100
     };
 
     for(let i=0; i<9; i++) {
@@ -318,7 +334,9 @@ function startBattle(customMap = null, background = 'floor') {
             angle: Math.random()*Math.PI*2, lastShot: 0,
             inBush: false, invincibleUntil: Date.now() + 3000,
             power: 0,
-            revealUntil: 0
+            revealUntil: 0,
+            superCharge: 0, // bots won't use it yet
+            superMax: 100
         });
     }
 
@@ -327,27 +345,7 @@ function startBattle(customMap = null, background = 'floor') {
 }
 
 function gameLoop() {
-    console.log('gameLoop running, battle active:', window.state.battle?.active);
-    
-    // Only force battle screen visibility if battle is active AND not in aftergame state
-    if (window.state.battle && window.state.battle.active && !playerDead) {
-        const battleScreen = document.getElementById('battle-screen');
-        const menuScreen = document.getElementById('menu-screen');
-        const afterGameMenu = document.getElementById('aftergame-menu');
-        
-        // If aftergame menu is visible, don't force
-        if (afterGameMenu.style.display !== 'flex' && afterGameMenu.style.opacity !== '1') {
-            battleScreen.style.display = 'block';
-            battleScreen.style.zIndex = '10000';
-            battleScreen.classList.remove('hidden');
-            
-            menuScreen.style.display = 'none';
-            menuScreen.classList.add('hidden');
-        }
-    }
-    
-    if(!window.state.battle || !window.state.battle.active) {
-        console.log('Battle inactive, stopping loop');
+    if (!window.state.battle || !window.state.battle.active) {
         return;
     }
     updateGame();
@@ -424,12 +422,13 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
-    // Box destruction
+    // Process bullets
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
         const nextY = b.y + Math.sin(b.angle) * speed;
 
+        // Check box destruction
         for (let box of battle.boxes) {
             if (box.hp <= 0) continue;
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
@@ -453,10 +452,7 @@ function updateGame() {
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0) continue;
             if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
-                // Skip damage if player just returned from hidden
-                if (t.id === 'player' && justReturnedFromHidden) {
-                    // No damage
-                } else if (!t.invincibleUntil || now > t.invincibleUntil) {
+                if (!t.invincibleUntil || now > t.invincibleUntil) {
                     const attackerType = 'Mysteria';
                     const stats = typeof window.getBrawlerStats === 'function'
                         ? window.getBrawlerStats(attackerType, b.level)
@@ -469,6 +465,14 @@ function updateGame() {
                     t.revealUntil = now + 1000;
                     if (t.id === 'player') {
                         t.lastDamageTime = now;
+                    }
+
+                    // Super charge for player when dealing damage with normal attack
+                    if (b.ownerId === 'player' && !b.super) {
+                        // Each hit gives charge; for Mysteria (shotgun), each pellet gives charge
+                        // Simple: each hit adds 10% of max, so 10 hits to charge
+                        p.superCharge = Math.min(p.superMax, p.superCharge + 10);
+                        console.log('Super charge:', p.superCharge);
                     }
                 }
                 return false;
@@ -489,6 +493,7 @@ function updateGame() {
         }
     }
 
+    // Ammo regen
     if (p.ammo < p.maxAmmo && now - p.lastAttackTime > 1500) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
@@ -527,19 +532,19 @@ function updateGame() {
     const aliveCount = (p.hp > 0 ? 1 : 0) + battle.bots.filter(b => b.hp > 0).length;
     brawlersLeftEl.innerText = aliveCount;
 
+    // Poison gas
     battle.poisonRadius -= 0.05;
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
     [...battle.bots, p].forEach(ent => {
         if(ent.hp <= 0) return;
         const dist = Math.hypot(ent.x - centerX, ent.y - centerY);
-        if (ent.id === 'player' && justReturnedFromHidden) {
-            // Skip poison damage
-        } else if (dist > battle.poisonRadius && (!ent.invincibleUntil || now > ent.invincibleUntil)) {
+        if (dist > battle.poisonRadius && (!ent.invincibleUntil || now > ent.invincibleUntil)) {
             ent.hp -= 2;
             if (ent.id === 'player') ent.lastDamageTime = now;
         }
     });
 
+    // Natural regen
     if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
@@ -606,16 +611,10 @@ function exitBattle() {
     }
     window.state.screen = 'menu';
     
-    // Reset any forced styles
     const battleScreen = document.getElementById('battle-screen');
-    battleScreen.style.zIndex = '';
-    battleScreen.style.display = '';
     battleScreen.classList.add('hidden');
-    
     document.getElementById('menu-screen').style.display = 'flex';
     window.keys = { w: false, a: false, s: false, d: false };
-    
-    console.log('exitBattle completed');
 }
 
 function showAfterGame(rank, coins, starrdropEarned = false) {
@@ -661,7 +660,6 @@ function hideAfterGame() {
 
 // ========== DRAWING ==========
 function drawGame() {
-    console.log('drawGame called');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
     ctx.save();
@@ -794,11 +792,18 @@ function drawGame() {
         ctx.font = 'bold 14px Luckiest Guy';
         ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw / 2, -55);
 
+        // Ammo bar for player
         if (isPlayer) {
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
             ctx.fillRect(-bw / 2, -36, bw, 6);
             ctx.fillStyle = '#f97316';
             ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
+
+            // Super charge bar
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(-bw / 2, -28, bw, 4);
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillRect(-bw / 2, -28, (c.superCharge / c.superMax) * bw, 4);
         }
         ctx.restore();
     };
@@ -829,6 +834,15 @@ function drawGame() {
     ctx.fill();
 
     ctx.restore();
+
+    // Update super button appearance
+    if (p && p.superCharge >= p.superMax) {
+        superBtn.style.opacity = '1';
+        superBtn.style.backgroundColor = '#fbbf24';
+    } else {
+        superBtn.style.opacity = '0.5';
+        superBtn.style.backgroundColor = '';
+    }
 }
 
 function drawBrawler(ctx, type, x, y, angle) {
@@ -923,40 +937,7 @@ function updateKeyboardMovement() {
     }
 }
 
-function setupJoystick(id, stickId, type) {
-    const base = document.getElementById(id);
-    const stick = document.getElementById(stickId);
-    let active = false;
-    const handleInput = (e) => {
-        if (!active) return;
-        const touch = e.touches ? e.touches[0] : e;
-        const rect = base.getBoundingClientRect();
-        const centerX = rect.left + rect.width/2;
-        const centerY = rect.top + rect.height/2;
-        let dx = touch.clientX - centerX;
-        let dy = touch.clientY - centerY;
-        const dist = Math.hypot(dx, dy);
-        const max = 50;
-        if (dist > max) { dx *= max/dist; dy *= max/dist; }
-        stick.style.transform = `translate(${dx}px, ${dy}px)`;
-        window.state.battle.joystick[type] = { x: dx/max, y: dy/max };
-    };
-    base.addEventListener('touchstart', (e) => { active = true; handleInput(e); });
-    window.addEventListener('touchmove', handleInput);
-    window.addEventListener('touchend', () => { 
-        if(active && type === 'attack') {
-            const joy = window.state.battle.joystick.attack;
-            if (Math.hypot(joy.x, joy.y) > 0.5) {
-                const ang = Math.atan2(joy.y, joy.x);
-                spawnBullet(window.state.battle.player, ang, false);
-            }
-        }
-        active = false; 
-        stick.style.transform = 'translate(0,0)';
-        window.state.battle.joystick[type] = { x: 0, y: 0 };
-    });
-}
-
+// Initialize joysticks with mouse support
 setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
@@ -972,7 +953,11 @@ canvas.addEventListener('mousedown', (e) => {
 document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
     if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
-        spawnBullet(window.state.battle.player, window.state.battle.player.angle, true);
+        const p = window.state.battle.player;
+        if (p.superCharge >= p.superMax) {
+            spawnBullet(p, p.angle, true);
+            p.superCharge = 0; // Consume super
+        }
     }
 };
 
