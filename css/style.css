@@ -17,6 +17,21 @@ body {
 #super-btn:active {
     transform: scale(0.95);
 }
+.kill-message {
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 1.2rem;
+    border: 2px solid #fbbf24;
+    backdrop-filter: blur(4px);
+    animation: fadeOut 3s forwards;
+}
+@keyframes fadeOut {
+    0% { opacity: 1; transform: translateX(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-20px); }
+}
 /* ========== STATIC DESERT BACKGROUND ========== */
 .desert-bg {
     background: linear-gradient(145deg, #d4a373, #b5835a);
