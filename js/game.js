@@ -329,31 +329,27 @@ function startBattle(customMap = null, background = 'floor') {
 function gameLoop() {
     console.log('gameLoop running, battle active:', window.state.battle?.active);
     
-    // SUPER FORCE: ensure battle screen is on top and menu is hidden
-    if (window.state.battle && window.state.battle.active) {
+    // Only force battle screen visibility if battle is active AND not in aftergame state
+    if (window.state.battle && window.state.battle.active && !playerDead) {
         const battleScreen = document.getElementById('battle-screen');
         const menuScreen = document.getElementById('menu-screen');
-        const canvas = document.getElementById('gameCanvas');
+        const afterGameMenu = document.getElementById('aftergame-menu');
         
-        // Force display and z-index
-        battleScreen.style.display = 'block';
-        battleScreen.style.zIndex = '10000';
-        battleScreen.classList.remove('hidden');
-        
-        menuScreen.style.display = 'none';
-        menuScreen.classList.add('hidden');
-        
-        // Force canvas repaint
-        canvas.style.display = 'block';
-        canvas.style.visibility = 'hidden';
-        canvas.style.visibility = 'visible';
-        
-        // Log any element that might be covering
-        const topElement = document.elementFromPoint(window.innerWidth/2, window.innerHeight/2);
-        console.log('Top element at center:', topElement?.id || topElement?.tagName);
+        // If aftergame menu is visible, don't force
+        if (afterGameMenu.style.display !== 'flex' && afterGameMenu.style.opacity !== '1') {
+            battleScreen.style.display = 'block';
+            battleScreen.style.zIndex = '10000';
+            battleScreen.classList.remove('hidden');
+            
+            menuScreen.style.display = 'none';
+            menuScreen.classList.add('hidden');
+        }
     }
     
-    if(!window.state.battle || !window.state.battle.active) return;
+    if(!window.state.battle || !window.state.battle.active) {
+        console.log('Battle inactive, stopping loop');
+        return;
+    }
     updateGame();
     drawGame();
     gameLoopId = requestAnimationFrame(gameLoop);
@@ -601,13 +597,25 @@ function updateGame() {
 
 function exitBattle() {
     console.log('exitBattle called');
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
     if (window.state.battle) {
         window.state.battle.active = false;
     }
     window.state.screen = 'menu';
-    document.getElementById('battle-screen').classList.add('hidden');
+    
+    // Reset any forced styles
+    const battleScreen = document.getElementById('battle-screen');
+    battleScreen.style.zIndex = '';
+    battleScreen.style.display = '';
+    battleScreen.classList.add('hidden');
+    
     document.getElementById('menu-screen').style.display = 'flex';
     window.keys = { w: false, a: false, s: false, d: false };
+    
+    console.log('exitBattle completed');
 }
 
 function showAfterGame(rank, coins, starrdropEarned = false) {
