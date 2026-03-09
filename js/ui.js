@@ -6,7 +6,6 @@ function initUI() {
         updateBrawlerMenu();
         updateStatsUI();
         
-        // Ensure SVG_ICONS exists before using
         if (window.SVG_ICONS) {
             document.getElementById('mode-icon-container').innerHTML = SVG_ICONS.showdown;
             document.getElementById('icon-trophy-sm').innerHTML = SVG_ICONS.trophy(18);
@@ -22,7 +21,6 @@ function initUI() {
             document.getElementById('shop-coins-bundle-icon').innerHTML = SVG_ICONS.coin(80);
         }
         
-        // Starr drop icon – ensure function exists
         if (typeof createStarrDropSVG === 'function') {
             document.getElementById('shop-starr-drop-icon').innerHTML = createStarrDropSVG('RARE', 100);
         }
@@ -226,15 +224,15 @@ function toggleBrawlers(show) {
                 const upgradeDiv = document.createElement('div');
                 upgradeDiv.className = 'mt-2 flex justify-center';
                 const cost = window.UPGRADE_COSTS[level - 1];
-                if (cost) {
+                if (cost && window.SVG_ICONS) {
                     upgradeDiv.innerHTML = `
                         <button onclick="event.stopPropagation(); showUpgradeModal('${name}')" 
-                                class="bg-green-500 hover:bg-green-400 text-black px-4 py-2 rounded-xl border-2 border-black text-sm">
-                            Upgrade (${cost.coins}💰 ${cost.pp}⚡)
+                                class="bg-green-500 hover:bg-green-400 text-black px-4 py-2 rounded-xl border-2 border-black text-sm flex items-center gap-1">
+                            Upgrade (${cost.coins} ${window.SVG_ICONS.coin(16)} ${cost.pp} ${window.SVG_ICONS.pp(16)})
                         </button>
                     `;
-                    div.appendChild(upgradeDiv);
                 }
+                div.appendChild(upgradeDiv);
             }
         });
     } else { 
