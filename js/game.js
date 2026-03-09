@@ -34,6 +34,7 @@ let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 const superBtn = document.getElementById('super-btn');
 const killFeed = document.getElementById('kill-feed');
+console.log('killFeed element:', killFeed); // debug
 
 // ========== AIMING VARIABLES ==========
 let mouseInsideCanvas = false;
@@ -49,6 +50,7 @@ function addKillMessage(killerName, victimName) {
         time: Date.now()
     };
     killMessages.push(msg);
+    console.log('Kill message added:', msg.text); // debug
     // Remove after 3 seconds
     setTimeout(() => {
         killMessages = killMessages.filter(m => m !== msg);
@@ -151,7 +153,6 @@ canvas.addEventListener('mouseenter', () => {
 
 canvas.addEventListener('mouseleave', () => {
     mouseInsideCanvas = false;
-    // Optionally clear aim flag
     if (window.state.battle) {
         window.state.battle.isAiming = false;
     }
@@ -173,7 +174,6 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('mousedown', (e) => {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     mouseDown = true;
-    // Fire main attack on click
     const rect = canvas.getBoundingClientRect();
     const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
@@ -183,7 +183,6 @@ canvas.addEventListener('mousedown', (e) => {
 
 window.addEventListener('mouseup', (e) => {
     mouseDown = false;
-    // Don't clear aim on mouse up – we keep showing line while mouse is inside
 });
 
 // ========== BUSH VISIBILITY FUNCTIONS ==========
@@ -298,7 +297,7 @@ function startBattle(customMap = null, background = 'floor') {
     const maxHp = stats.health;
     
     powerCubesCollected = 0;
-    killMessages = []; // clear kill feed
+    killMessages = [];
     
     window.state.battle = {
         active: true,
@@ -317,8 +316,7 @@ function startBattle(customMap = null, background = 'floor') {
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } },
         background: background,
         isAiming: false,
-        aimAngle: 0,
-        deaths: [] // track dying bots
+        aimAngle: 0
     };
 
     if (customMap) {
@@ -652,6 +650,7 @@ function updateGame() {
     const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
     const aliveCount = (p.hp > 0 && !p.dying ? 1 : 0) + aliveBots;
     brawlersLeftEl.innerText = aliveCount;
+    console.log('aliveCount:', aliveCount, 'player hp:', p.hp, 'player dying:', p.dying); // debug
 
     // Poison gas
     battle.poisonRadius -= 0.05;
@@ -671,12 +670,13 @@ function updateGame() {
     }
 
     if (p.hp <= 0 && !p.dying) {
+        console.log('Player died');
         p.dying = true;
         p.deathTime = now;
         playerDead = true;
         deathAnimationStart = now;
         window.state.lastMatch = {
-            rank: aliveCount + 1, // +1 because player is dying but not yet removed
+            rank: aliveCount + 1,
             coinsEarned: 0,
             starrdropEarned: false
         };
@@ -684,6 +684,7 @@ function updateGame() {
     }
 
     if (aliveCount === 1 && p.hp > 0 && !p.dying) {
+        console.log('Player won!');
         const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         window.playerState.coins += coinsEarned;
         
@@ -746,6 +747,7 @@ function showAfterGame(rank, coins, starrdropEarned = false) {
         console.error('aftergame-menu not found');
         return;
     }
+    console.log('Showing aftergame menu, rank:', rank, 'coins:', coins);
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
     
@@ -888,7 +890,6 @@ function drawGame() {
         if (c.hp <= 0 && !c.dying) return;
         if (!isPlayer && !canSee(viewer, c, now) && !c.dying) return;
 
-        // If dying, apply fade/scale effect
         let alpha = 1;
         let scale = 1;
         if (c.dying) {
@@ -907,7 +908,6 @@ function drawGame() {
 
         ctx.restore();
 
-        // Name and UI (not rotated, but also faded)
         ctx.save();
         ctx.translate(c.x, c.y);
         ctx.globalAlpha = alpha;
@@ -939,14 +939,12 @@ function drawGame() {
             ctx.font = 'bold 14px Luckiest Guy';
             ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw / 2, -55);
 
-            // Ammo bar for player
             if (isPlayer) {
                 ctx.fillStyle = 'rgba(0,0,0,0.7)';
                 ctx.fillRect(-bw / 2, -36, bw, 6);
                 ctx.fillStyle = '#f97316';
                 ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
 
-                // Super charge bar
                 ctx.fillStyle = 'rgba(0,0,0,0.7)';
                 ctx.fillRect(-bw / 2, -28, bw, 4);
                 ctx.fillStyle = '#fbbf24';
@@ -1149,13 +1147,12 @@ document.getElementById('super-btn').onclick = (e) => {
     if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
         const p = window.state.battle.player;
         if (p.superCharge >= p.superMax && !p.dying) {
-            // Use aim angle if available, otherwise player's facing angle
             let angle = p.angle;
             if (window.state.battle.isAiming) {
                 angle = window.state.battle.aimAngle;
             }
             spawnBullet(p, angle, true);
-            p.superCharge = 0; // Consume super
+            p.superCharge = 0;
         }
     }
 };
