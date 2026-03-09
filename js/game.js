@@ -904,16 +904,6 @@ function spawnBullet(owner, angle, isSuper) {
     }
 }
 
-// ========== VISIBILITY CHANGE HANDLER ==========
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        if (window.state.battle && window.state.battle.active) {
-            console.log('Tab became visible, exiting battle to menu');
-            exitBattle();
-        }
-    }
-});
-
 // Expose functions
 window.startBattlePre = startBattlePre;
 window.showAfterGame = showAfterGame;
