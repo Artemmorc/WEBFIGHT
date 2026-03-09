@@ -1103,7 +1103,10 @@ document.addEventListener('visibilitychange', function() {
         // When tab becomes visible, ensure battle screen is shown if battle is active
         if (window.state.battle && window.state.battle.active) {
             console.log('Tab visible, battle active – forcing battle screen');
-            document.getElementById('battle-screen').classList.remove('hidden');
+            const battleScreen = document.getElementById('battle-screen');
+            battleScreen.classList.remove('hidden');
+            battleScreen.style.zIndex = '10000';
+            battleScreen.style.display = 'block';
             document.getElementById('menu-screen').style.display = 'none';
             // Also force canvas repaint
             if (canvas) {
