@@ -35,7 +35,7 @@ let battleUiEl = document.getElementById('battle-ui');
 const superBtn = document.getElementById('super-btn');
 
 // ========== AIMING VARIABLES ==========
-let isMouseAiming = false;
+let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
 
@@ -127,41 +127,48 @@ function updateMoveJoystickVisual() {
 }
 
 // ========== MOUSE AIMING (PC) ==========
-canvas.addEventListener('mousedown', (e) => {
-    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
-    mouseDown = true;
-    isMouseAiming = true;
-    // Update aim based on mouse position
-    updateMouseAim(e);
+canvas.addEventListener('mouseenter', () => {
+    if (window.state.battle && window.state.battle.active) {
+        mouseInsideCanvas = true;
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    mouseInsideCanvas = false;
+    // Optionally clear aim flag
+    if (window.state.battle) {
+        window.state.battle.isAiming = false;
+    }
 });
 
 canvas.addEventListener('mousemove', (e) => {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
-    if (mouseDown) {
-        updateMouseAim(e);
-    }
-});
-
-window.addEventListener('mouseup', (e) => {
-    if (!window.state.battle || !window.state.battle.active) return;
-    if (mouseDown) {
-        mouseDown = false;
-        isMouseAiming = false;
-        window.state.battle.isAiming = false;
-        // Optionally fire a bullet on mouse up? We already fire on mousedown. We'll keep that.
-    }
-});
-
-function updateMouseAim(e) {
-    if (!window.state.battle || !window.state.battle.player) return;
     const rect = canvas.getBoundingClientRect();
     const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
     const p = window.state.battle.player;
-    const angle = Math.atan2(worldY - p.y, worldX - p.x);
-    window.state.battle.aimAngle = angle;
-    window.state.battle.isAiming = true;
-}
+    if (p) {
+        const angle = Math.atan2(worldY - p.y, worldX - p.x);
+        window.state.battle.aimAngle = angle;
+        window.state.battle.isAiming = true;
+    }
+});
+
+canvas.addEventListener('mousedown', (e) => {
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
+    mouseDown = true;
+    // Fire main attack on click
+    const rect = canvas.getBoundingClientRect();
+    const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
+    const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
+    const p = window.state.battle.player;
+    spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+});
+
+window.addEventListener('mouseup', (e) => {
+    mouseDown = false;
+    // Don't clear aim on mouse up – we keep showing line while mouse is inside
+});
 
 // ========== BUSH VISIBILITY FUNCTIONS ==========
 function isInBush(x, y) {
@@ -889,29 +896,38 @@ function drawGame() {
         ctx.fill();
     });
 
-    // ========== DRAW AIMING LINE ==========
-    if (window.state.battle.isAiming) {
+    // ========== DRAW AIMING LINE (always when mouse inside canvas) ==========
+    if (mouseInsideCanvas && p && window.state.battle.isAiming) {
         const angle = window.state.battle.aimAngle;
         const startX = p.x;
         const startY = p.y;
         const lineLength = 300;
-        const endX = startX + Math.cos(angle) * lineLength;
-        const endY = startY + Math.sin(angle) * lineLength;
+        const spreadAngle = 0.15; // ~8.6 degrees, matches Mysteria's spread
 
         ctx.save();
         ctx.strokeStyle = 'white';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.globalAlpha = 0.4;
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
 
-        // Optional arrowhead
+        // Draw 5 lines representing shotgun spread
+        for (let i = -2; i <= 2; i++) {
+            const lineAngle = angle + i * spreadAngle;
+            const endX = startX + Math.cos(lineAngle) * lineLength;
+            const endY = startY + Math.sin(lineAngle) * lineLength;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+
+        // Draw a small arrowhead at the end of the center line (optional)
+        const centerEndX = startX + Math.cos(angle) * lineLength;
+        const centerEndY = startY + Math.sin(angle) * lineLength;
         ctx.fillStyle = 'white';
         ctx.globalAlpha = 0.4;
         ctx.beginPath();
-        ctx.translate(endX, endY);
+        ctx.translate(centerEndX, centerEndY);
         ctx.rotate(angle);
         ctx.moveTo(0, 0);
         ctx.lineTo(-10, -5);
@@ -919,6 +935,7 @@ function drawGame() {
         ctx.closePath();
         ctx.fill();
         ctx.restore();
+
         ctx.globalAlpha = 1; // reset
     }
 
@@ -1038,22 +1055,18 @@ function updateKeyboardMovement() {
 setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
-// Original mouse click for shooting (instant)
-canvas.addEventListener('mousedown', (e) => {
-    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
-    const rect = canvas.getBoundingClientRect();
-    const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
-    const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
-    const p = window.state.battle.player;
-    spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
-});
-
+// Super button: aimable
 document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
     if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
         const p = window.state.battle.player;
         if (p.superCharge >= p.superMax) {
-            spawnBullet(p, p.angle, true);
+            // Use aim angle if available, otherwise player's facing angle
+            let angle = p.angle;
+            if (window.state.battle.isAiming) {
+                angle = window.state.battle.aimAngle;
+            }
+            spawnBullet(p, angle, true);
             p.superCharge = 0; // Consume super
         }
     }
@@ -1083,6 +1096,24 @@ function spawnBullet(owner, angle, isSuper) {
         });
     }
 }
+
+// ========== VISIBILITY CHANGE HANDLER – FIX TAB SWITCH BUG ==========
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        // When tab becomes visible, ensure battle screen is shown if battle is active
+        if (window.state.battle && window.state.battle.active) {
+            console.log('Tab visible, battle active – forcing battle screen');
+            document.getElementById('battle-screen').classList.remove('hidden');
+            document.getElementById('menu-screen').style.display = 'none';
+            // Also force canvas repaint
+            if (canvas) {
+                const oldWidth = canvas.width;
+                canvas.width = oldWidth + 1;
+                canvas.width = oldWidth;
+            }
+        }
+    }
+});
 
 // Expose functions
 window.startBattlePre = startBattlePre;
