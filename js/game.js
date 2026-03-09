@@ -1,3 +1,5 @@
+console.log('game.js loaded – no exit on visibility');
+
 // ========== GLOBAL FALLBACKS ==========
 window.keys = window.keys || { w: false, a: false, s: false, d: false };
 window.state = window.state || { battle: { active: false } };
@@ -14,8 +16,6 @@ window.Textures = window.Textures || { floor: null, bush: null, wall: null };
 if (!window.state.currentBrawler) {
     window.state.currentBrawler = 'Mysteria';
 }
-
-console.log('game.js loaded, window.keys =', window.keys);
 
 // ========== GAME ENGINE ==========
 const canvas = document.getElementById('gameCanvas');
@@ -903,6 +903,11 @@ function spawnBullet(owner, angle, isSuper) {
         });
     }
 }
+
+// ========== DUMMY VISIBILITY LISTENER (does nothing) ==========
+document.addEventListener('visibilitychange', function() {
+    console.log('Visibility changed to', document.visibilityState, ' – no action');
+});
 
 // Expose functions
 window.startBattlePre = startBattlePre;
