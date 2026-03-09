@@ -40,7 +40,15 @@ let justReturnedTimer = null;
 document.addEventListener('visibilitychange', function() {
     console.log('Visibility changed to', document.visibilityState);
     if (document.visibilityState === 'visible') {
-        console.log('Battle active:', window.state.battle?.active, 'battle-screen hidden:', document.getElementById('battle-screen')?.classList.contains('hidden'));
+        const battleScreen = document.getElementById('battle-screen');
+        const menuScreen = document.getElementById('menu-screen');
+        const afterGameMenu = document.getElementById('aftergame-menu');
+        console.log('Battle active:', window.state.battle?.active);
+        console.log('battle-screen hidden class:', battleScreen?.classList.contains('hidden'));
+        console.log('battle-screen computed display:', window.getComputedStyle(battleScreen).display);
+        console.log('menu-screen computed display:', window.getComputedStyle(menuScreen).display);
+        console.log('aftergame-menu computed display:', window.getComputedStyle(afterGameMenu).display);
+        
         justReturnedFromHidden = true;
         if (justReturnedTimer) clearTimeout(justReturnedTimer);
         justReturnedTimer = setTimeout(() => {
@@ -290,16 +298,14 @@ function startBattle(customMap = null, background = 'floor') {
     gameLoop();
 }
 
-// ... (everything above remains the same)
-
 function gameLoop() {
     console.log('gameLoop running, battle active:', window.state.battle?.active);
     
-    // Ensure battle screen is visible and menu is hidden when battle is active
+    // Force battle screen visibility if battle is active
     if (window.state.battle && window.state.battle.active) {
         const battleScreen = document.getElementById('battle-screen');
         const menuScreen = document.getElementById('menu-screen');
-        if (battleScreen.classList.contains('hidden') || battleScreen.style.display === 'none') {
+        if (battleScreen.classList.contains('hidden') || window.getComputedStyle(battleScreen).display === 'none') {
             console.warn('Battle active but battle screen hidden – forcing visibility');
             battleScreen.classList.remove('hidden');
             battleScreen.style.display = 'block';
@@ -312,8 +318,6 @@ function gameLoop() {
     drawGame();
     gameLoopId = requestAnimationFrame(gameLoop);
 }
-
-// ... (rest of the file unchanged)
 
 function updateGame() {
     const battle = window.state.battle;
