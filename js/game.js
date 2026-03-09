@@ -40,12 +40,13 @@ let justReturnedTimer = null;
 document.addEventListener('visibilitychange', function() {
     console.log('Visibility changed to', document.visibilityState);
     if (document.visibilityState === 'visible') {
+        console.log('Battle active:', window.state.battle?.active, 'battle-screen hidden:', document.getElementById('battle-screen')?.classList.contains('hidden'));
         justReturnedFromHidden = true;
         if (justReturnedTimer) clearTimeout(justReturnedTimer);
         justReturnedTimer = setTimeout(() => {
             justReturnedFromHidden = false;
             console.log('Invincibility after return ended');
-        }, 2000); // 2 seconds of invincibility
+        }, 2000);
     }
 });
 
@@ -290,6 +291,7 @@ function startBattle(customMap = null, background = 'floor') {
 }
 
 function gameLoop() {
+    console.log('gameLoop running, battle active:', window.state.battle?.active);
     if(!window.state.battle || !window.state.battle.active) return;
     updateGame();
     drawGame();
