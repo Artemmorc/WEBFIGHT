@@ -313,7 +313,7 @@ function startBattle(customMap = null, background = 'floor') {
         lastAttackTime: Date.now(), invincibleUntil: Date.now() + 3000,
         power: 0,
         revealUntil: 0,
-        superCharge: 0, // 0 to 100
+        superCharge: 0,
         superMax: 100
     };
 
@@ -335,7 +335,7 @@ function startBattle(customMap = null, background = 'floor') {
             inBush: false, invincibleUntil: Date.now() + 3000,
             power: 0,
             revealUntil: 0,
-            superCharge: 0, // bots won't use it yet
+            superCharge: 0,
             superMax: 100
         });
     }
@@ -469,10 +469,7 @@ function updateGame() {
 
                     // Super charge for player when dealing damage with normal attack
                     if (b.ownerId === 'player' && !b.super) {
-                        // Each hit gives charge; for Mysteria (shotgun), each pellet gives charge
-                        // Simple: each hit adds 10% of max, so 10 hits to charge
                         p.superCharge = Math.min(p.superMax, p.superCharge + 10);
-                        console.log('Super charge:', p.superCharge);
                     }
                 }
                 return false;
@@ -493,8 +490,8 @@ function updateGame() {
         }
     }
 
-    // Ammo regen
-    if (p.ammo < p.maxAmmo && now - p.lastAttackTime > 1500) {
+    // Ammo recharge – constant, no delay after shooting
+    if (p.ammo < p.maxAmmo) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
@@ -544,7 +541,7 @@ function updateGame() {
         }
     });
 
-    // Natural regen
+    // Natural regen (health)
     if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
