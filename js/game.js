@@ -329,16 +329,28 @@ function startBattle(customMap = null, background = 'floor') {
 function gameLoop() {
     console.log('gameLoop running, battle active:', window.state.battle?.active);
     
-    // Force battle screen visibility if battle is active
+    // SUPER FORCE: ensure battle screen is on top and menu is hidden
     if (window.state.battle && window.state.battle.active) {
         const battleScreen = document.getElementById('battle-screen');
         const menuScreen = document.getElementById('menu-screen');
-        if (battleScreen.classList.contains('hidden') || window.getComputedStyle(battleScreen).display === 'none') {
-            console.warn('Battle active but battle screen hidden – forcing visibility');
-            battleScreen.classList.remove('hidden');
-            battleScreen.style.display = 'block';
-            menuScreen.style.display = 'none';
-        }
+        const canvas = document.getElementById('gameCanvas');
+        
+        // Force display and z-index
+        battleScreen.style.display = 'block';
+        battleScreen.style.zIndex = '10000';
+        battleScreen.classList.remove('hidden');
+        
+        menuScreen.style.display = 'none';
+        menuScreen.classList.add('hidden');
+        
+        // Force canvas repaint
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'hidden';
+        canvas.style.visibility = 'visible';
+        
+        // Log any element that might be covering
+        const topElement = document.elementFromPoint(window.innerWidth/2, window.innerHeight/2);
+        console.log('Top element at center:', topElement?.id || topElement?.tagName);
     }
     
     if(!window.state.battle || !window.state.battle.active) return;
