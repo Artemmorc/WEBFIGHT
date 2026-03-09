@@ -43,16 +43,6 @@ document.addEventListener('visibilitychange', function() {
         const battleScreen = document.getElementById('battle-screen');
         const menuScreen = document.getElementById('menu-screen');
         const afterGameMenu = document.getElementById('aftergame-menu');
-        const shopModal = document.getElementById('shop-modal');
-        const profileModal = document.getElementById('profile-modal');
-        const brawlerScreen = document.getElementById('brawler-screen');
-        const adminPanel = document.getElementById('adminPanel');
-        const mapEditor = document.getElementById('map-editor');
-        const newsViewer = document.getElementById('news-viewer');
-        const newsDetail = document.getElementById('news-detail');
-        const newsEditor = document.getElementById('news-editor');
-        const starrDropScreen = document.getElementById('starr-drop-screen');
-        
         console.log('Battle active:', window.state.battle?.active);
         console.log('battle-screen hidden class:', battleScreen?.classList.contains('hidden'));
         console.log('battle-screen computed display:', window.getComputedStyle(battleScreen).display);
@@ -61,15 +51,31 @@ document.addEventListener('visibilitychange', function() {
         console.log('menu-screen computed display:', window.getComputedStyle(menuScreen).display);
         console.log('menu-screen computed opacity:', window.getComputedStyle(menuScreen).opacity);
         console.log('aftergame-menu computed display:', window.getComputedStyle(afterGameMenu).display);
-        console.log('shop-modal hidden class:', shopModal?.classList.contains('hidden'));
-        console.log('profile-modal hidden class:', profileModal?.classList.contains('hidden'));
-        console.log('brawler-screen hidden class:', brawlerScreen?.classList.contains('hidden'));
-        console.log('adminPanel hidden class:', adminPanel?.classList.contains('hidden'));
-        console.log('map-editor hidden class:', mapEditor?.classList.contains('hidden'));
-        console.log('news-viewer hidden class:', newsViewer?.classList.contains('hidden'));
-        console.log('news-detail hidden class:', newsDetail?.classList.contains('hidden'));
-        console.log('news-editor hidden class:', newsEditor?.classList.contains('hidden'));
-        console.log('starr-drop-screen hidden class:', starrDropScreen?.classList.contains('hidden'));
+        // Log all modals hidden status
+        console.log('shop-modal hidden class:', document.getElementById('shop-modal').classList.contains('hidden'));
+        console.log('profile-modal hidden class:', document.getElementById('profile-modal').classList.contains('hidden'));
+        console.log('brawler-screen hidden class:', document.getElementById('brawler-screen').classList.contains('hidden'));
+        console.log('adminPanel hidden class:', document.getElementById('adminPanel').classList.contains('hidden'));
+        console.log('map-editor hidden class:', document.getElementById('map-editor').classList.contains('hidden'));
+        console.log('news-viewer hidden class:', document.getElementById('news-viewer').classList.contains('hidden'));
+        console.log('news-detail hidden class:', document.getElementById('news-detail').classList.contains('hidden'));
+        console.log('news-editor hidden class:', document.getElementById('news-editor').classList.contains('hidden'));
+        console.log('starr-drop-screen hidden class:', document.getElementById('starr-drop-screen').classList.contains('hidden'));
+        
+        // Log canvas info
+        console.log('canvas width:', canvas.width, 'height:', canvas.height);
+        console.log('canvas client width:', canvas.clientWidth, 'client height:', canvas.clientHeight);
+        console.log('canvas style display:', canvas.style.display);
+        console.log('canvas computed display:', getComputedStyle(canvas).display);
+        console.log('canvas computed z-index:', getComputedStyle(canvas).zIndex);
+        
+        // Force a repaint by slightly resizing the canvas
+        if (window.state.battle && window.state.battle.active) {
+            const oldWidth = canvas.width;
+            canvas.width = oldWidth + 1;
+            canvas.width = oldWidth;
+            console.log('Forced canvas repaint');
+        }
         
         justReturnedFromHidden = true;
         if (justReturnedTimer) clearTimeout(justReturnedTimer);
@@ -79,6 +85,7 @@ document.addEventListener('visibilitychange', function() {
         }, 2000);
     }
 });
+
 // ========== BUSH VISIBILITY FUNCTIONS ==========
 function isInBush(x, y) {
     const battle = window.state.battle;
