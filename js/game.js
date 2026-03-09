@@ -34,6 +34,11 @@ let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 const superBtn = document.getElementById('super-btn');
 
+// ========== AIMING VARIABLES ==========
+let isMouseAiming = false;
+let mouseAimAngle = 0;
+let mouseDown = false;
+
 // ========== JOYSTICK SETUP (MOUSE + TOUCH) ==========
 function setupJoystick(id, stickId, type) {
     const base = document.getElementById(id);
@@ -68,7 +73,15 @@ function setupJoystick(id, stickId, type) {
             dy = (dy / dist) * max;
         }
         stick.style.transform = `translate(${dx}px, ${dy}px)`;
-        window.state.battle.joystick[type] = { x: dx / max, y: dy / max };
+        const normX = dx / max;
+        const normY = dy / max;
+        window.state.battle.joystick[type] = { x: normX, y: normY };
+
+        // If this is the attack joystick, update aim direction
+        if (type === 'attack' && (normX !== 0 || normY !== 0)) {
+            window.state.battle.aimAngle = Math.atan2(normY, normX);
+            window.state.battle.isAiming = true;
+        }
     };
 
     const handleEnd = (e) => {
@@ -79,6 +92,8 @@ function setupJoystick(id, stickId, type) {
                 const ang = Math.atan2(joy.y, joy.x);
                 spawnBullet(window.state.battle.player, ang, false);
             }
+            // Clear aim
+            window.state.battle.isAiming = false;
         }
         active = false;
         stick.style.transform = 'translate(0,0)';
@@ -98,6 +113,54 @@ function setupJoystick(id, stickId, type) {
 
     // Update rect on resize
     window.addEventListener('resize', updateRect);
+}
+
+// ========== UPDATE MOVE JOYSTICK VISUAL FROM KEYBOARD ==========
+function updateMoveJoystickVisual() {
+    const stick = document.getElementById('move-joy-stick');
+    if (!stick) return;
+    const joy = window.state.battle.joystick.move;
+    const max = 50;
+    const dx = joy.x * max;
+    const dy = joy.y * max;
+    stick.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+
+// ========== MOUSE AIMING (PC) ==========
+canvas.addEventListener('mousedown', (e) => {
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
+    mouseDown = true;
+    isMouseAiming = true;
+    // Update aim based on mouse position
+    updateMouseAim(e);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
+    if (mouseDown) {
+        updateMouseAim(e);
+    }
+});
+
+window.addEventListener('mouseup', (e) => {
+    if (!window.state.battle || !window.state.battle.active) return;
+    if (mouseDown) {
+        mouseDown = false;
+        isMouseAiming = false;
+        window.state.battle.isAiming = false;
+        // Optionally fire a bullet on mouse up? We already fire on mousedown. We'll keep that.
+    }
+});
+
+function updateMouseAim(e) {
+    if (!window.state.battle || !window.state.battle.player) return;
+    const rect = canvas.getBoundingClientRect();
+    const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
+    const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
+    const p = window.state.battle.player;
+    const angle = Math.atan2(worldY - p.y, worldX - p.x);
+    window.state.battle.aimAngle = angle;
+    window.state.battle.isAiming = true;
 }
 
 // ========== BUSH VISIBILITY FUNCTIONS ==========
@@ -228,7 +291,9 @@ function startBattle(customMap = null, background = 'floor') {
         spawnPoints: [],
         bots: [],
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } },
-        background: background
+        background: background,
+        isAiming: false,
+        aimAngle: 0
     };
 
     if (customMap) {
@@ -824,6 +889,40 @@ function drawGame() {
         ctx.fill();
     });
 
+    // ========== DRAW AIMING LINE ==========
+    if (window.state.battle.isAiming) {
+        const angle = window.state.battle.aimAngle;
+        const startX = p.x;
+        const startY = p.y;
+        const lineLength = 300;
+        const endX = startX + Math.cos(angle) * lineLength;
+        const endY = startY + Math.sin(angle) * lineLength;
+
+        ctx.save();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        // Optional arrowhead
+        ctx.fillStyle = 'white';
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.translate(endX, endY);
+        ctx.rotate(angle);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-10, -5);
+        ctx.lineTo(-10, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = 1; // reset
+    }
+
+    // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
@@ -932,12 +1031,14 @@ function updateKeyboardMovement() {
         window.state.battle.joystick.move.x = 0;
         window.state.battle.joystick.move.y = 0;
     }
+    updateMoveJoystickVisual();
 }
 
 // Initialize joysticks with mouse support
 setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
+// Original mouse click for shooting (instant)
 canvas.addEventListener('mousedown', (e) => {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
     const rect = canvas.getBoundingClientRect();
