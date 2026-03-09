@@ -148,6 +148,11 @@ async function loadProfile() {
     // Reset daily wins if date changed
     await checkDailyWinReset();
 
+    // Start daily timer and check daily claim status
+    if (typeof checkDailyReset === 'function') {
+        checkDailyReset();
+    }
+
     // Load per-brawler progress
     await loadBrawlerProgress();
 
