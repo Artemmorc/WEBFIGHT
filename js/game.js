@@ -43,11 +43,33 @@ document.addEventListener('visibilitychange', function() {
         const battleScreen = document.getElementById('battle-screen');
         const menuScreen = document.getElementById('menu-screen');
         const afterGameMenu = document.getElementById('aftergame-menu');
+        const shopModal = document.getElementById('shop-modal');
+        const profileModal = document.getElementById('profile-modal');
+        const brawlerScreen = document.getElementById('brawler-screen');
+        const adminPanel = document.getElementById('adminPanel');
+        const mapEditor = document.getElementById('map-editor');
+        const newsViewer = document.getElementById('news-viewer');
+        const newsDetail = document.getElementById('news-detail');
+        const newsEditor = document.getElementById('news-editor');
+        const starrDropScreen = document.getElementById('starr-drop-screen');
+        
         console.log('Battle active:', window.state.battle?.active);
         console.log('battle-screen hidden class:', battleScreen?.classList.contains('hidden'));
         console.log('battle-screen computed display:', window.getComputedStyle(battleScreen).display);
+        console.log('battle-screen computed opacity:', window.getComputedStyle(battleScreen).opacity);
+        console.log('battle-screen computed z-index:', window.getComputedStyle(battleScreen).zIndex);
         console.log('menu-screen computed display:', window.getComputedStyle(menuScreen).display);
+        console.log('menu-screen computed opacity:', window.getComputedStyle(menuScreen).opacity);
         console.log('aftergame-menu computed display:', window.getComputedStyle(afterGameMenu).display);
+        console.log('shop-modal hidden class:', shopModal?.classList.contains('hidden'));
+        console.log('profile-modal hidden class:', profileModal?.classList.contains('hidden'));
+        console.log('brawler-screen hidden class:', brawlerScreen?.classList.contains('hidden'));
+        console.log('adminPanel hidden class:', adminPanel?.classList.contains('hidden'));
+        console.log('map-editor hidden class:', mapEditor?.classList.contains('hidden'));
+        console.log('news-viewer hidden class:', newsViewer?.classList.contains('hidden'));
+        console.log('news-detail hidden class:', newsDetail?.classList.contains('hidden'));
+        console.log('news-editor hidden class:', newsEditor?.classList.contains('hidden'));
+        console.log('starr-drop-screen hidden class:', starrDropScreen?.classList.contains('hidden'));
         
         justReturnedFromHidden = true;
         if (justReturnedTimer) clearTimeout(justReturnedTimer);
@@ -57,7 +79,6 @@ document.addEventListener('visibilitychange', function() {
         }, 2000);
     }
 });
-
 // ========== BUSH VISIBILITY FUNCTIONS ==========
 function isInBush(x, y) {
     const battle = window.state.battle;
@@ -613,6 +634,7 @@ function hideAfterGame() {
 
 // ========== DRAWING ==========
 function drawGame() {
+    console.log('drawGame called');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
     ctx.save();
