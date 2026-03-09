@@ -3,7 +3,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.sb = sb;
 
 // Auth variables
-window.currentUser = null;
+window.currentUser = null; 
 window.currentProfile = null;
 
 function generateAccountId() {
