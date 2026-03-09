@@ -8,7 +8,15 @@ body {
     user-select: none;
     touch-action: none; /* prevents page zoom/scroll */
 }
-
+#super-btn {
+    font-size: 1rem;
+    border-color: #fbbf24;
+    background-color: rgba(251, 191, 36, 0.7);
+    transition: all 0.1s;
+}
+#super-btn:active {
+    transform: scale(0.95);
+}
 /* ========== STATIC DESERT BACKGROUND ========== */
 .desert-bg {
     background: linear-gradient(145deg, #d4a373, #b5835a);
