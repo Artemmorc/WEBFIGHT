@@ -7,8 +7,8 @@ window.playerState = {
     pp: 0,
     coins: 0,
     gems: 0,
-    dailyWins: 0,
-    dailyClaimed: false
+    dailyClaimed: false,
+    dailyWins: 0
 };
 
 window.state = {
@@ -16,7 +16,7 @@ window.state = {
     currentBrawler: 'Mysteria',
     starrDropStep: 0,
     starrDropRarity: 'RARE',
-    starrDropTaps: 0,          // <--- new
+    starrDropTaps: 0,
     battle: { 
         active: false, 
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
@@ -41,9 +41,48 @@ window.CONFIG = {
     MAP_SIZE: 60,
     TILE_SIZE: 64,
     BRAWLERS: {
-        'Mysteria': { color: '#a855f7', hp: 3800, ammo: 3, speed: 6, reload: 1.5, type: 'Shotgun', pfp: 'M', rarity: 'starter', unlocked: true }
+        'Mysteria': { 
+            color: '#a855f7', 
+            hp: 3800, 
+            damage: 800,           // base damage per projectile
+            superDamage: 1200,      // base super damage
+            ammo: 3, 
+            speed: 6, 
+            reload: 1.5, 
+            type: 'Shotgun', 
+            pfp: 'M', 
+            rarity: 'starter', 
+            unlocked: true 
+        }
     },
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
+};
+
+// ========== UPGRADE COSTS (level 1->2 through 10->11) ==========
+window.UPGRADE_COSTS = [
+    { coins: 20, pp: 10 },   // 1->2
+    { coins: 30, pp: 15 },   // 2->3
+    { coins: 50, pp: 20 },   // 3->4
+    { coins: 80, pp: 30 },   // 4->5
+    { coins: 120, pp: 50 },  // 5->6
+    { coins: 180, pp: 70 },  // 6->7
+    { coins: 250, pp: 100 }, // 7->8
+    { coins: 350, pp: 150 }, // 8->9
+    { coins: 500, pp: 200 }, // 9->10
+    { coins: 700, pp: 300 }  // 10->11
+];
+
+// ========== GET BRAWLER STATS AT LEVEL ==========
+window.getBrawlerStats = function(brawlerName, level = 1) {
+    const base = CONFIG.BRAWLERS[brawlerName];
+    if (!base) return null;
+    // Health multiplier: +5% per level (level 1 = 1.0, level 11 = 1.5)
+    const multiplier = 1 + (level - 1) * 0.05;
+    return {
+        health: Math.round(base.hp * multiplier),
+        damage: Math.round((base.damage || 800) * multiplier),
+        superDamage: Math.round((base.superDamage || 1200) * multiplier)
+    };
 };
 
 // ========== CUSTOM BRAWLER IMAGES ==========
