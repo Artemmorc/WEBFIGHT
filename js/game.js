@@ -290,13 +290,30 @@ function startBattle(customMap = null, background = 'floor') {
     gameLoop();
 }
 
+// ... (everything above remains the same)
+
 function gameLoop() {
     console.log('gameLoop running, battle active:', window.state.battle?.active);
+    
+    // Ensure battle screen is visible and menu is hidden when battle is active
+    if (window.state.battle && window.state.battle.active) {
+        const battleScreen = document.getElementById('battle-screen');
+        const menuScreen = document.getElementById('menu-screen');
+        if (battleScreen.classList.contains('hidden') || battleScreen.style.display === 'none') {
+            console.warn('Battle active but battle screen hidden – forcing visibility');
+            battleScreen.classList.remove('hidden');
+            battleScreen.style.display = 'block';
+            menuScreen.style.display = 'none';
+        }
+    }
+    
     if(!window.state.battle || !window.state.battle.active) return;
     updateGame();
     drawGame();
     gameLoopId = requestAnimationFrame(gameLoop);
 }
+
+// ... (rest of the file unchanged)
 
 function updateGame() {
     const battle = window.state.battle;
