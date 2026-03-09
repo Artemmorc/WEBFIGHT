@@ -33,11 +33,27 @@ let playerDead = false;
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 const superBtn = document.getElementById('super-btn');
+const killFeed = document.getElementById('kill-feed');
 
 // ========== AIMING VARIABLES ==========
 let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
+
+// ========== KILL FEED QUEUE ==========
+let killMessages = [];
+
+function addKillMessage(killerName, victimName) {
+    const msg = {
+        text: `${killerName} killed ${victimName}`,
+        time: Date.now()
+    };
+    killMessages.push(msg);
+    // Remove after 3 seconds
+    setTimeout(() => {
+        killMessages = killMessages.filter(m => m !== msg);
+    }, 3000);
+}
 
 // ========== JOYSTICK SETUP (MOUSE + TOUCH) ==========
 function setupJoystick(id, stickId, type) {
@@ -282,6 +298,7 @@ function startBattle(customMap = null, background = 'floor') {
     const maxHp = stats.health;
     
     powerCubesCollected = 0;
+    killMessages = []; // clear kill feed
     
     window.state.battle = {
         active: true,
@@ -300,7 +317,8 @@ function startBattle(customMap = null, background = 'floor') {
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } },
         background: background,
         isAiming: false,
-        aimAngle: 0
+        aimAngle: 0,
+        deaths: [] // track dying bots
     };
 
     if (customMap) {
@@ -386,7 +404,9 @@ function startBattle(customMap = null, background = 'floor') {
         power: 0,
         revealUntil: 0,
         superCharge: 0,
-        superMax: 100
+        superMax: 100,
+        dying: false,
+        deathTime: 0
     };
 
     for(let i=0; i<9; i++) {
@@ -397,18 +417,24 @@ function startBattle(customMap = null, background = 'floor') {
             ? window.getBrawlerStats('Mysteria', botLevel)
             : { health: 3800, damage: 800, superDamage: 1200 };
         window.state.battle.bots.push({
-            id: 'bot_'+i, name: 'Bot-'+(i+1),
+            id: 'bot_'+i, 
+            name: 'Bot-'+(i+1),
             x: botSpawn.x, y: botSpawn.y,
             hp: botStats.health, 
             maxHp: botStats.health,
             level: botLevel,
-            type: 'Mysteria', speed: window.CONFIG.BRAWLERS['Mysteria'].speed,
-            angle: Math.random()*Math.PI*2, lastShot: 0,
-            inBush: false, invincibleUntil: Date.now() + 3000,
+            type: 'Mysteria', 
+            speed: window.CONFIG.BRAWLERS['Mysteria'].speed,
+            angle: Math.random()*Math.PI*2, 
+            lastShot: 0,
+            inBush: false, 
+            invincibleUntil: Date.now() + 3000,
             power: 0,
             revealUntil: 0,
             superCharge: 0,
-            superMax: 100
+            superMax: 100,
+            dying: false,
+            deathTime: 0
         });
     }
 
@@ -431,6 +457,7 @@ function updateGame() {
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
     const now = Date.now();
 
+    // Handle player death animation
     if (playerDead) {
         const elapsed = now - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
@@ -448,6 +475,15 @@ function updateGame() {
         }
         return;
     }
+
+    // Handle bot death animations (remove after short delay)
+    battle.bots = battle.bots.filter(bot => {
+        if (bot.dying) {
+            const elapsed = now - bot.deathTime;
+            return elapsed < 800; // keep for 800ms to show animation
+        }
+        return true;
+    });
 
     if (window.state.preBattle) {
         const elapsed = now - preBattleStart;
@@ -480,7 +516,7 @@ function updateGame() {
     const move = battle.joystick.move;
     const len = Math.hypot(move.x, move.y);
 
-    if (len > 0) {
+    if (len > 0 && !p.dying) {
         const speed = window.CONFIG.BRAWLERS[window.state.currentBrawler].speed;
         let dx = (move.x / len) * speed;
         let dy = (move.y / len) * speed;
@@ -522,7 +558,7 @@ function updateGame() {
 
         const targets = [p, ...battle.bots];
         for (let t of targets) {
-            if (t.id === b.ownerId || t.hp <= 0) continue;
+            if (t.id === b.ownerId || t.hp <= 0 || t.dying) continue;
             if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
                 if (!t.invincibleUntil || now > t.invincibleUntil) {
                     const attackerType = 'Mysteria';
@@ -542,6 +578,21 @@ function updateGame() {
                     // Super charge for player when dealing damage with normal attack
                     if (b.ownerId === 'player' && !b.super) {
                         p.superCharge = Math.min(p.superMax, p.superCharge + 10);
+                    }
+
+                    // Check if target died
+                    if (t.hp <= 0 && !t.dying) {
+                        t.dying = true;
+                        t.deathTime = now;
+                        // Determine killer name
+                        let killerName = 'Unknown';
+                        if (b.ownerId === 'player') {
+                            killerName = p.name;
+                        } else {
+                            const killerBot = battle.bots.find(bot => bot.id === b.ownerId);
+                            killerName = killerBot ? killerBot.name : 'Unknown';
+                        }
+                        addKillMessage(killerName, t.name);
                     }
                 }
                 return false;
@@ -563,13 +614,13 @@ function updateGame() {
     }
 
     // Ammo recharge – constant, no delay after shooting
-    if (p.ammo < p.maxAmmo) {
+    if (p.ammo < p.maxAmmo && !p.dying) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
-    // Bot AI
+    // Bot AI (only if not dying)
     for (let bot of battle.bots) {
-        if(bot.hp <= 0) continue;
+        if(bot.hp <= 0 || bot.dying) continue;
         if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
         
         let nx = bot.x + Math.cos(bot.angle) * bot.speed;
@@ -584,7 +635,7 @@ function updateGame() {
             bot.angle += (Math.random() - 0.5) * Math.PI;
         }
         
-        let targets = [p, ...battle.bots.filter(b => b.id !== bot.id && b.hp > 0)];
+        let targets = [p, ...battle.bots.filter(b => b.id !== bot.id && b.hp > 0 && !b.dying)];
         let visibleTargets = targets.filter(t => canSee(bot, t, now));
         let closest = null, minDist = Infinity;
         for (let t of visibleTargets) {
@@ -598,14 +649,15 @@ function updateGame() {
         }
     }
 
-    const aliveCount = (p.hp > 0 ? 1 : 0) + battle.bots.filter(b => b.hp > 0).length;
+    const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
+    const aliveCount = (p.hp > 0 && !p.dying ? 1 : 0) + aliveBots;
     brawlersLeftEl.innerText = aliveCount;
 
     // Poison gas
     battle.poisonRadius -= 0.05;
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
     [...battle.bots, p].forEach(ent => {
-        if(ent.hp <= 0) return;
+        if(ent.hp <= 0 || ent.dying) return;
         const dist = Math.hypot(ent.x - centerX, ent.y - centerY);
         if (dist > battle.poisonRadius && (!ent.invincibleUntil || now > ent.invincibleUntil)) {
             ent.hp -= 2;
@@ -614,22 +666,24 @@ function updateGame() {
     });
 
     // Natural regen (health)
-    if (now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
+    if (!p.dying && now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
-    if (p.hp <= 0) {
+    if (p.hp <= 0 && !p.dying) {
+        p.dying = true;
+        p.deathTime = now;
         playerDead = true;
         deathAnimationStart = now;
         window.state.lastMatch = {
-            rank: aliveCount,
+            rank: aliveCount + 1, // +1 because player is dying but not yet removed
             coinsEarned: 0,
             starrdropEarned: false
         };
         return;
     }
 
-    if (aliveCount === 1 && p.hp > 0) {
+    if (aliveCount === 1 && p.hp > 0 && !p.dying) {
         const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         window.playerState.coins += coinsEarned;
         
@@ -688,6 +742,10 @@ function exitBattle() {
 
 function showAfterGame(rank, coins, starrdropEarned = false) {
     const menu = document.getElementById('aftergame-menu');
+    if (!menu) {
+        console.error('aftergame-menu not found');
+        return;
+    }
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
     
@@ -827,19 +885,38 @@ function drawGame() {
     });
 
     const drawChar = (c, isPlayer, viewer) => {
-        if (c.hp <= 0) return;
-        if (!isPlayer && !canSee(viewer, c, now)) return;
+        if (c.hp <= 0 && !c.dying) return;
+        if (!isPlayer && !canSee(viewer, c, now) && !c.dying) return;
 
-        drawBrawler(ctx, c.type, c.x, c.y, c.angle);
+        // If dying, apply fade/scale effect
+        let alpha = 1;
+        let scale = 1;
+        if (c.dying) {
+            const elapsed = now - c.deathTime;
+            const progress = Math.min(1, elapsed / 800);
+            alpha = 1 - progress;
+            scale = 1 - progress * 0.5;
+        }
 
         ctx.save();
         ctx.translate(c.x, c.y);
+        ctx.scale(scale, scale);
+        ctx.globalAlpha = alpha;
+
+        drawBrawler(ctx, c.type, 0, 0, c.angle);
+
+        ctx.restore();
+
+        // Name and UI (not rotated, but also faded)
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = 'white';
         ctx.font = 'bold 24px Luckiest Guy';
         ctx.textAlign = 'center';
         ctx.fillText(c.name, 0, -70);
 
-        if (isPlayer && c.power > 0) {
+        if (isPlayer && c.power > 0 && !c.dying) {
             ctx.save();
             ctx.translate(40, -60);
             ctx.fillStyle = '#fbbf24';
@@ -852,27 +929,29 @@ function drawGame() {
             ctx.restore();
         }
 
-        const bw = 70;
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(-bw / 2, -50, bw, 12);
-        ctx.fillStyle = isPlayer ? '#22c55e' : '#ef4444';
-        ctx.fillRect(-bw / 2, -50, (c.hp / c.maxHp) * bw, 12);
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 14px Luckiest Guy';
-        ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw / 2, -55);
-
-        // Ammo bar for player
-        if (isPlayer) {
+        if (!c.dying) {
+            const bw = 70;
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(-bw / 2, -36, bw, 6);
-            ctx.fillStyle = '#f97316';
-            ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
+            ctx.fillRect(-bw / 2, -50, bw, 12);
+            ctx.fillStyle = isPlayer ? '#22c55e' : '#ef4444';
+            ctx.fillRect(-bw / 2, -50, (c.hp / c.maxHp) * bw, 12);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 14px Luckiest Guy';
+            ctx.fillText(`${Math.ceil(c.hp)}/${c.maxHp}`, -bw / 2, -55);
 
-            // Super charge bar
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(-bw / 2, -28, bw, 4);
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(-bw / 2, -28, (c.superCharge / c.superMax) * bw, 4);
+            // Ammo bar for player
+            if (isPlayer) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(-bw / 2, -36, bw, 6);
+                ctx.fillStyle = '#f97316';
+                ctx.fillRect(-bw / 2, -36, (c.ammo / c.maxAmmo) * bw, 6);
+
+                // Super charge bar
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(-bw / 2, -28, bw, 4);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(-bw / 2, -28, (c.superCharge / c.superMax) * bw, 4);
+            }
         }
         ctx.restore();
     };
@@ -884,7 +963,7 @@ function drawGame() {
     ctx.globalAlpha = 1;
 
     window.state.battle.bots.forEach(b => {
-        if (canSee(p, b, now)) {
+        if (canSee(p, b, now) || b.dying) {
             drawChar(b, false, p);
         }
     });
@@ -896,20 +975,19 @@ function drawGame() {
         ctx.fill();
     });
 
-    // ========== DRAW AIMING LINE (always when mouse inside canvas) ==========
-    if (mouseInsideCanvas && p && window.state.battle.isAiming) {
+    // ========== DRAW AIMING LINE ==========
+    if (mouseInsideCanvas && p && window.state.battle.isAiming && !p.dying) {
         const angle = window.state.battle.aimAngle;
         const startX = p.x;
         const startY = p.y;
         const lineLength = 300;
-        const spreadAngle = 0.15; // ~8.6 degrees, matches Mysteria's spread
+        const spreadAngle = 0.15;
 
         ctx.save();
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 3;
         ctx.globalAlpha = 0.4;
 
-        // Draw 5 lines representing shotgun spread
         for (let i = -2; i <= 2; i++) {
             const lineAngle = angle + i * spreadAngle;
             const endX = startX + Math.cos(lineAngle) * lineLength;
@@ -921,7 +999,6 @@ function drawGame() {
             ctx.stroke();
         }
 
-        // Draw a small arrowhead at the end of the center line (optional)
         const centerEndX = startX + Math.cos(angle) * lineLength;
         const centerEndY = startY + Math.sin(angle) * lineLength;
         ctx.fillStyle = 'white';
@@ -936,7 +1013,7 @@ function drawGame() {
         ctx.fill();
         ctx.restore();
 
-        ctx.globalAlpha = 1; // reset
+        ctx.globalAlpha = 1;
     }
 
     // Poison gas
@@ -949,12 +1026,23 @@ function drawGame() {
     ctx.restore();
 
     // Update super button appearance
-    if (p && p.superCharge >= p.superMax) {
+    if (p && p.superCharge >= p.superMax && !p.dying) {
         superBtn.style.opacity = '1';
         superBtn.style.backgroundColor = '#fbbf24';
     } else {
         superBtn.style.opacity = '0.5';
         superBtn.style.backgroundColor = '';
+    }
+
+    // Draw kill feed
+    if (killFeed) {
+        killFeed.innerHTML = '';
+        killMessages.slice(-5).forEach(msg => {
+            const el = document.createElement('div');
+            el.className = 'kill-message';
+            el.textContent = msg.text;
+            killFeed.appendChild(el);
+        });
     }
 }
 
@@ -1060,7 +1148,7 @@ document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
     if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
         const p = window.state.battle.player;
-        if (p.superCharge >= p.superMax) {
+        if (p.superCharge >= p.superMax && !p.dying) {
             // Use aim angle if available, otherwise player's facing angle
             let angle = p.angle;
             if (window.state.battle.isAiming) {
@@ -1097,10 +1185,9 @@ function spawnBullet(owner, angle, isSuper) {
     }
 }
 
-// ========== VISIBILITY CHANGE HANDLER – FIX TAB SWITCH BUG ==========
+// ========== VISIBILITY CHANGE HANDLER ==========
 document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
-        // When tab becomes visible, ensure battle screen is shown if battle is active
         if (window.state.battle && window.state.battle.active) {
             console.log('Tab visible, battle active – forcing battle screen');
             const battleScreen = document.getElementById('battle-screen');
@@ -1108,7 +1195,6 @@ document.addEventListener('visibilitychange', function() {
             battleScreen.style.zIndex = '10000';
             battleScreen.style.display = 'block';
             document.getElementById('menu-screen').style.display = 'none';
-            // Also force canvas repaint
             if (canvas) {
                 const oldWidth = canvas.width;
                 canvas.width = oldWidth + 1;
