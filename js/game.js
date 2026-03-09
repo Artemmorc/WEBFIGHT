@@ -495,9 +495,12 @@ function updateGame() {
 }
 
 function exitBattle() {
-    window.state.battle.active = false;
+    if (window.state.battle) {
+        window.state.battle.active = false;
+    }
     window.state.screen = 'menu';
     document.getElementById('battle-screen').classList.add('hidden');
+    document.getElementById('menu-screen').style.display = 'flex';
     window.keys = { w: false, a: false, s: false, d: false };
 }
 
@@ -908,6 +911,18 @@ function spawnBullet(owner, angle, isSuper) {
         });
     }
 }
+
+// ========== VISIBILITY CHANGE HANDLER ==========
+// If user switches away and comes back, exit battle and show menu
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // If we were in battle, exit to menu
+        if (window.state.battle && window.state.battle.active) {
+            console.log('Tab became visible, exiting battle to menu');
+            exitBattle();
+        }
+    }
+});
 
 // Expose functions globally
 window.startBattlePre = startBattlePre;
