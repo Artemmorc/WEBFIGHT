@@ -58,7 +58,9 @@ async function handleRegister() {
             pp: 0,
             trophies: 0,
             daily_claimed: false,
-            is_admin: false
+            is_admin: false,
+            daily_wins: 0,
+            daily_wins_date: new Date().toISOString().split('T')[0]
         });
 
     if (profileError) {
@@ -136,13 +138,18 @@ async function loadProfile() {
         pp: data.pp,
         coins: data.coins,
         gems: data.gems,
-        dailyClaimed: data.daily_claimed
+        dailyClaimed: data.daily_claimed,
+        dailyWins: data.daily_wins || 0
     };
 
     document.getElementById('displayUsername').innerText = data.username;
     document.getElementById('displayAccountId').innerText = '#' + data.account_id;
-    
-    await loadBrawlerProgress();   // <--- load per-brawler trophies
+
+    // Reset daily wins if date changed
+    await checkDailyWinReset();
+
+    // Load per-brawler progress
+    await loadBrawlerProgress();
 
     if (typeof updateStatsUI === 'function') updateStatsUI();
 
@@ -150,6 +157,21 @@ async function loadProfile() {
         document.getElementById('adminBtnContainer').classList.remove('hidden');
     } else {
         document.getElementById('adminBtnContainer').classList.add('hidden');
+    }
+}
+
+async function checkDailyWinReset() {
+    if (!window.currentUser || !window.currentProfile) return;
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    if (window.currentProfile.daily_wins_date !== today) {
+        window.currentProfile.daily_wins = 0;
+        window.currentProfile.daily_wins_date = today;
+        window.playerState.dailyWins = 0;
+        const { error } = await window.sb
+            .from('profiles')
+            .update({ daily_wins: 0, daily_wins_date: today })
+            .eq('user_id', window.currentUser.id);
+        if (error) console.error('Error resetting daily wins:', error);
     }
 }
 
@@ -194,11 +216,13 @@ async function saveProfileToDB() {
 
     const updates = {
         display_name: window.playerState.name,
-        trophies: window.playerState.trophies,   // total trophies (sum)
+        trophies: window.playerState.trophies,
         pp: window.playerState.pp,
         coins: window.playerState.coins,
         gems: window.playerState.gems,
-        daily_claimed: window.playerState.dailyClaimed
+        daily_claimed: window.playerState.dailyClaimed,
+        daily_wins: window.playerState.dailyWins,
+        daily_wins_date: window.currentProfile.daily_wins_date
     };
 
     const { error } = await sb
@@ -253,6 +277,17 @@ async function adminChangeUsername() {
     }
 }
 
-// Expose new functions globally
-window.loadBrawlerProgress = loadBrawlerProgress;
+// Expose functions
+window.handleRegister = handleRegister;
+window.handleLogin = handleLogin;
+window.logout = logout;
+window.loadProfile = loadProfile;
+window.saveProfileToDB = saveProfileToDB;
 window.saveBrawlerProgress = saveBrawlerProgress;
+window.loadBrawlerProgress = loadBrawlerProgress;
+window.checkDailyWinReset = checkDailyWinReset;
+window.toggleAdminPanel = toggleAdminPanel;
+window.adminGiveCoins = adminGiveCoins;
+window.adminGiveGems = adminGiveGems;
+window.adminGivePp = adminGivePp;
+window.adminChangeUsername = adminChangeUsername;
