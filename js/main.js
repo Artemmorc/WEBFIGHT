@@ -44,8 +44,8 @@ window.CONFIG = {
         'Mysteria': { 
             color: '#a855f7', 
             hp: 3800, 
-            damage: 800,           // base damage per projectile
-            superDamage: 1200,      // base super damage
+            damage: 800,
+            superDamage: 1200,
             ammo: 3, 
             speed: 6, 
             reload: 1.5, 
@@ -58,7 +58,7 @@ window.CONFIG = {
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
 };
 
-// ========== UPGRADE COSTS (level 1->2 through 10->11) ==========
+// ========== UPGRADE COSTS ==========
 window.UPGRADE_COSTS = [
     { coins: 20, pp: 10 },   // 1->2
     { coins: 30, pp: 15 },   // 2->3
@@ -76,7 +76,6 @@ window.UPGRADE_COSTS = [
 window.getBrawlerStats = function(brawlerName, level = 1) {
     const base = CONFIG.BRAWLERS[brawlerName];
     if (!base) return null;
-    // Health multiplier: +5% per level (level 1 = 1.0, level 11 = 1.5)
     const multiplier = 1 + (level - 1) * 0.05;
     return {
         health: Math.round(base.hp * multiplier),
@@ -162,7 +161,11 @@ window.Textures.generate = function() {
 
 // ========== INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', function() {
-    initUI();
+    if (typeof initUI === 'function') {
+        initUI();
+    } else {
+        console.error('initUI not defined – check script loading order');
+    }
 });
 
 if (window.sb) {
@@ -173,7 +176,7 @@ if (window.sb) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('menu-screen').style.display = 'flex';
                 if (typeof updateStatsUI === 'function') updateStatsUI();
-                checkMaintenance();
+                if (typeof checkMaintenance === 'function') checkMaintenance();
             });
         }
     });
@@ -185,14 +188,14 @@ if (window.sb) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('menu-screen').style.display = 'flex';
                 if (typeof updateStatsUI === 'function') updateStatsUI();
-                checkMaintenance();
+                if (typeof checkMaintenance === 'function') checkMaintenance();
             });
         } else if (event === 'SIGNED_OUT') {
             window.currentUser = null;
             window.currentProfile = null;
             document.getElementById('menu-screen').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
-            checkMaintenance();
+            if (typeof checkMaintenance === 'function') checkMaintenance();
         }
     });
 } else {
