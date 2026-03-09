@@ -106,6 +106,16 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        /* Super button styling */
+        #super-btn {
+            font-size: 1rem;
+            border-color: #fbbf24;
+            background-color: rgba(251, 191, 36, 0.7);
+            transition: all 0.1s;
+        }
+        #super-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -138,13 +148,10 @@
         <div class="aftergame-title">BATTLE ENDED</div>
         <div class="aftergame-rank" id="aftergame-rank">Rank #?</div>
         <div class="aftergame-reward" id="aftergame-reward">+0 coins</div>
-
         <!-- Daily wins progress -->
         <div class="aftergame-daily-wins" id="aftergame-daily-wins">Daily Wins: 0/3</div>
-
         <!-- Starrdrop indicator (hidden by default) -->
         <div id="aftergame-starrdrop" class="aftergame-starrdrop hidden"></div>
-
         <button class="aftergame-button" onclick="hideAfterGame()">CONTINUE</button>
     </div>
 </div>
@@ -349,6 +356,7 @@
 <div id="battle-screen" class="absolute inset-0 z-0 hidden">
     <canvas id="gameCanvas"></canvas>
     <div class="fight-text" id="fight-text">FIGHT!</div>
+    <!-- UPDATED BATTLE UI WITH SUPER BUTTON ABOVE ATTACK JOYSTICK -->
     <div class="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between" id="battle-ui" style="display: none;">
         <div class="flex justify-between items-start">
             <div class="bg-black/70 p-3 rounded-xl text-xl border-2 border-white/30">
@@ -361,9 +369,12 @@
                 <div id="move-joy-stick" class="joystick-stick"></div>
             </div>
 
-            <div class="flex flex-col gap-6 items-center pointer-events-auto">
-                <div id="super-btn" class="w-28 h-28 rounded-full border-4 border-yellow-500 bg-yellow-600/70 flex items-center justify-center text-lg text-white cursor-pointer opacity-70 active:scale-95 transition-transform backdrop-blur-sm">SUPER</div>
-                <div id="attack-joy-base" class="joystick-base" style="position:absolute; bottom:40px; right:40px;">
+            <!-- Attack joystick + super button stacked above it -->
+            <div style="position:absolute; bottom:40px; right:40px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                <!-- Super button above attack joystick -->
+                <div id="super-btn" class="w-20 h-20 rounded-full border-4 border-yellow-500 bg-yellow-600/70 flex items-center justify-center text-lg text-white cursor-pointer opacity-70 active:scale-95 transition-transform backdrop-blur-sm">SUPER</div>
+                <!-- Attack joystick -->
+                <div id="attack-joy-base" class="joystick-base">
                     <div id="attack-joy-stick" class="joystick-stick !bg-orange-500"></div>
                 </div>
             </div>
@@ -378,7 +389,7 @@
             <h2 class="text-5xl uppercase">Admin Console</h2>
             <button onclick="toggleAdminPanel()" class="bg-red-500 px-8 py-3 rounded-xl border-2 border-white text-2xl hover:bg-red-600">CLOSE</button>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Give Coins -->
             <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
                 <label class="block text-2xl mb-2">Give Coins</label>
@@ -579,8 +590,3 @@
 <script src="js/game.js?v=9"></script>
 </body>
 </html>
-
-
-
-
-
