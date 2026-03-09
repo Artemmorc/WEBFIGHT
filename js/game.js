@@ -282,7 +282,7 @@ function updateGame() {
         } else {
             playerDead = false;
             battle.active = false;
-            showAfterGame(window.state.lastRank, window.state.lastCoins);
+            showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
             exitBattle();
         }
         return;
@@ -447,31 +447,45 @@ function updateGame() {
     if (p.hp <= 0) {
         playerDead = true;
         deathAnimationStart = now;
-        window.state.lastRank = aliveCount;
-        window.state.lastCoins = 0;
+        window.state.lastMatch = {
+            rank: aliveCount,
+            coinsEarned: 0,
+            starrdropEarned: false
+        };
         return;
     }
 
     if (aliveCount === 1 && p.hp > 0) {
         const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         window.playerState.coins += coinsEarned;
-    
+        
         // Add trophies to current brawler
         const brawlerName = window.state.currentBrawler;
         const currentTrophies = window.brawlerProgress[brawlerName] || 0;
-        const trophyGain = 10; // adjust as needed
+        const trophyGain = 10;
         window.brawlerProgress[brawlerName] = currentTrophies + trophyGain;
-    
-        // Update total trophies
         window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + b, 0);
-    
-        if (typeof updateStatsUI === 'function') updateStatsUI();
+        
+        // Daily win logic
+        let starrdropEarned = false;
+        if (window.playerState.dailyWins < 3) {
+            window.playerState.dailyWins++;
+            window.currentProfile.daily_wins = window.playerState.dailyWins;
+            starrdropEarned = true;
+        }
+        
+        // Save everything
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
-    
-        // Save brawler progress to DB
         saveBrawlerProgress(brawlerName, window.brawlerProgress[brawlerName]);
-    
-        showAfterGame(1, coinsEarned);
+        
+        // Store match info for aftergame menu
+        window.state.lastMatch = {
+            rank: 1,
+            coinsEarned: coinsEarned,
+            starrdropEarned: starrdropEarned
+        };
+        
+        showAfterGame(1, coinsEarned, starrdropEarned);
         exitBattle();
         return;
     }
@@ -487,10 +501,29 @@ function exitBattle() {
     window.keys = { w: false, a: false, s: false, d: false };
 }
 
-function showAfterGame(rank, coins) {
+function showAfterGame(rank, coins, starrdropEarned = false) {
     const menu = document.getElementById('aftergame-menu');
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
+    
+    // Daily wins progress
+    const dailyWinsEl = document.getElementById('aftergame-daily-wins');
+    if (dailyWinsEl) {
+        dailyWinsEl.innerHTML = `Daily Wins: ${window.playerState.dailyWins}/3`;
+        if (starrdropEarned) {
+            dailyWinsEl.innerHTML += ' <span style="color:#fbbf24;">+1</span>';
+        }
+    }
+    
+    // Starrdrop indicator
+    const starrdropEl = document.getElementById('aftergame-starrdrop');
+    if (starrdropEarned) {
+        starrdropEl.innerHTML = createStarrDropSVG('RARE', 64);
+        starrdropEl.classList.remove('hidden');
+    } else {
+        starrdropEl.classList.add('hidden');
+    }
+    
     menu.style.opacity = '0';
     menu.style.display = 'flex';
     setTimeout(() => menu.style.opacity = '1', 50);
@@ -502,6 +535,12 @@ function hideAfterGame() {
     setTimeout(() => {
         menu.style.display = 'none';
         document.getElementById('menu-screen').style.display = 'flex';
+        // If a starrdrop was earned, open it now
+        if (window.state.lastMatch && window.state.lastMatch.starrdropEarned) {
+            startStarrDropAnimation();
+            // Clear flag so it doesn't open again
+            window.state.lastMatch.starrdropEarned = false;
+        }
     }, 300);
 }
 
@@ -869,3 +908,9 @@ function spawnBullet(owner, angle, isSuper) {
         });
     }
 }
+
+// Expose functions globally
+window.startBattlePre = startBattlePre;
+window.showAfterGame = showAfterGame;
+window.hideAfterGame = hideAfterGame;
+window.exitBattle = exitBattle;
