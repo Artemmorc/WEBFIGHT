@@ -143,7 +143,8 @@ function toggleProfile(show) {
         const ig = document.getElementById('icon-grid');
         ig.innerHTML = '';
         Object.keys(CONFIG.BRAWLERS).forEach(name => {
-            if (!CONFIG.BRAWLERS[name].unlocked) return;
+            const unlocked = window.brawlerProgress[name]?.unlocked ?? false;
+            if (!unlocked) return;
             const d = document.createElement('div');
             d.className = `p-2 bg-black/40 rounded-xl cursor-pointer border-4 flex items-center justify-center transition-all ${window.playerState.selectedIcon === name ? 'border-yellow-400 scale-105' : 'border-transparent hover:border-white/20'}`;
             d.style.backgroundColor = CONFIG.BRAWLERS[name].color;
@@ -190,10 +191,10 @@ function toggleBrawlers(show) {
         list.innerHTML = '';
         Object.keys(CONFIG.BRAWLERS).forEach(name => {
             const b = CONFIG.BRAWLERS[name];
-            const isUnlocked = b.unlocked;
-            const progress = window.brawlerProgress[name] || { trophies: 0, level: 1 };
-            const trophies = progress.trophies;
-            const level = progress.level;
+            const progress = window.brawlerProgress[name] || { unlocked: false, trophies: 0, level: 1 };
+            const isUnlocked = progress.unlocked;
+            const trophies = progress.trophies || 0;
+            const level = progress.level || 1;
             
             const div = document.createElement('div');
             const bgClass = b.rarity === 'starter' ? 'bg-starter' : 'bg-rare-brawler';
