@@ -700,13 +700,16 @@ function updateGame() {
         window.playerState.coins += coinsEarned;
         
         const brawlerName = window.state.currentBrawler;
-        const currentTrophies = (window.brawlerProgress[brawlerName]?.trophies) || 0;
-        const trophyGain = 10;
+        // Ensure brawlerProgress entry exists
         if (!window.brawlerProgress[brawlerName]) {
-            window.brawlerProgress[brawlerName] = { trophies: 0, level: 1 };
+            window.brawlerProgress[brawlerName] = { unlocked: true, trophies: 0, level: 1 };
         }
+        const currentTrophies = window.brawlerProgress[brawlerName].trophies || 0;
+        const trophyGain = 10;
         window.brawlerProgress[brawlerName].trophies = currentTrophies + trophyGain;
-        window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + b.trophies, 0);
+        
+        // Update total trophies
+        window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + (b.trophies || 0), 0);
         
         let starrdropEarned = false;
         if (window.playerState.dailyWins < 3) {
@@ -717,7 +720,7 @@ function updateGame() {
         
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
         if (typeof saveBrawlerProgress === 'function') {
-            saveBrawlerProgress(brawlerName, window.brawlerProgress[brawlerName].trophies, window.brawlerProgress[brawlerName].level);
+            saveBrawlerProgress(); // saves entire row
         }
         
         window.state.lastMatch = {
