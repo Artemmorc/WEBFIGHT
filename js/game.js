@@ -29,13 +29,11 @@ let deathAnimationStart = 0;
 let deathAnimationDuration = 1500;
 let playerDead = false;
 
-// Cached DOM elements
+// Cached DOM elements – but we'll re‑fetch them every frame to be safe
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
-const superBtn = document.getElementById('super-btn');
-const killFeed = document.getElementById('kill-feed');
-
-if (!killFeed) console.error('Kill feed element not found! Add <div id="kill-feed"> to index.html');
+let superBtn = document.getElementById('super-btn');
+let killFeed = document.getElementById('kill-feed');
 
 // ========== AIMING VARIABLES ==========
 let mouseInsideCanvas = false;
@@ -51,11 +49,11 @@ function addKillMessage(killerName, victimName) {
         time: Date.now()
     };
     killMessages.push(msg);
-    console.log('Kill message added:', msg.text);
+    console.log('KILL FEED: added message', msg.text);
     // Remove after 3 seconds
     setTimeout(() => {
         killMessages = killMessages.filter(m => m !== msg);
-        console.log('Kill message removed');
+        console.log('KILL FEED: removed message', msg.text);
     }, 3000);
 }
 
@@ -293,7 +291,7 @@ function startBattle(customMap = null, background = 'floor') {
     const maxHp = stats.health;
     
     powerCubesCollected = 0;
-    killMessages = [];
+    killMessages = []; // clear kill feed for new battle
     
     window.state.battle = {
         active: true,
@@ -462,7 +460,7 @@ function updateGame() {
             playerDead = false;
             battle.active = false;
             if (window.state.lastMatch) {
-                console.log('Calling showAfterGame from player death with rank:', window.state.lastMatch.rank);
+                console.log('Player death finished, calling showAfterGame with rank:', window.state.lastMatch.rank);
                 showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
             }
             exitBattle();
@@ -583,6 +581,7 @@ function updateGame() {
                             const killerBot = battle.bots.find(bot => bot.id === b.ownerId);
                             killerName = killerBot ? killerBot.name : 'Unknown';
                         }
+                        console.log('DEATH DETECTED: killer', killerName, 'victim', t.name);
                         addKillMessage(killerName, t.name);
                     }
                 }
@@ -703,7 +702,7 @@ function updateGame() {
             starrdropEarned: starrdropEarned
         };
         
-        console.log('Victory! Calling showAfterGame');
+        console.log('VICTORY! aliveCount === 1, calling showAfterGame');
         showAfterGame(1, coinsEarned, starrdropEarned);
         exitBattle();
         return;
@@ -1014,12 +1013,20 @@ function drawGame() {
 
     ctx.restore();
 
+    // Refresh DOM element references (in case they were lost)
+    superBtn = document.getElementById('super-btn');
+    killFeed = document.getElementById('kill-feed');
+
     if (p && p.superCharge >= p.superMax && !p.dying) {
-        superBtn.style.opacity = '1';
-        superBtn.style.backgroundColor = '#fbbf24';
+        if (superBtn) {
+            superBtn.style.opacity = '1';
+            superBtn.style.backgroundColor = '#fbbf24';
+        }
     } else {
-        superBtn.style.opacity = '0.5';
-        superBtn.style.backgroundColor = '';
+        if (superBtn) {
+            superBtn.style.opacity = '0.5';
+            superBtn.style.backgroundColor = '';
+        }
     }
 
     // Draw kill feed
@@ -1031,6 +1038,8 @@ function drawGame() {
             el.textContent = msg.text;
             killFeed.appendChild(el);
         });
+    } else {
+        console.warn('killFeed element not found');
     }
 }
 
@@ -1173,18 +1182,25 @@ function spawnBullet(owner, angle, isSuper) {
 // ========== VISIBILITY CHANGE HANDLER ==========
 document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
+        console.log('Tab became visible, battle active:', window.state.battle?.active);
         if (window.state.battle && window.state.battle.active) {
             console.log('Tab visible, battle active – forcing battle screen');
             const battleScreen = document.getElementById('battle-screen');
-            battleScreen.classList.remove('hidden');
-            battleScreen.style.zIndex = '10000';
-            battleScreen.style.display = 'block';
-            document.getElementById('menu-screen').style.display = 'none';
+            if (battleScreen) {
+                battleScreen.classList.remove('hidden');
+                battleScreen.style.zIndex = '10000';
+                battleScreen.style.display = 'block';
+            }
+            const menuScreen = document.getElementById('menu-screen');
+            if (menuScreen) menuScreen.style.display = 'none';
             if (canvas) {
                 const oldWidth = canvas.width;
                 canvas.width = oldWidth + 1;
                 canvas.width = oldWidth;
+                console.log('Forced canvas repaint');
             }
+            // Re-fetch kill feed reference
+            killFeed = document.getElementById('kill-feed');
         }
     }
 });
