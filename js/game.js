@@ -35,6 +35,9 @@ let battleUiEl = document.getElementById('battle-ui');
 let superBtn = document.getElementById('super-btn');
 let killFeed = document.getElementById('kill-feed');
 
+// ========== FLAG TO PREVENT VISIBILITY FORCE AFTER GAME ENDS ==========
+let gameEnded = false;
+
 // ========== AIMING VARIABLES ==========
 let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
@@ -285,6 +288,7 @@ async function startBattlePre() {
 }
 
 function startBattle(customMap = null, background = 'floor') {
+    gameEnded = false; // reset flag for new game
     window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('battle-screen').classList.remove('hidden');
@@ -734,6 +738,7 @@ function updateGame() {
 
 function exitBattle() {
     console.log('exitBattle called');
+    gameEnded = true; // prevent visibility handler from forcing battle screen
     if (gameLoopId) {
         cancelAnimationFrame(gameLoopId);
         gameLoopId = null;
@@ -745,6 +750,10 @@ function exitBattle() {
     
     const battleScreen = document.getElementById('battle-screen');
     battleScreen.classList.add('hidden');
+    // Reset any forced styles
+    battleScreen.style.zIndex = '';
+    battleScreen.style.display = '';
+    
     document.getElementById('menu-screen').style.display = 'flex';
     window.keys = { w: false, a: false, s: false, d: false };
 }
@@ -781,7 +790,7 @@ function showAfterGame(rank, coins, starrdropEarned = false) {
         }
     }
     
-    // Ensure battle screen is still visible behind menu
+    // Ensure battle screen is still visible behind menu (but we'll hide it in exitBattle)
     const battleScreen = document.getElementById('battle-screen');
     battleScreen.style.zIndex = '1000';
     battleScreen.style.display = 'block';
@@ -1205,8 +1214,9 @@ function spawnBullet(owner, angle, isSuper) {
 // ========== VISIBILITY CHANGE HANDLER ==========
 document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
-        console.log('Tab became visible, battle active:', window.state.battle?.active);
-        if (window.state.battle && window.state.battle.active) {
+        console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded);
+        // Only force battle screen if game is still active and not ended
+        if (window.state.battle && window.state.battle.active && !gameEnded) {
             console.log('Tab visible, battle active – forcing battle screen');
             const battleScreen = document.getElementById('battle-screen');
             if (battleScreen) {
