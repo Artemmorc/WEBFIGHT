@@ -3,7 +3,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.sb = sb;
 
 // Auth variables
-window.currentUser = null; 
+window.currentUser = null;
 window.currentProfile = null;
 
 function generateAccountId() {
@@ -67,6 +67,21 @@ async function handleRegister() {
         console.error('Profile insert error:', profileError);
         msg.innerText = 'Profile creation failed: ' + profileError.message;
         return;
+    }
+
+    // Create initial brawler progress row
+    const { error: brawlerError } = await sb
+        .from('brawler_progress')
+        .insert({
+            user_id: data.user.id,
+            mysteria_unlocked: true,
+            mysteria_trophies: 0,
+            mysteria_power_level: 1
+        });
+
+    if (brawlerError) {
+        console.error('Brawler progress insert error:', brawlerError);
+        // Non-fatal, but log it
     }
 
     msg.innerText = 'Registration successful! You can now login.';
@@ -153,7 +168,7 @@ async function loadProfile() {
         checkDailyReset();
     }
 
-    // Load per-brawler progress
+    // Load per-brawler progress (new structure)
     await loadBrawlerProgress();
 
     if (typeof updateStatsUI === 'function') updateStatsUI();
@@ -184,8 +199,9 @@ async function loadBrawlerProgress() {
     if (!window.currentUser) return;
     const { data, error } = await window.sb
         .from('brawler_progress')
-        .select('brawler_name, trophies, power_level')
-        .eq('user_id', window.currentUser.id);
+        .select('*')
+        .eq('user_id', window.currentUser.id)
+        .maybeSingle();
 
     if (error) {
         console.error('Error loading brawler progress:', error);
@@ -193,34 +209,57 @@ async function loadBrawlerProgress() {
     }
 
     window.brawlerProgress = {};
-    let totalTrophies = 0;
-    data.forEach(row => {
-        window.brawlerProgress[row.brawler_name] = {
-            trophies: row.trophies,
-            level: row.power_level || 1
-        };
-        totalTrophies += row.trophies;
-    });
 
-    // Ensure Mysteria has entry if missing
-    if (!window.brawlerProgress['Mysteria']) {
-        window.brawlerProgress['Mysteria'] = { trophies: 0, level: 1 };
+    if (data) {
+        // Map database columns to our internal structure
+        // For Mysteria
+        window.brawlerProgress['Mysteria'] = {
+            unlocked: data.mysteria_unlocked,
+            trophies: data.mysteria_trophies,
+            level: data.mysteria_power_level
+        };
+        // Add other brawlers here when you add columns
+    } else {
+        // Create default row if missing
+        window.brawlerProgress['Mysteria'] = {
+            unlocked: true,
+            trophies: 0,
+            level: 1
+        };
+        // Attempt to insert default row
+        await window.sb
+            .from('brawler_progress')
+            .insert({
+                user_id: window.currentUser.id,
+                mysteria_unlocked: true,
+                mysteria_trophies: 0,
+                mysteria_power_level: 1
+            })
+            .then(({ error }) => {
+                if (error) console.error('Error inserting default brawler progress:', error);
+            });
     }
 
-    window.playerState.trophies = totalTrophies;
+    // Update total trophies in playerState
+    window.playerState.trophies = Object.values(window.brawlerProgress).reduce((sum, b) => sum + (b.trophies || 0), 0);
     if (typeof updateStatsUI === 'function') updateStatsUI();
 }
 
-async function saveBrawlerProgress(brawlerName, trophies, level) {
+async function saveBrawlerProgress() {
     if (!window.currentUser) return;
+
+    const updates = {
+        user_id: window.currentUser.id,
+        mysteria_unlocked: window.brawlerProgress['Mysteria']?.unlocked ?? true,
+        mysteria_trophies: window.brawlerProgress['Mysteria']?.trophies ?? 0,
+        mysteria_power_level: window.brawlerProgress['Mysteria']?.level ?? 1
+        // Add other brawlers here
+    };
+
     const { error } = await window.sb
         .from('brawler_progress')
-        .upsert({
-            user_id: window.currentUser.id,
-            brawler_name: brawlerName,
-            trophies: trophies,
-            power_level: level
-        }, { onConflict: 'user_id, brawler_name' });
+        .upsert(updates, { onConflict: 'user_id' });
+
     if (error) console.error('Error saving brawler progress:', error);
 }
 
@@ -271,7 +310,7 @@ async function upgradeBrawler(brawlerName) {
     progress.level = currentLevel + 1;
 
     // Save to DB
-    await saveBrawlerProgress(brawlerName, progress.trophies, progress.level);
+    await saveBrawlerProgress(); // saves entire row
     await saveProfileToDB(); // saves coins/pp
 
     // Update UI
@@ -283,7 +322,7 @@ async function upgradeBrawler(brawlerName) {
     alert(`${brawlerName} upgraded to level ${progress.level}!`);
 }
 
-// Admin functions (unchanged)
+// Admin functions
 function toggleAdminPanel() {
     const panel = document.getElementById('adminPanel');
     panel.classList.toggle('hidden');
