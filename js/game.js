@@ -29,7 +29,7 @@ let deathAnimationStart = 0;
 let deathAnimationDuration = 1500;
 let playerDead = false;
 
-// Cached DOM elements – but we'll re‑fetch them every frame to be safe
+// Cached DOM elements
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
 let superBtn = document.getElementById('super-btn');
@@ -55,6 +55,23 @@ function addKillMessage(killerName, victimName) {
         killMessages = killMessages.filter(m => m !== msg);
         console.log('KILL FEED: removed message', msg.text);
     }, 3000);
+}
+
+// ========== CREATE KILL FEED IF MISSING ==========
+function ensureKillFeed() {
+    if (!killFeed) {
+        console.warn('Kill feed element not found, creating it now');
+        const battleScreen = document.getElementById('battle-screen');
+        if (battleScreen) {
+            killFeed = document.createElement('div');
+            killFeed.id = 'kill-feed';
+            killFeed.className = 'absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-none z-[100000]';
+            killFeed.style.maxWidth = '300px';
+            battleScreen.appendChild(killFeed);
+            console.log('Kill feed created dynamically');
+        }
+    }
+    return killFeed;
 }
 
 // ========== JOYSTICK SETUP (MOUSE + TOUCH) ==========
@@ -429,6 +446,9 @@ function startBattle(customMap = null, background = 'floor') {
             deathTime: 0
         });
     }
+
+    // Ensure kill feed exists
+    ensureKillFeed();
 
     if (gameLoopId) cancelAnimationFrame(gameLoopId);
     gameLoop();
@@ -1013,7 +1033,7 @@ function drawGame() {
 
     ctx.restore();
 
-    // Refresh DOM element references (in case they were lost)
+    // Refresh DOM element references
     superBtn = document.getElementById('super-btn');
     killFeed = document.getElementById('kill-feed');
 
@@ -1029,6 +1049,11 @@ function drawGame() {
         }
     }
 
+    // Ensure kill feed exists
+    if (!killFeed) {
+        killFeed = ensureKillFeed();
+    }
+
     // Draw kill feed
     if (killFeed) {
         killFeed.innerHTML = '';
@@ -1038,8 +1063,6 @@ function drawGame() {
             el.textContent = msg.text;
             killFeed.appendChild(el);
         });
-    } else {
-        console.warn('killFeed element not found');
     }
 }
 
@@ -1199,8 +1222,12 @@ document.addEventListener('visibilitychange', function() {
                 canvas.width = oldWidth;
                 console.log('Forced canvas repaint');
             }
-            // Re-fetch kill feed reference
-            killFeed = document.getElementById('kill-feed');
+            // Ensure kill feed exists and is visible
+            killFeed = ensureKillFeed();
+            if (killFeed) {
+                killFeed.style.display = 'flex';
+                killFeed.style.zIndex = '100000';
+            }
         }
     }
 });
