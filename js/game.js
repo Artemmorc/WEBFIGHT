@@ -42,7 +42,6 @@ let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
 let superAiming = false;
-let attackAiming = false;        // for Brewiant's attack
 let attackTarget = null;         // target coordinates for Brewiant's attack
 
 // ========== KILL FEED QUEUE ==========
@@ -180,7 +179,6 @@ canvas.addEventListener('mouseleave', () => {
         window.state.battle.isAiming = false;
         superAiming = false;
         window.state.battle.superTarget = null;
-        attackAiming = false;
         attackTarget = null;
     }
 });
@@ -204,7 +202,8 @@ canvas.addEventListener('mousemove', (e) => {
                 y: p.y + Math.sin(angle) * targetDist
             };
             window.state.battle.isAiming = true;
-        } else if (attackAiming && p.type === 'Brewiant') {
+        } else if (p.type === 'Brewiant') {
+            // Always update attackTarget for Brewiant (no aiming mode flag)
             const dx = worldX - p.x;
             const dy = worldY - p.y;
             const dist = Math.hypot(dx, dy);
@@ -216,6 +215,7 @@ canvas.addEventListener('mousemove', (e) => {
                 y: p.y + Math.sin(angle) * targetDist
             };
             window.state.battle.isAiming = true;
+            window.state.battle.aimAngle = angle; // still used for other brawlers
         } else {
             const angle = Math.atan2(worldY - p.y, worldX - p.x);
             window.state.battle.aimAngle = angle;
@@ -238,41 +238,22 @@ canvas.addEventListener('mousedown', (e) => {
     
     if (e.button === 0) { // Left click – main attack
         if (p.type === 'Brewiant') {
-            if (!attackAiming) {
-                // Enter aiming mode
-                attackAiming = true;
-                window.state.battle.isAiming = true;
-                const dx = worldX - p.x;
-                const dy = worldY - p.y;
-                const dist = Math.hypot(dx, dy);
-                const maxDist = 1600; // 25 tiles
-                const targetDist = Math.min(dist, maxDist);
-                const angle = Math.atan2(dy, dx);
-                attackTarget = {
-                    x: p.x + Math.cos(angle) * targetDist,
-                    y: p.y + Math.sin(angle) * targetDist
+            // One‑step attack: use current attackTarget
+            if (p.ammo >= 1 && !p.dying && attackTarget) {
+                const bomb = {
+                    x: p.x,
+                    y: p.y,
+                    targetX: attackTarget.x,
+                    targetY: attackTarget.y,
+                    startTime: Date.now(),
+                    duration: 400,
+                    owner: p,
+                    level: p.level,
+                    isBottle: true
                 };
-            } else {
-                // Fire attack bottle
-                if (p.ammo >= 1 && !p.dying) {
-                    const bomb = {
-                        x: p.x,
-                        y: p.y,
-                        targetX: attackTarget.x,
-                        targetY: attackTarget.y,
-                        startTime: Date.now(),
-                        duration: 400,
-                        owner: p,
-                        level: p.level,
-                        isBottle: true
-                    };
-                    window.state.battle.bombs.push(bomb);
-                    p.ammo--;
-                    p.lastAttackTime = Date.now();
-                }
-                attackAiming = false;
-                window.state.battle.isAiming = false;
-                attackTarget = null;
+                window.state.battle.bombs.push(bomb);
+                p.ammo--;
+                p.lastAttackTime = Date.now();
             }
         } else {
             spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
@@ -314,7 +295,7 @@ canvas.addEventListener('mousedown', (e) => {
                 window.state.battle.superTarget = null;
             }
         } else if (p.type === 'Brewiant') {
-            // One-step super: create bubble at current position
+            // One‑step super: create bubble at current position
             if (p.superCharge >= p.superMax && !p.dying) {
                 createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
                 p.superCharge = 0;
@@ -500,9 +481,11 @@ function createBubble(centerX, centerY, owner, level, battle, now) {
 
 function applyAreaDamage(effect, battle, now) {
     const p = battle.player;
-    // Damage bots and player
+    // Damage bots and player, but skip the owner
     const targets = [p, ...battle.bots];
     targets.forEach(t => {
+        // Don't damage the owner of the effect
+        if (t.id === effect.ownerId) return;
         if (t.hp <= 0 || t.dying) return;
         const dist = Math.hypot(t.x - effect.x, t.y - effect.y);
         if (dist < effect.radius) {
@@ -1511,7 +1494,7 @@ function drawGame() {
         ctx.fill();
     });
 
-    // Draw aiming lines
+    // Draw aiming indicators
     if (mouseInsideCanvas && p && !p.dying) {
         if (superAiming && p.type === 'Anthony' && window.state.battle.superTarget) {
             const target = window.state.battle.superTarget;
@@ -1524,7 +1507,8 @@ function drawGame() {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
-        } else if (attackAiming && p.type === 'Brewiant' && attackTarget) {
+        } else if (p.type === 'Brewiant' && attackTarget) {
+            // Always show the targeting circle for Brewiant
             const target = attackTarget;
             ctx.save();
             ctx.strokeStyle = '#3b82f6';
@@ -1544,16 +1528,6 @@ function drawGame() {
             if (p.type === 'Anthony') {
                 ctx.save();
                 ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = 4;
-                ctx.globalAlpha = 0.6;
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(startX + Math.cos(angle) * 600, startY + Math.sin(angle) * 600);
-                ctx.stroke();
-                ctx.restore();
-            } else if (p.type === 'Brewiant') {
-                ctx.save();
-                ctx.strokeStyle = '#3b82f6';
                 ctx.lineWidth = 4;
                 ctx.globalAlpha = 0.6;
                 ctx.beginPath();
