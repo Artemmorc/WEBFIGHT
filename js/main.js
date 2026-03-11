@@ -19,7 +19,7 @@ window.state = {
     starrDropTaps: 0,
     battle: { 
         active: false, 
-        joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } }
+        joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 }, super: { x: 0, y: 0 } }
     },
     preBattle: false,
     lastMatch: null
@@ -99,19 +99,37 @@ window.getBrawlerStats = function(brawlerName, level = 1) {
 
 // ========== CUSTOM BRAWLER IMAGES ==========
 window.BrawlerImages = {
-    menu: null,
-    icon: null,
-    game: null
+    'Mysteria': { menu: null, icon: null, game: null },
+    'Anthony': { menu: null, icon: null, game: null }
 };
 
 function loadBrawlerImages() {
     return new Promise((resolve) => {
+        let total = 0;
         let loaded = 0;
-        const total = 3;
+        // Count total images to load
+        for (let name in window.BrawlerImages) {
+            total += 3; // menu, icon, game
+        }
         function checkAll() { loaded++; if (loaded === total) resolve(); }
-        const imgMenu = new Image(); imgMenu.onload = () => { window.BrawlerImages.menu = imgMenu; checkAll(); }; imgMenu.onerror = checkAll; imgMenu.src = 'images/mysteria_menu.png';
-        const imgIcon = new Image(); imgIcon.onload = () => { window.BrawlerImages.icon = imgIcon; checkAll(); }; imgIcon.onerror = checkAll; imgIcon.src = 'images/mysteria_icon.png';
-        const imgGame = new Image(); imgGame.onload = () => { window.BrawlerImages.game = imgGame; checkAll(); }; imgGame.onerror = checkAll; imgGame.src = 'images/mysteria_game.png';
+        
+        for (let name in window.BrawlerImages) {
+            const baseName = name.toLowerCase();
+            const imgMenu = new Image();
+            imgMenu.onload = () => { window.BrawlerImages[name].menu = imgMenu; checkAll(); };
+            imgMenu.onerror = checkAll;
+            imgMenu.src = `images/${baseName}_menu.png`;
+            
+            const imgIcon = new Image();
+            imgIcon.onload = () => { window.BrawlerImages[name].icon = imgIcon; checkAll(); };
+            imgIcon.onerror = checkAll;
+            imgIcon.src = `images/${baseName}_icon.png`;
+            
+            const imgGame = new Image();
+            imgGame.onload = () => { window.BrawlerImages[name].game = imgGame; checkAll(); };
+            imgGame.onerror = checkAll;
+            imgGame.src = `images/${baseName}_game.png`;
+        }
     });
 }
 
