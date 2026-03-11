@@ -266,11 +266,11 @@ function showBrawlerDetail(name) {
         skinsGrid.appendChild(div);
     }
 
-    // Equip button
+    // Equip button – now closes brawler screen and returns to main menu
     document.getElementById('detail-equip-btn').onclick = () => {
         window.state.currentBrawler = name;
         updateBrawlerMenu();
-        alert(`${name} equipped!`);
+        toggleBrawlers(false); // Close brawler screen and return to main menu
     };
 
     // Show detail, hide grid, reset to stats tab
