@@ -225,7 +225,6 @@ canvas.addEventListener('mousedown', (e) => {
     } else if (e.button === 2) { // Right click – super
         if (p.type === 'Anthony') {
             if (!superAiming) {
-                // First right-click: enter aiming mode for Anthony's bomb
                 superAiming = true;
                 window.state.battle.isAiming = true;
                 const dx = worldX - p.x;
@@ -239,7 +238,6 @@ canvas.addEventListener('mousedown', (e) => {
                     y: p.y + Math.sin(angle) * targetDist
                 };
             } else {
-                // Second right-click: throw bomb
                 if (p.superCharge >= p.superMax && !p.dying) {
                     if (window.state.battle.superTarget) {
                         const bomb = {
@@ -259,6 +257,12 @@ canvas.addEventListener('mousedown', (e) => {
                 superAiming = false;
                 window.state.battle.isAiming = false;
                 window.state.battle.superTarget = null;
+            }
+        } else if (p.type === 'Brewiant') {
+            // Brewiant's super: create bubble at his position
+            if (p.superCharge >= p.superMax && !p.dying) {
+                createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
+                p.superCharge = 0;
             }
         } else {
             // Other brawlers: normal two-step super (aim then fire)
@@ -334,7 +338,6 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
     const radius = 192; // 3 tiles
     const pushForce = 200;
     const mapSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-    const tileSize = window.CONFIG.TILE_SIZE;
 
     battle.explosions.push({
         x: centerX,
@@ -343,7 +346,6 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
         duration: 500
     });
 
-    // Destroy walls, bushes, barrels
     battle.walls = battle.walls.filter(w => {
         const dx = w.x + 32 - centerX;
         const dy = w.y + 32 - centerY;
@@ -362,10 +364,9 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
         return Math.hypot(dx, dy) > radius;
     });
 
-    // Damage and push enemies
     const targets = [battle.player, ...battle.bots];
-    for (let t of targets) {
-        if (t.hp <= 0 || t.dying) continue;
+    targets.forEach(t => {
+        if (t.hp <= 0 || t.dying) return;
         const dx = t.x - centerX;
         const dy = t.y - centerY;
         const dist = Math.hypot(dx, dy);
@@ -377,21 +378,17 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
                 t.revealUntil = now + 1000;
                 if (t.id === 'player') t.lastDamageTime = now;
 
-                // Push away from center, but avoid walls
                 if (dist > 1) {
                     const pushX = (dx / dist) * pushForce;
                     const pushY = (dy / dist) * pushForce;
                     let newX = t.x + pushX;
                     let newY = t.y + pushY;
-                    // Clamp to map bounds
                     newX = Math.max(25, Math.min(mapSize - 25, newX));
                     newY = Math.max(25, Math.min(mapSize - 25, newY));
-                    // Check if new position collides with walls, water, etc.
                     if (!checkCollision(newX, newY, 25)) {
                         t.x = newX;
                         t.y = newY;
                     }
-                    // If collision, stay at original position (or could try sliding, but keep simple)
                 }
 
                 if (t.hp <= 0 && !t.dying) {
@@ -402,7 +399,38 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
                 }
             }
         }
-    }
+    });
+}
+
+// ========== BREWIANT AREA EFFECTS ==========
+function createBottle(x, y, owner, level, battle, now) {
+    battle.areaEffects.push({
+        type: 'bottle',
+        x: x,
+        y: y,
+        radius: 64, // 1 tile
+        damagePerSecond: window.getBrawlerStats('Brewiant', level).damage,
+        startTime: now,
+        duration: 2000,
+        ownerId: owner.id,
+        ownerLevel: level,
+        lastTick: now
+    });
+}
+
+function createBubble(centerX, centerY, owner, level, battle, now) {
+    battle.areaEffects.push({
+        type: 'bubble',
+        x: centerX,
+        y: centerY,
+        radius: 192, // 3 tiles
+        damagePerSecond: window.getBrawlerStats('Brewiant', level).superDamage,
+        startTime: now,
+        duration: 3000,
+        ownerId: owner.id,
+        ownerLevel: level,
+        lastTick: now
+    });
 }
 
 async function startBattlePre() {
@@ -477,6 +505,7 @@ function startBattle(customMap = null, background = 'floor') {
         bullets: [],
         bombs: [],
         explosions: [],
+        areaEffects: [], // Brewiant's bottles and bubble
         walls: [],
         bushes: [],
         water: [],
@@ -651,6 +680,42 @@ function updateGame() {
 
     battle.explosions = battle.explosions.filter(exp => now - exp.startTime < exp.duration);
 
+    // Update area effects (Brewiant's bottles and bubble)
+    battle.areaEffects = battle.areaEffects.filter(effect => {
+        const elapsed = now - effect.startTime;
+        if (elapsed >= effect.duration) return false;
+        // Damage per second (tick every 1 second)
+        while (effect.lastTick + 1000 <= now) {
+            const targets = [p, ...battle.bots];
+            targets.forEach(t => {
+                if (t.hp <= 0 || t.dying) return;
+                const dist = Math.hypot(t.x - effect.x, t.y - effect.y);
+                if (dist < effect.radius) {
+                    if (!t.invincibleUntil || now > t.invincibleUntil) {
+                        t.hp -= effect.damagePerSecond;
+                        t.revealUntil = now + 1000;
+                        if (t.id === 'player') t.lastDamageTime = now;
+
+                        if (t.hp <= 0 && !t.dying) {
+                            t.dying = true;
+                            t.deathTime = now;
+                            let killerName = 'Unknown';
+                            if (effect.ownerId === p.id) {
+                                killerName = p.name;
+                            } else {
+                                const killerBot = battle.bots.find(bot => bot.id === effect.ownerId);
+                                killerName = killerBot ? killerBot.name : 'Brewiant';
+                            }
+                            addKillMessage(killerName, t.name);
+                        }
+                    }
+                }
+            });
+            effect.lastTick += 1000;
+        }
+        return true;
+    });
+
     if (playerDead) {
         const elapsed = now - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
@@ -731,53 +796,61 @@ function updateGame() {
         const nextX = b.x + Math.cos(b.angle) * bulletSpeed;
         const nextY = b.y + Math.sin(b.angle) * bulletSpeed;
 
-        // Box destruction
-        for (let box of battle.boxes) {
-            if (box.hp <= 0) continue;
-            if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
-                nextY + 8 > box.y && nextY - 8 < box.y + 64) {
-                if (b.ownerType === 'Anthony' && b.super) {
-                    createBombExplosion(b.x, b.y, battle, now, p);
+        // Box destruction (for non-pass-through bullets)
+        if (!b.passThroughWalls) {
+            for (let box of battle.boxes) {
+                if (box.hp <= 0) continue;
+                if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
+                    nextY + 8 > box.y && nextY - 8 < box.y + 64) {
+                    if (b.ownerType === 'Anthony' && b.super) {
+                        createBombExplosion(b.x, b.y, battle, now, p);
+                        return false;
+                    }
+                    box.hp -= 800;
+                    if (box.hp <= 0) {
+                        battle.powerCubes.push({ x: box.x + 32, y: box.y + 32, collected: false });
+                    }
                     return false;
                 }
-                box.hp -= 800;
-                if (box.hp <= 0) {
-                    battle.powerCubes.push({ x: box.x + 32, y: box.y + 32, collected: false });
-                }
-                return false;
             }
         }
 
-        // Wall collision
-        for (const wall of battle.walls) {
-            if (nextX + 8 > wall.x && nextX - 8 < wall.x + 64 &&
-                nextY + 8 > wall.y && nextY - 8 < wall.y + 64) {
-                if (b.ownerType === 'Anthony' && b.super) {
-                    createBombExplosion(b.x, b.y, battle, now, p);
+        // Wall collision (skip if passThroughWalls)
+        if (!b.passThroughWalls) {
+            for (const wall of battle.walls) {
+                if (nextX + 8 > wall.x && nextX - 8 < wall.x + 64 &&
+                    nextY + 8 > wall.y && nextY - 8 < wall.y + 64) {
+                    if (b.ownerType === 'Anthony' && b.super) {
+                        createBombExplosion(b.x, b.y, battle, now, p);
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 
-        // Water collision
-        for (const water of battle.water || []) {
-            if (nextX + 8 > water.x && nextX - 8 < water.x + 64 &&
-                nextY + 8 > water.y && nextY - 8 < water.y + 64) {
-                if (b.ownerType === 'Anthony' && b.super) {
-                    createBombExplosion(b.x, b.y, battle, now, p);
+        // Water collision (skip if passThroughWalls)
+        if (!b.passThroughWalls) {
+            for (const water of battle.water || []) {
+                if (nextX + 8 > water.x && nextX - 8 < water.x + 64 &&
+                    nextY + 8 > water.y && nextY - 8 < water.y + 64) {
+                    if (b.ownerType === 'Anthony' && b.super) {
+                        createBombExplosion(b.x, b.y, battle, now, p);
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 
-        // Barrel collision
-        for (const barrel of battle.barrels || []) {
-            if (nextX + 8 > barrel.x && nextX - 8 < barrel.x + 64 &&
-                nextY + 8 > barrel.y && nextY - 8 < barrel.y + 64) {
-                if (b.ownerType === 'Anthony' && b.super) {
-                    createBombExplosion(b.x, b.y, battle, now, p);
+        // Barrel collision (skip if passThroughWalls)
+        if (!b.passThroughWalls) {
+            for (const barrel of battle.barrels || []) {
+                if (nextX + 8 > barrel.x && nextX - 8 < barrel.x + 64 &&
+                    nextY + 8 > barrel.y && nextY - 8 < barrel.y + 64) {
+                    if (b.ownerType === 'Anthony' && b.super) {
+                        createBombExplosion(b.x, b.y, battle, now, p);
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 
@@ -785,7 +858,13 @@ function updateGame() {
         b.y = nextY;
         b.dist += bulletSpeed;
         const maxRange = (b.ownerType === 'Anthony' && !b.super) ? 600 : 300;
-        if (b.dist > maxRange) return false;
+        if (b.dist > maxRange) {
+            // If it's Brewiant's bottle, create bottle at current position
+            if (b.ownerType === 'Brewiant' && !b.super) {
+                createBottle(b.x, b.y, p, b.level, battle, now);
+            }
+            return false;
+        }
 
         const targets = [p, ...battle.bots];
         for (let t of targets) {
@@ -1245,7 +1324,7 @@ function drawGame() {
         }
     });
 
-    // Draw bombs
+    // Draw bombs (Anthony)
     window.state.battle.bombs.forEach(bomb => {
         ctx.save();
         ctx.translate(bomb.currentX, bomb.currentY);
@@ -1267,7 +1346,7 @@ function drawGame() {
         ctx.restore();
     });
 
-    // Draw explosions
+    // Draw explosions (Anthony)
     window.state.battle.explosions.forEach(exp => {
         const elapsed = now - exp.startTime;
         const progress = elapsed / exp.duration;
@@ -1288,6 +1367,37 @@ function drawGame() {
         ctx.restore();
     });
 
+    // Draw area effects (Brewiant)
+    window.state.battle.areaEffects.forEach(effect => {
+        if (effect.type === 'bottle') {
+            ctx.save();
+            ctx.translate(effect.x, effect.y);
+            ctx.fillStyle = '#3b82f6';
+            ctx.shadowColor = 'cyan';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(0, 0, 32, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fbbf24';
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(0, -5, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (effect.type === 'bubble') {
+            ctx.save();
+            ctx.translate(effect.x, effect.y);
+            ctx.strokeStyle = 'rgba(59,130,246,0.8)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.arc(0, 0, effect.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+    });
+
     // Draw bullets
     window.state.battle.bullets.forEach(b => {
         let bulletColor = 'white';
@@ -1297,6 +1407,9 @@ function drawGame() {
             bulletRadius = 32;
         } else if (b.super) {
             bulletColor = '#fbbf24';
+        } else if (b.ownerType === 'Brewiant' && !b.super) {
+            bulletColor = '#3b82f6';
+            bulletRadius = 12;
         }
         ctx.fillStyle = bulletColor;
         ctx.beginPath();
@@ -1331,6 +1444,16 @@ function drawGame() {
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
                 ctx.lineTo(startX + Math.cos(angle) * 600, startY + Math.sin(angle) * 600);
+                ctx.stroke();
+                ctx.restore();
+            } else if (p.type === 'Brewiant') {
+                ctx.save();
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 4;
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(startX + Math.cos(angle) * 300, startY + Math.sin(angle) * 300);
                 ctx.stroke();
                 ctx.restore();
             } else {
@@ -1510,6 +1633,10 @@ setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
             };
             window.state.battle.bombs.push(bomb);
             p.superCharge = 0;
+        } else if (p.type === 'Brewiant') {
+            // Super bubble centered on player
+            createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
+            p.superCharge = 0;
         } else {
             spawnBullet(p, ang, true);
             p.superCharge = 0;
@@ -1528,6 +1655,7 @@ function spawnBullet(owner, angle, isSuper) {
     if (owner.id === 'player' && !isSuper) owner.ammo--;
     const count = (owner.type === 'Mysteria') ? 5 : 1;
     const attackerLevel = owner.level || 1;
+    const passThrough = (owner.type === 'Brewiant' && !isSuper); // Brewiant's bottles pass through walls
     for (let i = 0; i < count; i++) {
         const spread = (i - (count - 1) / 2) * 0.15;
         window.state.battle.bullets.push({
@@ -1538,7 +1666,8 @@ function spawnBullet(owner, angle, isSuper) {
             super: isSuper,
             ownerId: owner.id,
             level: attackerLevel,
-            ownerType: owner.type
+            ownerType: owner.type,
+            passThroughWalls: passThrough
         });
     }
 }
@@ -1553,7 +1682,6 @@ document.addEventListener('visibilitychange', function() {
         console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead, 'mainMenuVisible:', mainMenuVisible);
         
         if (gameEnded || playerDead) {
-            // If either the main menu or the after-game menu is already visible, do nothing
             if (mainMenuVisible || menuVisible) {
                 console.log('Already at main menu or after-game menu visible, ignoring');
                 return;
