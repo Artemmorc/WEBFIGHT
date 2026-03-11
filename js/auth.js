@@ -69,7 +69,7 @@ async function handleRegister() {
         return;
     }
 
-    // Create initial brawler progress row with both brawlers
+    // Create initial brawler progress row with all brawlers
     const { error: brawlerError } = await sb
         .from('brawler_progress')
         .insert({
@@ -77,6 +77,9 @@ async function handleRegister() {
             mysteria_unlocked: true,
             mysteria_trophies: 0,
             mysteria_power_level: 1,
+            brewiant_unlocked: false,
+            brewiant_trophies: 0,
+            brewiant_power_level: 1,
             anthony_unlocked: false,
             anthony_trophies: 0,
             anthony_power_level: 1
@@ -219,16 +222,22 @@ async function loadBrawlerProgress() {
             trophies: data.mysteria_trophies,
             level: data.mysteria_power_level
         };
+        // Brewiant
+        window.brawlerProgress['Brewiant'] = {
+            unlocked: data.brewiant_unlocked,
+            trophies: data.brewiant_trophies,
+            level: data.brewiant_power_level
+        };
         // Anthony
         window.brawlerProgress['Anthony'] = {
             unlocked: data.anthony_unlocked,
             trophies: data.anthony_trophies,
             level: data.anthony_power_level
         };
-        // Add other brawlers here
     } else {
         // Create default row if missing
         window.brawlerProgress['Mysteria'] = { unlocked: true, trophies: 0, level: 1 };
+        window.brawlerProgress['Brewiant'] = { unlocked: false, trophies: 0, level: 1 };
         window.brawlerProgress['Anthony'] = { unlocked: false, trophies: 0, level: 1 };
         await window.sb
             .from('brawler_progress')
@@ -237,6 +246,9 @@ async function loadBrawlerProgress() {
                 mysteria_unlocked: true,
                 mysteria_trophies: 0,
                 mysteria_power_level: 1,
+                brewiant_unlocked: false,
+                brewiant_trophies: 0,
+                brewiant_power_level: 1,
                 anthony_unlocked: false,
                 anthony_trophies: 0,
                 anthony_power_level: 1
@@ -259,6 +271,9 @@ async function saveBrawlerProgress() {
         mysteria_unlocked: window.brawlerProgress['Mysteria']?.unlocked ?? true,
         mysteria_trophies: window.brawlerProgress['Mysteria']?.trophies ?? 0,
         mysteria_power_level: window.brawlerProgress['Mysteria']?.level ?? 1,
+        brewiant_unlocked: window.brawlerProgress['Brewiant']?.unlocked ?? false,
+        brewiant_trophies: window.brawlerProgress['Brewiant']?.trophies ?? 0,
+        brewiant_power_level: window.brawlerProgress['Brewiant']?.level ?? 1,
         anthony_unlocked: window.brawlerProgress['Anthony']?.unlocked ?? false,
         anthony_trophies: window.brawlerProgress['Anthony']?.trophies ?? 0,
         anthony_power_level: window.brawlerProgress['Anthony']?.level ?? 1
