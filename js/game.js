@@ -481,12 +481,14 @@ function gameLoop() {
 }
 
 function updateGame() {
+    console.log('updateGame running, playerDead:', playerDead, 'battle.active:', window.state.battle?.active);
     const battle = window.state.battle;
     const p = battle.player;
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
     const now = Date.now();
 
     if (playerDead) {
+        console.log('In playerDead block, elapsed:', now - deathAnimationStart);
         const elapsed = now - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
             const t = elapsed / deathAnimationDuration;
@@ -494,11 +496,14 @@ function updateGame() {
             battle.camera.x = p.x - (canvas.width/2)/battle.camera.zoom;
             battle.camera.y = p.y - (canvas.height/2)/battle.camera.zoom;
         } else {
+            console.log('Death animation finished, deactivating battle and showing menu');
             playerDead = false;
             battle.active = false;
             if (window.state.lastMatch) {
-                console.log('Player death finished, calling showAfterGame with rank:', window.state.lastMatch.rank);
+                console.log('Calling showAfterGame with rank:', window.state.lastMatch.rank);
                 showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
+            } else {
+                console.error('No lastMatch set on death!');
             }
         }
         return;
@@ -689,6 +694,7 @@ function updateGame() {
     }
 
     if (p.hp <= 0 && !p.dying) {
+        console.log('Player HP <= 0, setting death state');
         p.dying = true;
         p.deathTime = now;
         playerDead = true;
