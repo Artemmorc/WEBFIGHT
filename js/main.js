@@ -49,7 +49,7 @@ window.CONFIG = {
             ammo: 3, 
             speed: 6, 
             reload: 1.5, 
-            type: 'Shotgun', 
+            type: 'Tank', 
             pfp: 'M', 
             rarity: 'starter', 
             unlocked: true,
@@ -58,12 +58,12 @@ window.CONFIG = {
         },
         'Brewiant': {
             color: '#3b82f6',
-            hp: 4500,
+            hp: 3500,
             damage: 387,    // 790 * 0.7 = 553
             superDamage: 407, // 830 * 0.7 = 581
-            ammo: 2,
+            ammo: 1,
             speed: 5,
-            reload: 1.8,
+            reload: 2.0,
             type: 'Thrower',
             pfp: 'B',
             rarity: 'rare',
@@ -79,7 +79,7 @@ window.CONFIG = {
             ammo: 2,
             speed: 5,
             reload: 1.2,
-            type: 'Laser',
+            type: 'Damage Dealer',
             pfp: 'A',
             rarity: 'mythic',
             unlocked: false,
