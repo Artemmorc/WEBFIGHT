@@ -41,7 +41,7 @@ let gameEnded = false;
 let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
-let superAiming = false; // for mouse two-step super
+let superAiming = false; // for mouse right-click two-step aiming
 
 // ========== KILL FEED QUEUE ==========
 let killMessages = [];
@@ -176,8 +176,8 @@ canvas.addEventListener('mouseleave', () => {
     mouseInsideCanvas = false;
     if (window.state.battle) {
         window.state.battle.isAiming = false;
+        superAiming = false; // cancel super aiming on leave
     }
-    superAiming = false; // cancel super aiming on mouse leave
 });
 
 canvas.addEventListener('mousemove', (e) => {
@@ -189,7 +189,9 @@ canvas.addEventListener('mousemove', (e) => {
     if (p) {
         const angle = Math.atan2(worldY - p.y, worldX - p.x);
         window.state.battle.aimAngle = angle;
-        window.state.battle.isAiming = true;
+        if (!superAiming) {
+            window.state.battle.isAiming = true; // normal aiming for attack
+        }
     }
 });
 
@@ -207,18 +209,18 @@ canvas.addEventListener('mousedown', (e) => {
     
     if (e.button === 0) { // Left click – main attack
         spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
-    } else if (e.button === 2) { // Right click – super aiming/firing
+    } else if (e.button === 2) { // Right click – two-step super aiming
         if (!superAiming) {
-            // First right-click: enter aiming mode
+            // First right-click: enter aiming mode for super
             superAiming = true;
             window.state.battle.isAiming = true;
-            console.log('Super aiming mode ON');
+            // Update aim angle based on mouse position
+            window.state.battle.aimAngle = Math.atan2(worldY - p.y, worldX - p.x);
         } else {
             // Second right-click: fire super if charged
             if (p.superCharge >= p.superMax && !p.dying) {
                 spawnBullet(p, window.state.battle.aimAngle, true);
                 p.superCharge = 0;
-                console.log('Super fired');
             }
             superAiming = false;
             window.state.battle.isAiming = false;
@@ -623,9 +625,9 @@ function updateGame() {
     }
 
     battle.bullets = battle.bullets.filter(b => {
-        const speed = 12;
-        const nextX = b.x + Math.cos(b.angle) * speed;
-        const nextY = b.y + Math.sin(b.angle) * speed;
+        const bulletSpeed = (b.ownerType === 'Anthony' && !b.super) ? 18 : 12; // Anthony's laser is faster
+        const nextX = b.x + Math.cos(b.angle) * bulletSpeed;
+        const nextY = b.y + Math.sin(b.angle) * bulletSpeed;
 
         // Check box destruction
         for (let box of battle.boxes) {
@@ -679,13 +681,17 @@ function updateGame() {
 
         b.x = nextX;
         b.y = nextY;
-        b.dist += speed;
-        if (b.dist > 300) return false;
+        b.dist += bulletSpeed;
+        // Anthony's laser has double range (600)
+        const maxRange = (b.ownerType === 'Anthony' && !b.super) ? 600 : 300;
+        if (b.dist > maxRange) return false;
 
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0 || t.dying) continue;
-            if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
+            // Anthony's laser has larger hit radius (16)
+            const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 16 : 30;
+            if (Math.hypot(b.x - t.x, b.y - t.y) < hitRadius) {
                 if (b.ownerType === 'Anthony' && b.super) {
                     explodeBomb(b, battle, now);
                     return false;
@@ -812,6 +818,7 @@ function updateGame() {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
+    // Safety net for player death
     if (p.hp <= 0 && !p.dying) {
         console.log('Player HP <= 0 (safety), setting death state');
         p.dying = true;
@@ -1116,21 +1123,23 @@ function drawGame() {
         }
     });
 
-    // Draw bullets
+    // Draw bullets with brawler-specific colors and sizes
     window.state.battle.bullets.forEach(b => {
+        let bulletColor = 'white';
+        let bulletRadius = 8;
         if (b.ownerType === 'Anthony' && !b.super) {
-            ctx.fillStyle = '#ff0000'; // red for laser
+            bulletColor = '#ff0000'; // red for laser
+            bulletRadius = 16; // 2x size
         } else if (b.super) {
-            ctx.fillStyle = '#fbbf24'; // yellow for super
-        } else {
-            ctx.fillStyle = 'white';
+            bulletColor = '#fbbf24'; // yellow for super
         }
+        ctx.fillStyle = bulletColor;
         ctx.beginPath();
-        ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, bulletRadius, 0, Math.PI * 2);
         ctx.fill();
     });
 
-    // Draw aiming line
+    // ========== DRAW AIMING LINE ==========
     if (mouseInsideCanvas && p && window.state.battle.isAiming && !p.dying) {
         const angle = window.state.battle.aimAngle;
         const startX = p.x;
@@ -1138,14 +1147,14 @@ function drawGame() {
         const lineLength = 300;
 
         if (p.type === 'Anthony') {
-            // Anthony's laser: single red line
+            // Anthony's laser: single red line (double length)
             ctx.save();
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
             ctx.globalAlpha = 0.6;
             ctx.beginPath();
             ctx.moveTo(startX, startY);
-            ctx.lineTo(startX + Math.cos(angle) * lineLength, startY + Math.sin(angle) * lineLength);
+            ctx.lineTo(startX + Math.cos(angle) * 600, startY + Math.sin(angle) * 600);
             ctx.stroke();
             ctx.restore();
         } else {
@@ -1185,7 +1194,6 @@ function drawGame() {
         ctx.globalAlpha = 1;
     }
 
-    // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
@@ -1219,11 +1227,14 @@ function drawBrawler(ctx, type, x, y, angle) {
         return;
     }
 
+    // Fallback drawing
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
     
-    ctx.fillStyle = '#a855f7';
+    // Use brawler color from CONFIG
+    const brawlerData = window.CONFIG.BRAWLERS[type];
+    ctx.fillStyle = brawlerData ? brawlerData.color : '#a855f7';
     ctx.beginPath();
     ctx.ellipse(0, 0, 18, 20, 0, 0, Math.PI*2);
     ctx.fill();
