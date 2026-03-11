@@ -955,7 +955,7 @@ function updateGame() {
         // Update total trophies
         window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + (b.trophies || 0), 0);
         
-        console.log(`VICTORY: ${brawlerName} trophies: ${currentTrophies} + ${trophyGain} = ${window.brawlerProgress[brawlerName].trophies}, total ${window.playerState.trophies}`);
+        console.log(`TROPHY GAIN: +${trophyGain} for ${brawlerName}. Was ${currentTrophies}, now ${window.brawlerProgress[brawlerName].trophies}. Total trophies: ${window.playerState.trophies}`);
         
         let starrdropEarned = false;
         if (window.playerState.dailyWins < 3) {
