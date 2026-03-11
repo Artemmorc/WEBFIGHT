@@ -42,6 +42,7 @@ let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
 let superAiming = false;
+let attackAiming = false; // for Brewiant's bottle aiming
 
 // ========== KILL FEED QUEUE ==========
 let killMessages = [];
@@ -177,7 +178,9 @@ canvas.addEventListener('mouseleave', () => {
     if (window.state.battle) {
         window.state.battle.isAiming = false;
         superAiming = false;
+        attackAiming = false;
         window.state.battle.superTarget = null;
+        window.state.battle.attackTarget = null;
     }
 });
 
@@ -192,10 +195,22 @@ canvas.addEventListener('mousemove', (e) => {
             const dx = worldX - p.x;
             const dy = worldY - p.y;
             const dist = Math.hypot(dx, dy);
-            const maxDist = 1600; // 25 tiles
+            const maxDist = 1600;
             const targetDist = Math.min(dist, maxDist);
             const angle = Math.atan2(dy, dx);
             window.state.battle.superTarget = {
+                x: p.x + Math.cos(angle) * targetDist,
+                y: p.y + Math.sin(angle) * targetDist
+            };
+            window.state.battle.isAiming = true;
+        } else if (attackAiming && p.type === 'Brewiant') {
+            const dx = worldX - p.x;
+            const dy = worldY - p.y;
+            const dist = Math.hypot(dx, dy);
+            const maxDist = 800; // max bottle throw distance
+            const targetDist = Math.min(dist, maxDist);
+            const angle = Math.atan2(dy, dx);
+            window.state.battle.attackTarget = {
                 x: p.x + Math.cos(angle) * targetDist,
                 y: p.y + Math.sin(angle) * targetDist
             };
@@ -221,7 +236,37 @@ canvas.addEventListener('mousedown', (e) => {
     const p = window.state.battle.player;
     
     if (e.button === 0) { // Left click – main attack
-        spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+        if (p.type === 'Brewiant') {
+            // Two-step aiming for Brewiant's bottle
+            if (!attackAiming) {
+                attackAiming = true;
+                window.state.battle.isAiming = true;
+                const dx = worldX - p.x;
+                const dy = worldY - p.y;
+                const dist = Math.hypot(dx, dy);
+                const maxDist = 800;
+                const targetDist = Math.min(dist, maxDist);
+                const angle = Math.atan2(dy, dx);
+                window.state.battle.attackTarget = {
+                    x: p.x + Math.cos(angle) * targetDist,
+                    y: p.y + Math.sin(angle) * targetDist
+                };
+            } else {
+                // Second left-click: throw bottle
+                if (!p.dying && p.ammo >= 1) {
+                    if (window.state.battle.attackTarget) {
+                        spawnBottle(p, window.state.battle.attackTarget.x, window.state.battle.attackTarget.y);
+                        p.ammo--;
+                    }
+                }
+                attackAiming = false;
+                window.state.battle.isAiming = false;
+                window.state.battle.attackTarget = null;
+            }
+        } else {
+            // Normal attack
+            spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+        }
     } else if (e.button === 2) { // Right click – super
         if (p.type === 'Anthony') {
             if (!superAiming) {
@@ -408,7 +453,7 @@ function createBottle(x, y, owner, level, battle, now) {
         type: 'bottle',
         x: x,
         y: y,
-        radius: 64, // 1 tile
+        radius: 128, // 2x larger (was 64)
         damagePerSecond: window.getBrawlerStats('Brewiant', level).damage,
         startTime: now,
         duration: 2000,
@@ -433,6 +478,20 @@ function createBubble(centerX, centerY, owner, level, battle, now) {
     });
 }
 
+// New function to spawn a bottle projectile to a target point
+function spawnBottle(owner, targetX, targetY) {
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
+    if (owner.id === 'player') {
+        owner.lastAttackTime = Date.now();
+        owner.revealUntil = Date.now() + 500;
+    }
+    // For simplicity, we'll create a bottle directly at the target (no travel time)
+    // If you want travel animation, you'd need a bottle projectile system.
+    // We'll just create the area effect at the target.
+    createBottle(targetX, targetY, owner, owner.level, window.state.battle, Date.now());
+}
+
+// ========== START BATTLE ==========
 async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
@@ -505,7 +564,7 @@ function startBattle(customMap = null, background = 'floor') {
         bullets: [],
         bombs: [],
         explosions: [],
-        areaEffects: [], // Brewiant's bottles and bubble
+        areaEffects: [],
         walls: [],
         bushes: [],
         water: [],
@@ -518,7 +577,8 @@ function startBattle(customMap = null, background = 'floor') {
         background: background,
         isAiming: false,
         aimAngle: 0,
-        superTarget: null
+        superTarget: null,
+        attackTarget: null
     };
 
     if (customMap) {
@@ -657,7 +717,6 @@ function gameLoop() {
 }
 
 function updateGame() {
-    // If game already ended, don't process further
     if (gameEnded) return;
 
     const battle = window.state.battle;
@@ -1056,7 +1115,6 @@ function updateGame() {
             starrdropEarned: starrdropEarned
         };
         
-        // Mark game as ended to prevent further updates
         gameEnded = true;
         battle.active = false;
         
@@ -1376,7 +1434,7 @@ function drawGame() {
             ctx.shadowColor = 'cyan';
             ctx.shadowBlur = 10;
             ctx.beginPath();
-            ctx.arc(0, 0, 32, 0, Math.PI * 2);
+            ctx.arc(0, 0, 64, 0, Math.PI * 2); // visual radius (64, but actual radius is 128 for damage)
             ctx.fill();
             ctx.fillStyle = '#fbbf24';
             ctx.shadowBlur = 0;
@@ -1430,6 +1488,17 @@ function drawGame() {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
+        } else if (attackAiming && p.type === 'Brewiant' && window.state.battle.attackTarget) {
+            const target = window.state.battle.attackTarget;
+            ctx.save();
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, 128, 0, Math.PI * 2); // bottle radius indicator
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
         } else if (window.state.battle.isAiming) {
             const angle = window.state.battle.aimAngle;
             const startX = p.x;
@@ -1447,13 +1516,14 @@ function drawGame() {
                 ctx.stroke();
                 ctx.restore();
             } else if (p.type === 'Brewiant') {
+                // For normal aiming (if not using attackAiming) – but Brewiant uses attackAiming, so this might not be used
                 ctx.save();
                 ctx.strokeStyle = '#3b82f6';
                 ctx.lineWidth = 4;
                 ctx.globalAlpha = 0.6;
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
-                ctx.lineTo(startX + Math.cos(angle) * 300, startY + Math.sin(angle) * 300);
+                ctx.lineTo(startX + Math.cos(angle) * 800, startY + Math.sin(angle) * 800);
                 ctx.stroke();
                 ctx.restore();
             } else {
@@ -1612,7 +1682,15 @@ setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
     const p = window.state.battle.player;
     if (p && !p.dying) {
-        spawnBullet(p, ang, false);
+        if (p.type === 'Brewiant') {
+            // For joystick, we don't have a target, so we'll just use angle and distance? Simpler: just create bottle at a point in front.
+            const targetX = p.x + Math.cos(ang) * 400;
+            const targetY = p.y + Math.sin(ang) * 400;
+            spawnBottle(p, targetX, targetY);
+            p.ammo--;
+        } else {
+            spawnBullet(p, ang, false);
+        }
     }
 });
 setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
@@ -1634,7 +1712,6 @@ setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
             window.state.battle.bombs.push(bomb);
             p.superCharge = 0;
         } else if (p.type === 'Brewiant') {
-            // Super bubble centered on player
             createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
             p.superCharge = 0;
         } else {
@@ -1670,6 +1747,17 @@ function spawnBullet(owner, angle, isSuper) {
             passThroughWalls: passThrough
         });
     }
+}
+
+// New function for Brewiant's bottle throw
+function spawnBottle(owner, targetX, targetY) {
+    if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
+    if (owner.id === 'player') {
+        owner.lastAttackTime = Date.now();
+        owner.revealUntil = Date.now() + 500;
+    }
+    // For now, just create the bottle at the target
+    createBottle(targetX, targetY, owner, owner.level, window.state.battle, Date.now());
 }
 
 // ========== VISIBILITY CHANGE HANDLER ==========
