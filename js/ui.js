@@ -6,7 +6,7 @@ function initUI() {
         updateBrawlerMenu();
         updateStatsUI();
         
-        if (window.SVG_ICONS) { 
+        if (window.SVG_ICONS) {
             document.getElementById('mode-icon-container').innerHTML = SVG_ICONS.showdown;
             document.getElementById('icon-trophy-sm').innerHTML = SVG_ICONS.trophy(18);
             document.getElementById('icon-pp-sm').innerHTML = SVG_ICONS.pp(18);
@@ -198,7 +198,18 @@ function toggleBrawlers(show) {
             const level = progress.level || 1;
             
             const div = document.createElement('div');
-            const bgClass = b.rarity === 'starter' ? 'bg-starter' : 'bg-rare-brawler';
+            // Set background based on rarity
+            let bgClass = '';
+            switch (b.rarity) {
+                case 'starter':
+                    bgClass = 'bg-starter';
+                    break;
+                case 'mythic':
+                    bgClass = 'bg-mythic-brawler';
+                    break;
+                default:
+                    bgClass = 'bg-rare-brawler'; // fallback
+            }
             div.className = `p-4 rounded-xl border-4 ${window.state.currentBrawler === name ? 'border-yellow-400' : 'border-black'} ${bgClass} cursor-pointer hover:scale-105 transition-all relative ${!isUnlocked ? 'opacity-80' : ''}`;
             
             const levelText = isUnlocked ? `Lv. ${level}` : '';
