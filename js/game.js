@@ -264,6 +264,49 @@ function checkCollision(x, y, radius) {
     return false;
 }
 
+// ========== ANTHONY BOMB EXPLOSION ==========
+function explodeBomb(b, battle, now) {
+    const centerX = b.x;
+    const centerY = b.y;
+    const radius = 192; // 3 tiles
+
+    // Destroy walls
+    battle.walls = battle.walls.filter(w => {
+        const dx = w.x + 32 - centerX;
+        const dy = w.y + 32 - centerY;
+        return Math.hypot(dx, dy) > radius;
+    });
+
+    // Damage all entities in radius
+    const targets = [battle.player, ...battle.bots];
+    targets.forEach(t => {
+        if (t.hp <= 0 || t.dying) return;
+        const dist = Math.hypot(t.x - centerX, t.y - centerY);
+        if (dist < radius) {
+            if (!t.invincibleUntil || now > t.invincibleUntil) {
+                const stats = window.getBrawlerStats('Anthony', b.level);
+                let damage = stats.superDamage;
+                t.hp -= damage;
+                t.revealUntil = now + 1000;
+                if (t.id === 'player') t.lastDamageTime = now;
+
+                if (t.hp <= 0 && !t.dying) {
+                    t.dying = true;
+                    t.deathTime = now;
+                    let killerName = 'Unknown';
+                    if (b.ownerId === 'player') {
+                        killerName = battle.player.name;
+                    } else {
+                        const killerBot = battle.bots.find(bot => bot.id === b.ownerId);
+                        killerName = killerBot ? killerBot.name : 'Anthony';
+                    }
+                    addKillMessage(killerName, t.name);
+                }
+            }
+        }
+    });
+}
+
 async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
@@ -423,7 +466,8 @@ function startBattle(customMap = null, background = 'floor') {
         hp: maxHp, 
         maxHp: maxHp,
         level: level,
-        ammo: 3, maxAmmo: 3,
+        ammo: bData.ammo, 
+        maxAmmo: bData.ammo,
         type: brawlerName,
         reloading: 0, angle: 0,
         inBush: false, lastDamageTime: Date.now(),
@@ -433,7 +477,8 @@ function startBattle(customMap = null, background = 'floor') {
         superCharge: 0,
         superMax: 100,
         dying: false,
-        deathTime: 0
+        deathTime: 0,
+        slowUntil: 0
     };
 
     for(let i=0; i<9; i++) {
@@ -461,7 +506,8 @@ function startBattle(customMap = null, background = 'floor') {
             superCharge: 0,
             superMax: 100,
             dying: false,
-            deathTime: 0
+            deathTime: 0,
+            slowUntil: 0
         });
     }
 
@@ -549,9 +595,10 @@ function updateGame() {
     const len = Math.hypot(move.x, move.y);
 
     if (len > 0 && !p.dying) {
-        const speed = window.CONFIG.BRAWLERS[window.state.currentBrawler].speed;
-        let dx = (move.x / len) * speed;
-        let dy = (move.y / len) * speed;
+        let currentSpeed = window.CONFIG.BRAWLERS[window.state.currentBrawler].speed;
+        if (p.slowUntil > now) currentSpeed *= 0.95;
+        let dx = (move.x / len) * currentSpeed;
+        let dy = (move.y / len) * currentSpeed;
 
         let newX = p.x + dx;
         let newY = p.y;
@@ -567,10 +614,15 @@ function updateGame() {
         const nextX = b.x + Math.cos(b.angle) * speed;
         const nextY = b.y + Math.sin(b.angle) * speed;
 
+        // Check box destruction
         for (let box of battle.boxes) {
             if (box.hp <= 0) continue;
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
                 nextY + 8 > box.y && nextY - 8 < box.y + 64) {
+                if (b.ownerType === 'Anthony' && b.super) {
+                    explodeBomb(b, battle, now);
+                    return false;
+                }
                 box.hp -= 800;
                 if (box.hp <= 0) {
                     battle.powerCubes.push({ x: box.x + 32, y: box.y + 32, collected: false });
@@ -579,7 +631,38 @@ function updateGame() {
             }
         }
 
-        if (checkCollision(nextX, nextY, 8)) return false;
+        // Wall collision
+        for (const wall of battle.walls) {
+            if (nextX + 8 > wall.x && nextX - 8 < wall.x + 64 &&
+                nextY + 8 > wall.y && nextY - 8 < wall.y + 64) {
+                if (b.ownerType === 'Anthony' && b.super) {
+                    explodeBomb(b, battle, now);
+                }
+                return false;
+            }
+        }
+
+        // Water collision (bullets don't pass water)
+        for (const water of battle.water || []) {
+            if (nextX + 8 > water.x && nextX - 8 < water.x + 64 &&
+                nextY + 8 > water.y && nextY - 8 < water.y + 64) {
+                if (b.ownerType === 'Anthony' && b.super) {
+                    explodeBomb(b, battle, now);
+                }
+                return false;
+            }
+        }
+
+        // Barrel collision
+        for (const barrel of battle.barrels || []) {
+            if (nextX + 8 > barrel.x && nextX - 8 < barrel.x + 64 &&
+                nextY + 8 > barrel.y && nextY - 8 < barrel.y + 64) {
+                if (b.ownerType === 'Anthony' && b.super) {
+                    explodeBomb(b, battle, now);
+                }
+                return false;
+            }
+        }
 
         b.x = nextX;
         b.y = nextY;
@@ -590,10 +673,15 @@ function updateGame() {
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0 || t.dying) continue;
             if (Math.hypot(b.x - t.x, b.y - t.y) < 30) {
+                if (b.ownerType === 'Anthony' && b.super) {
+                    explodeBomb(b, battle, now);
+                    return false;
+                }
                 if (!t.invincibleUntil || now > t.invincibleUntil) {
-                    const attackerType = 'Mysteria';
+                    const attackerType = 'Mysteria'; // default, but we need actual type
+                    // We'll use b.ownerType for damage calculation
                     const stats = typeof window.getBrawlerStats === 'function'
-                        ? window.getBrawlerStats(attackerType, b.level)
+                        ? window.getBrawlerStats(b.ownerType, b.level)
                         : { damage: 800, superDamage: 1200 };
                     let damage = b.super ? stats.superDamage : stats.damage;
                     if (b.ownerId === 'player' && p.power > 0) {
@@ -603,6 +691,11 @@ function updateGame() {
                     t.revealUntil = now + 1000;
                     if (t.id === 'player') {
                         t.lastDamageTime = now;
+                    }
+
+                    // Anthony's normal attack applies slow
+                    if (b.ownerType === 'Anthony' && !b.super) {
+                        t.slowUntil = now + 1000;
                     }
 
                     if (b.ownerId === 'player' && !b.super) {
@@ -622,14 +715,12 @@ function updateGame() {
                         console.log('DEATH DETECTED: killer', killerName, 'victim', t.name);
                         addKillMessage(killerName, t.name);
 
-                        // If the victim is the player, start death animation immediately
                         if (t.id === 'player') {
                             console.log('PLAYER DIED, starting death animation');
                             playerDead = true;
                             deathAnimationStart = now;
-                            // Calculate current alive count for rank
                             const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
-                            const aliveCount = 0 + aliveBots; // player is dying, not counted
+                            const aliveCount = 0 + aliveBots;
                             window.state.lastMatch = {
                                 rank: aliveCount + 1,
                                 coinsEarned: 0,
@@ -663,8 +754,10 @@ function updateGame() {
         if(bot.hp <= 0 || bot.dying) continue;
         if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
         
-        let nx = bot.x + Math.cos(bot.angle) * bot.speed;
-        let ny = bot.y + Math.sin(bot.angle) * bot.speed;
+        let botSpeed = bot.speed;
+        if (bot.slowUntil > now) botSpeed *= 0.95;
+        let nx = bot.x + Math.cos(bot.angle) * botSpeed;
+        let ny = bot.y + Math.sin(bot.angle) * botSpeed;
         nx = Math.max(25, Math.min(mapLimit - 25, nx));
         ny = Math.max(25, Math.min(mapLimit - 25, ny));
 
@@ -708,8 +801,7 @@ function updateGame() {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
-    // This block is now mostly redundant because player death is handled in bullet collision,
-    // but keep it as a safety net.
+    // Safety net for player death
     if (p.hp <= 0 && !p.dying) {
         console.log('Player HP <= 0 (safety), setting death state');
         p.dying = true;
@@ -828,7 +920,6 @@ function hideAfterGame() {
     menu.style.opacity = '0';
     setTimeout(() => {
         menu.style.display = 'none';
-        // Fully exit battle to ensure main menu appears
         exitBattle();
         if (window.state.lastMatch && window.state.lastMatch.starrdropEarned && typeof startStarrDropAnimation === 'function') {
             startStarrDropAnimation();
@@ -1213,7 +1304,8 @@ function spawnBullet(owner, angle, isSuper) {
             dist: 0,
             super: isSuper,
             ownerId: owner.id,
-            level: attackerLevel
+            level: attackerLevel,
+            ownerType: owner.type // store brawler type
         });
     }
 }
@@ -1228,7 +1320,6 @@ document.addEventListener('visibilitychange', function() {
         console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead, 'mainMenuVisible:', mainMenuVisible);
         
         if (gameEnded || playerDead) {
-            // If main menu is already visible, do nothing
             if (mainMenuVisible) {
                 console.log('Already at main menu, ignoring after-game menu');
                 return;
