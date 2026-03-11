@@ -42,6 +42,8 @@ let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
 let superAiming = false;
+let attackAiming = false;        // for Brewiant's attack
+let attackTarget = null;         // target coordinates for Brewiant's attack
 
 // ========== KILL FEED QUEUE ==========
 let killMessages = [];
@@ -178,6 +180,8 @@ canvas.addEventListener('mouseleave', () => {
         window.state.battle.isAiming = false;
         superAiming = false;
         window.state.battle.superTarget = null;
+        attackAiming = false;
+        attackTarget = null;
     }
 });
 
@@ -188,7 +192,7 @@ canvas.addEventListener('mousemove', (e) => {
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
     const p = window.state.battle.player;
     if (p) {
-        if (superAiming && (p.type === 'Anthony' || p.type === 'Brewiant')) {
+        if (superAiming && p.type === 'Anthony') {
             const dx = worldX - p.x;
             const dy = worldY - p.y;
             const dist = Math.hypot(dx, dy);
@@ -196,6 +200,18 @@ canvas.addEventListener('mousemove', (e) => {
             const targetDist = Math.min(dist, maxDist);
             const angle = Math.atan2(dy, dx);
             window.state.battle.superTarget = {
+                x: p.x + Math.cos(angle) * targetDist,
+                y: p.y + Math.sin(angle) * targetDist
+            };
+            window.state.battle.isAiming = true;
+        } else if (attackAiming && p.type === 'Brewiant') {
+            const dx = worldX - p.x;
+            const dy = worldY - p.y;
+            const dist = Math.hypot(dx, dy);
+            const maxDist = 1600; // 25 tiles
+            const targetDist = Math.min(dist, maxDist);
+            const angle = Math.atan2(dy, dx);
+            attackTarget = {
                 x: p.x + Math.cos(angle) * targetDist,
                 y: p.y + Math.sin(angle) * targetDist
             };
@@ -221,7 +237,46 @@ canvas.addEventListener('mousedown', (e) => {
     const p = window.state.battle.player;
     
     if (e.button === 0) { // Left click – main attack
-        spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+        if (p.type === 'Brewiant') {
+            if (!attackAiming) {
+                // Enter aiming mode
+                attackAiming = true;
+                window.state.battle.isAiming = true;
+                const dx = worldX - p.x;
+                const dy = worldY - p.y;
+                const dist = Math.hypot(dx, dy);
+                const maxDist = 1600; // 25 tiles
+                const targetDist = Math.min(dist, maxDist);
+                const angle = Math.atan2(dy, dx);
+                attackTarget = {
+                    x: p.x + Math.cos(angle) * targetDist,
+                    y: p.y + Math.sin(angle) * targetDist
+                };
+            } else {
+                // Fire attack bottle
+                if (p.ammo >= 1 && !p.dying) {
+                    const bomb = {
+                        x: p.x,
+                        y: p.y,
+                        targetX: attackTarget.x,
+                        targetY: attackTarget.y,
+                        startTime: Date.now(),
+                        duration: 400,
+                        owner: p,
+                        level: p.level,
+                        isBottle: true
+                    };
+                    window.state.battle.bombs.push(bomb);
+                    p.ammo--;
+                    p.lastAttackTime = Date.now();
+                }
+                attackAiming = false;
+                window.state.battle.isAiming = false;
+                attackTarget = null;
+            }
+        } else {
+            spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+        }
     } else if (e.button === 2) { // Right click – super
         if (p.type === 'Anthony') {
             if (!superAiming) {
@@ -259,43 +314,14 @@ canvas.addEventListener('mousedown', (e) => {
                 window.state.battle.superTarget = null;
             }
         } else if (p.type === 'Brewiant') {
-            if (!superAiming) {
-                // First right-click: enter aiming mode for bottle throw
-                superAiming = true;
-                window.state.battle.isAiming = true;
-                const dx = worldX - p.x;
-                const dy = worldY - p.y;
-                const dist = Math.hypot(dx, dy);
-                const maxDist = 1600; // 25 tiles
-                const targetDist = Math.min(dist, maxDist);
-                const angle = Math.atan2(dy, dx);
-                window.state.battle.superTarget = {
-                    x: p.x + Math.cos(angle) * targetDist,
-                    y: p.y + Math.sin(angle) * targetDist
-                };
-            } else {
-                // Second right-click: throw bottle
-                if (p.superCharge >= p.superMax && !p.dying) {
-                    if (window.state.battle.superTarget) {
-                        const bomb = {
-                            x: p.x,
-                            y: p.y,
-                            targetX: window.state.battle.superTarget.x,
-                            targetY: window.state.battle.superTarget.y,
-                            startTime: Date.now(),
-                            duration: 400,
-                            owner: p,
-                            level: p.level,
-                            isBottle: true // mark as bottle super
-                        };
-                        window.state.battle.bombs.push(bomb);
-                        p.superCharge = 0;
-                    }
-                }
-                superAiming = false;
-                window.state.battle.isAiming = false;
-                window.state.battle.superTarget = null;
+            // One-step super: create bubble at current position
+            if (p.superCharge >= p.superMax && !p.dying) {
+                createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
+                p.superCharge = 0;
             }
+            superAiming = false;
+            window.state.battle.isAiming = false;
+            window.state.battle.superTarget = null;
         } else {
             // Other brawlers: normal two-step super (aim then fire)
             if (!superAiming) {
@@ -756,7 +782,7 @@ function updateGame() {
         const elapsed = now - bomb.startTime;
         if (elapsed >= bomb.duration) {
             if (bomb.isBottle) {
-                // Brewiant's super bottle
+                // Brewiant's attack bottle
                 createBottle(bomb.targetX, bomb.targetY, bomb.owner, bomb.level, battle, now);
             } else {
                 // Anthony's bomb
@@ -1487,14 +1513,25 @@ function drawGame() {
 
     // Draw aiming lines
     if (mouseInsideCanvas && p && !p.dying) {
-        if (superAiming && (p.type === 'Anthony' || p.type === 'Brewiant') && window.state.battle.superTarget) {
+        if (superAiming && p.type === 'Anthony' && window.state.battle.superTarget) {
             const target = window.state.battle.superTarget;
             ctx.save();
-            ctx.strokeStyle = p.type === 'Anthony' ? '#ff0000' : '#3b82f6';
+            ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
             ctx.setLineDash([10, 10]);
             ctx.beginPath();
             ctx.arc(target.x, target.y, 192, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        } else if (attackAiming && p.type === 'Brewiant' && attackTarget) {
+            const target = attackTarget;
+            ctx.save();
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, 128, 0, Math.PI * 2); // 2‑tile radius
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
@@ -1702,20 +1739,7 @@ setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
             window.state.battle.bombs.push(bomb);
             p.superCharge = 0;
         } else if (p.type === 'Brewiant') {
-            const targetX = p.x + Math.cos(ang) * 800;
-            const targetY = p.y + Math.sin(ang) * 800;
-            const bomb = {
-                x: p.x,
-                y: p.y,
-                targetX: targetX,
-                targetY: targetY,
-                startTime: Date.now(),
-                duration: 400,
-                owner: p,
-                level: p.level,
-                isBottle: true
-            };
-            window.state.battle.bombs.push(bomb);
+            createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
             p.superCharge = 0;
         } else {
             spawnBullet(p, ang, true);
