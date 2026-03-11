@@ -56,12 +56,12 @@ window.CONFIG = {
         },
         'Anthony': {
             color: '#ef4444', // bright red
-            hp: 4200,
-            damage: 700,      // laser damage per hit
-            superDamage: 2000, // bomb explosion damage
+            hp: 3600,          // reduced by 600 (was 4200)
+            damage: 700,
+            superDamage: 2000,
             ammo: 2,
             speed: 5,
-            reload: 1.2,      // faster reload
+            reload: 1.2,
             type: 'Laser',
             pfp: 'A',
             rarity: 'mythic',
@@ -107,9 +107,8 @@ function loadBrawlerImages() {
     return new Promise((resolve) => {
         let total = 0;
         let loaded = 0;
-        // Count total images to load
         for (let name in window.BrawlerImages) {
-            total += 3; // menu, icon, game
+            total += 3;
         }
         function checkAll() { loaded++; if (loaded === total) resolve(); }
         
