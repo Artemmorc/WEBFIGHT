@@ -318,6 +318,9 @@ function toggleBrawlers(show) {
                 case 'starter':
                     bgClass = 'bg-starter';
                     break;
+                case 'rare':
+                    bgClass = 'bg-rare-brawler';
+                    break;
                 case 'mythic':
                     bgClass = 'bg-mythic-brawler';
                     break;
