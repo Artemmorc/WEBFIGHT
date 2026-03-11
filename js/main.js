@@ -65,7 +65,7 @@ window.CONFIG = {
             type: 'Laser',
             pfp: 'A',
             rarity: 'mythic',
-            unlocked: false    // will be unlocked via starr drops
+            unlocked: false
         }
     },
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
