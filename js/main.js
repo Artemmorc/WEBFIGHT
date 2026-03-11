@@ -52,11 +52,13 @@ window.CONFIG = {
             type: 'Shotgun', 
             pfp: 'M', 
             rarity: 'starter', 
-            unlocked: true 
+            unlocked: true,
+            lore: 'Mysteria is a mysterious creature from the desert, wielding a powerful shotgun.',
+            ability: 'Fires a spread of 5 bullets. Super fires a concentrated blast.'
         },
         'Anthony': {
-            color: '#ef4444', // bright red
-            hp: 3600,          // reduced by 600 (was 4200)
+            color: '#ef4444',
+            hp: 3600,
             damage: 700,
             superDamage: 2000,
             ammo: 2,
@@ -65,7 +67,9 @@ window.CONFIG = {
             type: 'Laser',
             pfp: 'A',
             rarity: 'mythic',
-            unlocked: false
+            unlocked: false,
+            lore: 'Anthony is a cop who watches over the city from his tower. When night falls, he starts his haunt, using his laser to slow enemies and his bomb to destroy cover.',
+            ability: 'Laser slows enemies by 5% for 1 second. Bomb destroys walls and pushes enemies away.'
         }
     },
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
