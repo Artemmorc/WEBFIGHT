@@ -52,7 +52,6 @@ function addKillMessage(killerName, victimName) {
     };
     killMessages.push(msg);
     console.log('KILL FEED: added message', msg.text);
-    // Remove after 3 seconds
     setTimeout(() => {
         killMessages = killMessages.filter(m => m !== msg);
         console.log('KILL FEED: removed message', msg.text);
@@ -118,7 +117,6 @@ function setupJoystick(id, stickId, type, onRelease) {
         const normY = dy / max;
         window.state.battle.joystick[type] = { x: normX, y: normY };
 
-        // Update aim angle for attack and super
         if (type === 'attack' || type === 'super') {
             if (normX !== 0 || normY !== 0) {
                 window.state.battle.aimAngle = Math.atan2(normY, normX);
@@ -135,7 +133,6 @@ function setupJoystick(id, stickId, type, onRelease) {
                 const ang = Math.atan2(joy.y, joy.x);
                 onRelease(ang);
             }
-            // Clear aim only if not mouse aiming
             if (type !== 'attack' && type !== 'super') {
                 window.state.battle.isAiming = false;
             }
@@ -194,23 +191,21 @@ canvas.addEventListener('mousemove', (e) => {
     }
 });
 
-// Block right-click context menu on canvas
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 });
 
-// Mouse down handler: left click = main attack, right click = super
 canvas.addEventListener('mousedown', (e) => {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
-    e.preventDefault(); // prevent any default actions (like drag)
+    e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
     const p = window.state.battle.player;
     
-    if (e.button === 0) { // Left click – main attack
+    if (e.button === 0) {
         spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
-    } else if (e.button === 2) { // Right click – super
+    } else if (e.button === 2) {
         if (p.superCharge >= p.superMax && !p.dying) {
             spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), true);
             p.superCharge = 0;
@@ -307,7 +302,7 @@ async function startBattlePre() {
 }
 
 function startBattle(customMap = null, background = 'floor') {
-    gameEnded = false; // reset flag for new game
+    gameEnded = false;
     window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('battle-screen').classList.remove('hidden');
@@ -331,7 +326,7 @@ function startBattle(customMap = null, background = 'floor') {
     const maxHp = stats.health;
     
     powerCubesCollected = 0;
-    killMessages = []; // clear kill feed for new battle
+    killMessages = [];
     
     window.state.battle = {
         active: true,
@@ -470,7 +465,6 @@ function startBattle(customMap = null, background = 'floor') {
         });
     }
 
-    // Ensure kill feed exists
     ensureKillFeed();
 
     if (gameLoopId) cancelAnimationFrame(gameLoopId);
@@ -506,16 +500,14 @@ function updateGame() {
                 console.log('Player death finished, calling showAfterGame with rank:', window.state.lastMatch.rank);
                 showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
             }
-            // Do NOT call exitBattle() here – let the after-game menu handle it
         }
         return;
     }
 
-    // Handle bot death animations (remove after short delay)
     battle.bots = battle.bots.filter(bot => {
         if (bot.dying) {
             const elapsed = now - bot.deathTime;
-            return elapsed < 800; // keep for 800ms to show animation
+            return elapsed < 800;
         }
         return true;
     });
@@ -565,13 +557,11 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
-    // Process bullets – now with max range 300 (matches aiming lines)
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
         const nextY = b.y + Math.sin(b.angle) * speed;
 
-        // Check box destruction
         for (let box of battle.boxes) {
             if (box.hp <= 0) continue;
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
@@ -589,7 +579,6 @@ function updateGame() {
         b.x = nextX;
         b.y = nextY;
         b.dist += speed;
-        // Max range 300 (previously 600)
         if (b.dist > 300) return false;
 
         const targets = [p, ...battle.bots];
@@ -635,7 +624,6 @@ function updateGame() {
         return true;
     });
 
-    // Power cube collection
     for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
         const cube = battle.powerCubes[i];
         if (!cube.collected && Math.hypot(p.x - cube.x, p.y - cube.y) < 30) {
@@ -651,7 +639,6 @@ function updateGame() {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
-    // Bot AI (only if not dying)
     for (let bot of battle.bots) {
         if(bot.hp <= 0 || bot.dying) continue;
         if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
@@ -720,7 +707,6 @@ function updateGame() {
         window.playerState.coins += coinsEarned;
         
         const brawlerName = window.state.currentBrawler;
-        // Ensure brawlerProgress entry exists
         if (!window.brawlerProgress[brawlerName]) {
             window.brawlerProgress[brawlerName] = { unlocked: true, trophies: 0, level: 1 };
         }
@@ -728,7 +714,6 @@ function updateGame() {
         const trophyGain = 10;
         window.brawlerProgress[brawlerName].trophies = currentTrophies + trophyGain;
         
-        // Update total trophies
         window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + (b.trophies || 0), 0);
         
         let starrdropEarned = false;
@@ -740,7 +725,7 @@ function updateGame() {
         
         if (typeof saveProfileToDB === 'function') saveProfileToDB();
         if (typeof saveBrawlerProgress === 'function') {
-            saveBrawlerProgress(); // saves entire row
+            saveBrawlerProgress();
         }
         
         window.state.lastMatch = {
@@ -751,7 +736,6 @@ function updateGame() {
         
         console.log('VICTORY! aliveCount === 1, calling showAfterGame');
         showAfterGame(1, coinsEarned, starrdropEarned);
-        // Do NOT call exitBattle() here – let the after-game menu handle it
         return;
     }
 
@@ -761,7 +745,7 @@ function updateGame() {
 
 function exitBattle() {
     console.log('exitBattle called');
-    gameEnded = true; // prevent visibility handler from forcing battle screen
+    gameEnded = true;
     if (gameLoopId) {
         cancelAnimationFrame(gameLoopId);
         gameLoopId = null;
@@ -773,7 +757,6 @@ function exitBattle() {
     
     const battleScreen = document.getElementById('battle-screen');
     battleScreen.classList.add('hidden');
-    // Reset any forced styles
     battleScreen.style.zIndex = '';
     battleScreen.style.display = '';
     
@@ -788,10 +771,9 @@ function showAfterGame(rank, coins, starrdropEarned = false) {
         console.error('aftergame-menu not found!');
         return;
     }
-    // Force menu to appear
     menu.style.display = 'flex';
     menu.style.opacity = '1';
-    menu.style.zIndex = '100000'; // very high
+    menu.style.zIndex = '100000';
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
     
@@ -813,7 +795,6 @@ function showAfterGame(rank, coins, starrdropEarned = false) {
         }
     }
     
-    // Ensure battle screen is still visible behind menu (but we'll hide it in exitBattle)
     const battleScreen = document.getElementById('battle-screen');
     battleScreen.style.zIndex = '1000';
     battleScreen.style.display = 'block';
@@ -1065,12 +1046,10 @@ function drawGame() {
 
     ctx.restore();
 
-    // Ensure kill feed exists
     if (!killFeed) {
         killFeed = ensureKillFeed();
     }
 
-    // Draw kill feed
     if (killFeed) {
         killFeed.innerHTML = '';
         killMessages.slice(-5).forEach(msg => {
@@ -1175,7 +1154,6 @@ function updateKeyboardMovement() {
     updateMoveJoystickVisual();
 }
 
-// Setup joysticks
 setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
     const p = window.state.battle.player;
@@ -1223,7 +1201,6 @@ document.addEventListener('visibilitychange', function() {
         const menuVisible = afterGameMenu && (afterGameMenu.style.display === 'flex' || window.getComputedStyle(afterGameMenu).display === 'flex');
         console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead);
         
-        // If game ended or player is dead, ensure after-game menu is shown
         if (gameEnded || playerDead) {
             console.log('Game ended or player dead, ensuring after-game menu');
             if (window.state.lastMatch) {
@@ -1232,7 +1209,6 @@ document.addEventListener('visibilitychange', function() {
             return;
         }
         
-        // Otherwise, if battle active, force battle screen
         if (window.state.battle && window.state.battle.active && !menuVisible) {
             console.log('Tab visible, battle active – forcing battle screen');
             const battleScreen = document.getElementById('battle-screen');
@@ -1249,7 +1225,6 @@ document.addEventListener('visibilitychange', function() {
                 canvas.width = oldWidth;
                 console.log('Forced canvas repaint');
             }
-            // Ensure kill feed exists and is visible
             killFeed = ensureKillFeed();
             if (killFeed) {
                 killFeed.style.display = 'flex';
@@ -1258,6 +1233,19 @@ document.addEventListener('visibilitychange', function() {
         }
     }
 });
+
+// Fallback: if after 2 seconds after death the menu hasn't appeared, force it
+setInterval(() => {
+    if (playerDead && !gameEnded) {
+        const menu = document.getElementById('aftergame-menu');
+        if (menu && (menu.style.display !== 'flex' || window.getComputedStyle(menu).display !== 'flex')) {
+            console.log('Fallback: forcing after-game menu');
+            if (window.state.lastMatch) {
+                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
+            }
+        }
+    }
+}, 1000);
 
 window.startBattlePre = startBattlePre;
 window.showAfterGame = showAfterGame;
