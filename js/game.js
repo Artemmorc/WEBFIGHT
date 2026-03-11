@@ -506,7 +506,7 @@ function updateGame() {
                 console.log('Player death finished, calling showAfterGame with rank:', window.state.lastMatch.rank);
                 showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
             }
-            exitBattle();
+            // Do NOT call exitBattle() here – let the after-game menu handle it
         }
         return;
     }
@@ -711,7 +711,7 @@ function updateGame() {
             coinsEarned: 0,
             starrdropEarned: false
         };
-        console.log('Player died, setting lastMatch rank:', aliveCount+1);
+        console.log('PLAYER DIED, starting death animation, rank:', aliveCount+1);
         return;
     }
 
@@ -751,7 +751,7 @@ function updateGame() {
         
         console.log('VICTORY! aliveCount === 1, calling showAfterGame');
         showAfterGame(1, coinsEarned, starrdropEarned);
-        exitBattle();
+        // Do NOT call exitBattle() here – let the after-game menu handle it
         return;
     }
 
