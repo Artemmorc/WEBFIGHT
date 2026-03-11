@@ -1,5 +1,8 @@
 // ========== UI FUNCTIONS ==========
 
+let currentBrawlerDetail = null;
+let currentTab = 'stats';
+
 function initUI() {
     loadBrawlerImages().then(() => {
         window.Textures.generate();
@@ -175,45 +178,105 @@ function showBrawlerGrid() {
     document.getElementById('brawler-detail').classList.add('hidden');
 }
 
+function switchBrawlerTab(tab) {
+    currentTab = tab;
+    // Update tab button styles
+    ['stats', 'upgrade', 'skins', 'lore'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        if (btn) {
+            if (t === tab) {
+                btn.classList.remove('bg-gray-600');
+                btn.classList.add('bg-purple-600');
+            } else {
+                btn.classList.remove('bg-purple-600');
+                btn.classList.add('bg-gray-600');
+            }
+        }
+        const content = document.getElementById(`tab-content-${t}`);
+        if (content) {
+            content.classList.toggle('hidden', t !== tab);
+        }
+    });
+}
+
 function showBrawlerDetail(name) {
     const progress = window.brawlerProgress[name];
     if (!progress) return;
+    currentBrawlerDetail = name;
     const bData = CONFIG.BRAWLERS[name];
     const level = progress.level;
     const stats = getBrawlerStats(name, level);
+    const nextLevelStats = level < 11 ? getBrawlerStats(name, level + 1) : null;
 
+    // Update portrait and basic info
+    document.getElementById('detail-brawler-portrait').innerHTML = createBrawlerSVG(name, 'large');
     document.getElementById('detail-brawler-name').innerText = name;
     document.getElementById('detail-brawler-rarity').innerText = bData.rarity.toUpperCase();
     document.getElementById('detail-brawler-trophies').innerText = progress.trophies;
     document.getElementById('detail-brawler-level').innerText = level;
+
+    // Stats tab
     document.getElementById('detail-brawler-hp').innerText = stats.health;
     document.getElementById('detail-brawler-damage').innerText = stats.damage;
     document.getElementById('detail-brawler-super').innerText = stats.superDamage;
     document.getElementById('detail-brawler-speed').innerText = bData.speed;
     document.getElementById('detail-brawler-ammo').innerText = bData.ammo;
     document.getElementById('detail-brawler-reload').innerText = bData.reload;
-    document.getElementById('detail-brawler-lore').innerText = bData.lore || 'No lore available.';
-    document.getElementById('detail-brawler-ability').innerText = bData.ability || 'No special ability.';
-    document.getElementById('detail-brawler-portrait').innerHTML = createBrawlerSVG(name, 'large');
 
-    const upgradeBtn = document.getElementById('detail-upgrade-btn');
+    // Upgrade tab
     if (level >= 11) {
-        upgradeBtn.disabled = true;
-        upgradeBtn.innerText = 'MAX LEVEL';
-        upgradeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('upgrade-current-level').innerText = level;
+        document.getElementById('upgrade-next-level').innerText = 'MAX';
+        document.getElementById('upgrade-cost-coins').innerText = '-';
+        document.getElementById('upgrade-cost-pp').innerText = '-';
+        document.getElementById('detail-upgrade-btn').disabled = true;
+        document.getElementById('detail-upgrade-btn').classList.add('opacity-50', 'cursor-not-allowed');
     } else {
-        upgradeBtn.disabled = false;
-        upgradeBtn.innerText = 'Upgrade';
-        upgradeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        upgradeBtn.onclick = () => {
-            showUpgradeModal(name);
-            // After upgrade, refresh detail
+        document.getElementById('upgrade-current-level').innerText = level;
+        document.getElementById('upgrade-next-level').innerText = level + 1;
+        const cost = window.UPGRADE_COSTS[level - 1];
+        document.getElementById('upgrade-cost-coins').innerText = cost.coins;
+        document.getElementById('upgrade-cost-pp').innerText = cost.pp;
+        document.getElementById('detail-upgrade-btn').disabled = false;
+        document.getElementById('detail-upgrade-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+        document.getElementById('detail-upgrade-btn').onclick = () => {
+            upgradeBrawler(name);
             setTimeout(() => showBrawlerDetail(name), 100);
         };
     }
 
+    // Lore tab
+    document.getElementById('detail-brawler-lore').innerText = bData.lore || 'No lore available.';
+    document.getElementById('detail-brawler-ability').innerText = bData.ability || 'No special ability.';
+
+    // Skins tab (placeholder)
+    const skinsGrid = document.getElementById('detail-skins-grid');
+    skinsGrid.innerHTML = '';
+    if (bData.skins && bData.skins.length) {
+        bData.skins.forEach(skin => {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-700 p-2 rounded-xl text-center border-2 border-white/30';
+            div.innerText = skin.name;
+            skinsGrid.appendChild(div);
+        });
+    } else {
+        const div = document.createElement('div');
+        div.className = 'col-span-3 text-center text-gray-400';
+        div.innerText = 'No skins yet.';
+        skinsGrid.appendChild(div);
+    }
+
+    // Equip button
+    document.getElementById('detail-equip-btn').onclick = () => {
+        window.state.currentBrawler = name;
+        updateBrawlerMenu();
+        alert(`${name} equipped!`);
+    };
+
+    // Show detail, hide grid, reset to stats tab
     document.getElementById('brawler-list').classList.add('hidden');
     document.getElementById('brawler-detail').classList.remove('hidden');
+    switchBrawlerTab('stats');
 }
 
 function showUpgradeModal(brawlerName) {
@@ -273,7 +336,7 @@ function toggleBrawlers(show) {
             
             if (isUnlocked) {
                 div.onclick = () => {
-                    // Instead of selecting brawler, open detail view
+                    // Open detail view instead of selecting brawler
                     showBrawlerDetail(name);
                 };
             }
