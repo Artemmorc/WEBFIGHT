@@ -333,6 +333,8 @@ function checkCollision(x, y, radius) {
 function createBombExplosion(centerX, centerY, battle, now, owner) {
     const radius = 192; // 3 tiles
     const pushForce = 200;
+    const mapSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+    const tileSize = window.CONFIG.TILE_SIZE;
 
     battle.explosions.push({
         x: centerX,
@@ -341,6 +343,7 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
         duration: 500
     });
 
+    // Destroy walls, bushes, barrels
     battle.walls = battle.walls.filter(w => {
         const dx = w.x + 32 - centerX;
         const dy = w.y + 32 - centerY;
@@ -359,9 +362,10 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
         return Math.hypot(dx, dy) > radius;
     });
 
+    // Damage and push enemies
     const targets = [battle.player, ...battle.bots];
-    targets.forEach(t => {
-        if (t.hp <= 0 || t.dying) return;
+    for (let t of targets) {
+        if (t.hp <= 0 || t.dying) continue;
         const dx = t.x - centerX;
         const dy = t.y - centerY;
         const dist = Math.hypot(dx, dy);
@@ -373,11 +377,21 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
                 t.revealUntil = now + 1000;
                 if (t.id === 'player') t.lastDamageTime = now;
 
+                // Push away from center, but avoid walls
                 if (dist > 1) {
                     const pushX = (dx / dist) * pushForce;
                     const pushY = (dy / dist) * pushForce;
-                    t.x = Math.max(25, Math.min(window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE - 25, t.x + pushX));
-                    t.y = Math.max(25, Math.min(window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE - 25, t.y + pushY));
+                    let newX = t.x + pushX;
+                    let newY = t.y + pushY;
+                    // Clamp to map bounds
+                    newX = Math.max(25, Math.min(mapSize - 25, newX));
+                    newY = Math.max(25, Math.min(mapSize - 25, newY));
+                    // Check if new position collides with walls, water, etc.
+                    if (!checkCollision(newX, newY, 25)) {
+                        t.x = newX;
+                        t.y = newY;
+                    }
+                    // If collision, stay at original position (or could try sliding, but keep simple)
                 }
 
                 if (t.hp <= 0 && !t.dying) {
@@ -388,7 +402,7 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
                 }
             }
         }
-    });
+    }
 }
 
 async function startBattlePre() {
