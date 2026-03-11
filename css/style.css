@@ -434,6 +434,16 @@ canvas {
     }
 }
 
+/* Brawler rarity backgrounds */
+.bg-starter {
+    background: linear-gradient(145deg, #bae6fd, #7dd3fc);
+}
+.bg-mythic-brawler {
+    background: linear-gradient(145deg, #ef4444, #b91c1c);
+    border-color: #fbbf24;
+}
+/* Add more rarity classes as needed */
+
 /* Kill feed messages */
 .kill-message {
     background: rgba(0,0,0,0.7);
