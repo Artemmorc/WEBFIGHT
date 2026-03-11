@@ -64,6 +64,8 @@ canvas {
     display: block;
     background: #d4a373;
     touch-action: none;
+    max-width: 100%;
+    height: auto;
 }
 
 .rarity-rare { color: #4ade80; text-shadow: 0 0 10px #4ade80; } 
@@ -317,102 +319,6 @@ canvas {
     box-shadow: none;
 }
 
-/* ========== RESPONSIVE TWEAKS FOR MOBILE ========== */
-@media (max-width: 768px) {
-    /* Scale down joysticks */
-    .joystick-base {
-        width: 100px;
-        height: 100px;
-    }
-    .joystick-stick {
-        width: 45px;
-        height: 45px;
-    }
-    /* Scale down buttons */
-    .btn-bs {
-        font-size: 1.2rem;
-        padding: 0.8rem 1.5rem;
-    }
-    /* Login box */
-    .login-box {
-        width: 90%;
-        padding: 1.5rem;
-    }
-    .login-box input {
-        font-size: 1rem;
-        padding: 0.8rem;
-    }
-    .login-box button {
-        font-size: 1.2rem;
-        padding: 0.8rem;
-    }
-    /* After-game menu */
-    .aftergame-box {
-        width: 90%;
-        padding: 1.5rem;
-    }
-    .aftergame-title {
-        font-size: 2.5rem;
-    }
-    .aftergame-rank {
-        font-size: 2rem;
-    }
-    .aftergame-reward {
-        font-size: 1.5rem;
-    }
-    .aftergame-trophy-gain {
-        font-size: 1.4rem;
-    }
-    .aftergame-button {
-        font-size: 1.5rem;
-        padding: 0.8rem 2rem;
-    }
-    /* Fight text */
-    .fight-text {
-        font-size: 4rem;
-    }
-    /* Profile and shop modals */
-    .modal-overlay > div {
-        width: 95%;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-    #profile-modal .grid-cols-2 {
-        grid-template-columns: 1fr;
-    }
-    #shop-modal .grid-cols-4 {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    /* Brawler selection */
-    #brawler-screen .grid-cols-4 {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    /* Admin panel */
-    #adminPanel {
-        width: 90%;
-    }
-}
-
-/* ========== LANDSCAPE ORIENTATION FIX ========== */
-@media (orientation: portrait) {
-    /* Optionally show a message to rotate device */
-    body::after {
-        content: "Please rotate your device to landscape mode";
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #000;
-        color: white;
-        font-size: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-    }
-}
-
 /* Kill feed messages */
 .kill-message {
     background: rgba(0,0,0,0.7);
@@ -431,4 +337,184 @@ canvas {
     0% { opacity: 1; transform: translateX(0); }
     70% { opacity: 1; }
     100% { opacity: 0; transform: translateX(-20px); }
+}
+
+/* ========== MOBILE OPTIMIZATIONS ========== */
+@media (max-width: 768px) {
+    /* Scale down joysticks */
+    .joystick-base {
+        width: 70px;
+        height: 70px;
+        border-width: 3px;
+    }
+    .joystick-stick {
+        width: 32px;
+        height: 32px;
+    }
+    /* Scale down main menu buttons */
+    .btn-bs {
+        font-size: 1rem !important;
+        padding: 0.4rem 1rem !important;
+        border-width: 3px;
+    }
+    #brawler-stand {
+        min-height: 200px !important;
+        margin-top: -60px !important;
+    }
+    #brawler-stand svg, #brawler-stand img {
+        width: 200px !important;
+        height: 200px !important;
+    }
+    #current-brawler-name {
+        font-size: 1.2rem !important;
+        padding: 0.5rem 2rem !important;
+        bottom: 0;
+    }
+    /* Top bar */
+    .flex.justify-between.items-start {
+        padding: 0.5rem !important;
+    }
+    #display-player-name {
+        font-size: 0.9rem !important;
+    }
+    .w-14.h-14 {
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+    }
+    .gap-4 {
+        gap: 0.5rem !important;
+    }
+    .gap-3 {
+        gap: 0.3rem !important;
+    }
+    .px-4.py-2 {
+        padding: 0.2rem 0.5rem !important;
+    }
+    .text-xl {
+        font-size: 0.8rem !important;
+    }
+    .text-sm {
+        font-size: 0.6rem !important;
+    }
+    /* PLAY button */
+    .absolute.right-6.bottom-6 button {
+        padding: 1rem 3rem !important;
+        font-size: 1.5rem !important;
+        border-width: 3px;
+    }
+    /* Game mode indicator */
+    .absolute.bottom-6.left-1\/2 .btn-bs {
+        padding: 0.5rem 2rem !important;
+        font-size: 1rem !important;
+    }
+    .w-14.h-14 {
+        width: 2rem !important;
+        height: 2rem !important;
+    }
+    /* Shop modal */
+    #shop-modal h1.text-7xl {
+        font-size: 3rem !important;
+    }
+    #shop-modal .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    .shop-card {
+        padding: 0.5rem !important;
+    }
+    .shop-card .text-xl {
+        font-size: 0.7rem !important;
+    }
+    .w-36.h-36 {
+        width: 4rem !important;
+        height: 4rem !important;
+    }
+    /* Brawler selection */
+    #brawler-screen .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    #brawler-screen .p-4 {
+        padding: 0.5rem !important;
+    }
+    #brawler-screen .h-32 {
+        height: 5rem !important;
+    }
+    /* Profile modal */
+    #profile-modal .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+    #profile-modal .text-5xl {
+        font-size: 2rem !important;
+    }
+    #profile-modal input {
+        font-size: 1rem !important;
+        padding: 0.5rem !important;
+    }
+    /* After-game menu */
+    .aftergame-box {
+        width: 90%;
+        padding: 1rem;
+    }
+    .aftergame-title {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .aftergame-rank {
+        font-size: 1.5rem;
+        margin: 0.3rem 0;
+    }
+    .aftergame-reward {
+        font-size: 1.2rem;
+        margin: 0.3rem 0;
+    }
+    .aftergame-trophy-gain {
+        font-size: 1rem;
+        margin: 0.2rem 0;
+    }
+    .aftergame-daily-wins {
+        font-size: 1rem;
+        margin: 0.3rem 0;
+    }
+    .aftergame-button {
+        font-size: 1.2rem;
+        padding: 0.5rem 2rem;
+        margin-top: 0.5rem;
+    }
+    /* Kill feed */
+    .kill-message {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    /* Login screen */
+    .login-box {
+        width: 90%;
+        padding: 1rem;
+    }
+    .login-box input {
+        font-size: 0.9rem;
+        padding: 0.5rem;
+    }
+    .login-box button {
+        font-size: 1rem;
+        padding: 0.5rem;
+    }
+}
+
+/* ========== LANDSCAPE ORIENTATION FIX ========== */
+@media (orientation: portrait) {
+    body::after {
+        content: "Please rotate your device to landscape mode";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        color: white;
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
 }
