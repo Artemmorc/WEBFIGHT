@@ -45,9 +45,6 @@ let mouseDown = false;
 // ========== KILL FEED QUEUE ==========
 let killMessages = [];
 
-// ========== BULLET MAX DISTANCE (match aiming line) ==========
-const BULLET_MAX_DISTANCE = 300;
-
 function addKillMessage(killerName, victimName) {
     const msg = {
         text: `${killerName} killed ${victimName}`,
@@ -568,7 +565,7 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
-    // Process bullets – limit distance to BULLET_MAX_DISTANCE
+    // Process bullets – now with max range 300 (matches aiming lines)
     battle.bullets = battle.bullets.filter(b => {
         const speed = 12;
         const nextX = b.x + Math.cos(b.angle) * speed;
@@ -592,8 +589,8 @@ function updateGame() {
         b.x = nextX;
         b.y = nextY;
         b.dist += speed;
-        // Remove if beyond max range
-        if (b.dist > BULLET_MAX_DISTANCE) return false;
+        // Max range 300 (previously 600)
+        if (b.dist > 300) return false;
 
         const targets = [p, ...battle.bots];
         for (let t of targets) {
@@ -1024,7 +1021,7 @@ function drawGame() {
         const angle = window.state.battle.aimAngle;
         const startX = p.x;
         const startY = p.y;
-        const lineLength = BULLET_MAX_DISTANCE; // use same max distance
+        const lineLength = 300;
         const spreadAngle = 0.15;
 
         ctx.save();
@@ -1225,8 +1222,18 @@ document.addEventListener('visibilitychange', function() {
         const afterGameMenu = document.getElementById('aftergame-menu');
         const menuVisible = afterGameMenu && (afterGameMenu.style.display === 'flex' || window.getComputedStyle(afterGameMenu).display === 'flex');
         console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead);
-        // Only force battle screen if game is still active and not ended and menu not visible
-        if (window.state.battle && window.state.battle.active && !gameEnded && !menuVisible && !playerDead) {
+        
+        // If game ended or player is dead, ensure after-game menu is shown
+        if (gameEnded || playerDead) {
+            console.log('Game ended or player dead, ensuring after-game menu');
+            if (window.state.lastMatch) {
+                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
+            }
+            return;
+        }
+        
+        // Otherwise, if battle active, force battle screen
+        if (window.state.battle && window.state.battle.active && !menuVisible) {
             console.log('Tab visible, battle active – forcing battle screen');
             const battleScreen = document.getElementById('battle-screen');
             if (battleScreen) {
@@ -1248,8 +1255,6 @@ document.addEventListener('visibilitychange', function() {
                 killFeed.style.display = 'flex';
                 killFeed.style.zIndex = '100000';
             }
-        } else {
-            console.log('Tab visible but not forcing battle screen (game ended or menu visible)');
         }
     }
 });
