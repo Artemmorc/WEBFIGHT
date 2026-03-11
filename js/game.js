@@ -623,7 +623,9 @@ function gameLoop() {
 }
 
 function updateGame() {
-    console.log('updateGame running, playerDead:', playerDead, 'battle.active:', window.state.battle?.active);
+    // If game already ended, don't process further
+    if (gameEnded) return;
+
     const battle = window.state.battle;
     const p = battle.player;
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
@@ -633,22 +635,18 @@ function updateGame() {
     battle.bombs = battle.bombs.filter(bomb => {
         const elapsed = now - bomb.startTime;
         if (elapsed >= bomb.duration) {
-            // Bomb reached target, explode
             createBombExplosion(bomb.targetX, bomb.targetY, battle, now, bomb.owner);
             return false;
         }
-        // Update bomb position (linear interpolation)
         const t = elapsed / bomb.duration;
         bomb.currentX = bomb.x + (bomb.targetX - bomb.x) * t;
         bomb.currentY = bomb.y + (bomb.targetY - bomb.y) * t;
         return true;
     });
 
-    // Remove old explosions after duration
     battle.explosions = battle.explosions.filter(exp => now - exp.startTime < exp.duration);
 
     if (playerDead) {
-        console.log('In playerDead block, elapsed:', now - deathAnimationStart);
         const elapsed = now - deathAnimationStart;
         if (elapsed < deathAnimationDuration) {
             const t = elapsed / deathAnimationDuration;
@@ -659,9 +657,9 @@ function updateGame() {
             console.log('Death animation finished, deactivating battle and showing menu');
             playerDead = false;
             battle.active = false;
+            gameEnded = true;
             if (window.state.lastMatch) {
-                console.log('Calling showAfterGame with rank:', window.state.lastMatch.rank);
-                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
+                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned, 0);
             } else {
                 console.error('No lastMatch set on death!');
             }
@@ -815,7 +813,7 @@ function updateGame() {
                     // Super charge for player when dealing damage with normal attack
                     if (b.ownerId === 'player' && !b.super) {
                         let chargeAmount = 10;
-                        if (p.type === 'Anthony') chargeAmount = 40; // 4x faster
+                        if (p.type === 'Anthony') chargeAmount = 40;
                         p.superCharge = Math.min(p.superMax, p.superCharge + chargeAmount);
                     }
 
@@ -949,10 +947,9 @@ function updateGame() {
             window.brawlerProgress[brawlerName] = { unlocked: true, trophies: 0, level: 1 };
         }
         const currentTrophies = window.brawlerProgress[brawlerName].trophies || 0;
-        const trophyGain = 10; // Fixed 10 trophies per win
+        const trophyGain = 10;
         window.brawlerProgress[brawlerName].trophies = currentTrophies + trophyGain;
         
-        // Update total trophies
         window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + (b.trophies || 0), 0);
         
         console.log(`TROPHY GAIN: +${trophyGain} for ${brawlerName}. Was ${currentTrophies}, now ${window.brawlerProgress[brawlerName].trophies}. Total trophies: ${window.playerState.trophies}`);
@@ -975,8 +972,12 @@ function updateGame() {
             starrdropEarned: starrdropEarned
         };
         
+        // Mark game as ended to prevent further updates
+        gameEnded = true;
+        battle.active = false;
+        
         console.log('VICTORY! aliveCount === 1, calling showAfterGame');
-        showAfterGame(1, coinsEarned, starrdropEarned);
+        showAfterGame(1, coinsEarned, starrdropEarned, trophyGain);
         return;
     }
 
