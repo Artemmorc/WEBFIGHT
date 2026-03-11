@@ -54,14 +54,15 @@ function updateStatsUI() {
 }
 
 function createBrawlerSVG(name, size) {
-    if (size === 'xlarge' && window.BrawlerImages && window.BrawlerImages.menu) {
-        return `<img src="images/mysteria_menu.png" style="width: 400px; height: 400px; object-fit: contain;">`;
+    const imgData = window.BrawlerImages && window.BrawlerImages[name];
+    if (size === 'xlarge' && imgData && imgData.menu) {
+        return `<img src="images/${name.toLowerCase()}_menu.png" style="width: 400px; height: 400px; object-fit: contain;">`;
     }
-    if (size === 'large' && window.BrawlerImages && window.BrawlerImages.menu) {
-        return `<img src="images/mysteria_menu.png" style="width: 200px; height: 200px; object-fit: contain;">`;
+    if (size === 'large' && imgData && imgData.menu) {
+        return `<img src="images/${name.toLowerCase()}_menu.png" style="width: 200px; height: 200px; object-fit: contain;">`;
     }
-    if (size === 'small' && window.BrawlerImages && window.BrawlerImages.icon) {
-        return `<img src="images/mysteria_icon.png" style="width: 80px; height: 80px; object-fit: contain;">`;
+    if (size === 'small' && imgData && imgData.icon) {
+        return `<img src="images/${name.toLowerCase()}_icon.png" style="width: 80px; height: 80px; object-fit: contain;">`;
     }
     // Fallback to drawn SVG
     const b = CONFIG.BRAWLERS[name];
