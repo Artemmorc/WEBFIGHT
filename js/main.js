@@ -55,13 +55,13 @@ window.CONFIG = {
             unlocked: true 
         },
         'Anthony': {
-            color: '#f97316', // orange
+            color: '#ef4444', // bright red
             hp: 4200,
-            damage: 600,      // laser damage per hit
+            damage: 700,      // laser damage per hit
             superDamage: 2000, // bomb explosion damage
             ammo: 2,
             speed: 5,
-            reload: 2.0,
+            reload: 1.2,      // faster reload
             type: 'Laser',
             pfp: 'A',
             rarity: 'mythic',
