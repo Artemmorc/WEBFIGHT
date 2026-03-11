@@ -170,11 +170,60 @@ function updateBrawlerMenu() {
     document.getElementById('current-brawler-name').innerText = window.state.currentBrawler;
 }
 
+function showBrawlerGrid() {
+    document.getElementById('brawler-list').classList.remove('hidden');
+    document.getElementById('brawler-detail').classList.add('hidden');
+}
+
+function showBrawlerDetail(name) {
+    const progress = window.brawlerProgress[name];
+    if (!progress) return;
+    const bData = CONFIG.BRAWLERS[name];
+    const level = progress.level;
+    const stats = getBrawlerStats(name, level);
+
+    document.getElementById('detail-brawler-name').innerText = name;
+    document.getElementById('detail-brawler-rarity').innerText = bData.rarity.toUpperCase();
+    document.getElementById('detail-brawler-trophies').innerText = progress.trophies;
+    document.getElementById('detail-brawler-level').innerText = level;
+    document.getElementById('detail-brawler-hp').innerText = stats.health;
+    document.getElementById('detail-brawler-damage').innerText = stats.damage;
+    document.getElementById('detail-brawler-super').innerText = stats.superDamage;
+    document.getElementById('detail-brawler-speed').innerText = bData.speed;
+    document.getElementById('detail-brawler-ammo').innerText = bData.ammo;
+    document.getElementById('detail-brawler-reload').innerText = bData.reload;
+    document.getElementById('detail-brawler-lore').innerText = bData.lore || 'No lore available.';
+    document.getElementById('detail-brawler-ability').innerText = bData.ability || 'No special ability.';
+    document.getElementById('detail-brawler-portrait').innerHTML = createBrawlerSVG(name, 'large');
+
+    const upgradeBtn = document.getElementById('detail-upgrade-btn');
+    if (level >= 11) {
+        upgradeBtn.disabled = true;
+        upgradeBtn.innerText = 'MAX LEVEL';
+        upgradeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        upgradeBtn.disabled = false;
+        upgradeBtn.innerText = 'Upgrade';
+        upgradeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        upgradeBtn.onclick = () => {
+            showUpgradeModal(name);
+            // After upgrade, refresh detail
+            setTimeout(() => showBrawlerDetail(name), 100);
+        };
+    }
+
+    document.getElementById('brawler-list').classList.add('hidden');
+    document.getElementById('brawler-detail').classList.remove('hidden');
+}
+
 function showUpgradeModal(brawlerName) {
     const progress = window.brawlerProgress[brawlerName];
     if (!progress) return;
     const level = progress.level;
-    if (level >= 11) return;
+    if (level >= 11) {
+        alert('Already max level!');
+        return;
+    }
     const cost = window.UPGRADE_COSTS[level - 1];
     const ok = confirm(`Upgrade ${brawlerName} to level ${level + 1}?\nCost: ${cost.coins} coins and ${cost.pp} power points.`);
     if (ok) {
@@ -188,6 +237,10 @@ function toggleBrawlers(show) {
     const screen = document.getElementById('brawler-screen');
     if (show) {
         screen.classList.remove('hidden');
+        // Show grid, hide detail initially
+        document.getElementById('brawler-list').classList.remove('hidden');
+        document.getElementById('brawler-detail').classList.add('hidden');
+        
         const list = document.getElementById('brawler-list');
         list.innerHTML = '';
         Object.keys(CONFIG.BRAWLERS).forEach(name => {
@@ -195,10 +248,8 @@ function toggleBrawlers(show) {
             const progress = window.brawlerProgress[name] || { unlocked: false, trophies: 0, level: 1 };
             const isUnlocked = progress.unlocked;
             const trophies = progress.trophies || 0;
-            const level = progress.level || 1;
             
             const div = document.createElement('div');
-            // Set background based on rarity
             let bgClass = '';
             switch (b.rarity) {
                 case 'starter':
@@ -208,45 +259,25 @@ function toggleBrawlers(show) {
                     bgClass = 'bg-mythic-brawler';
                     break;
                 default:
-                    bgClass = 'bg-rare-brawler'; // fallback
+                    bgClass = 'bg-rare-brawler';
             }
             div.className = `p-4 rounded-xl border-4 ${window.state.currentBrawler === name ? 'border-yellow-400' : 'border-black'} ${bgClass} cursor-pointer hover:scale-105 transition-all relative ${!isUnlocked ? 'opacity-80' : ''}`;
             
-            const levelText = isUnlocked ? `Lv. ${level}` : '';
-            
             div.innerHTML = `
-                <div class="h-32 mb-2 flex items-center justify-center ${!isUnlocked ? 'grayscale brightness-50' : ''}">${createBrawlerSVG(name, 'small')}</div>
-                <div class="text-center text-xl text-black">${name}</div>
+                <div class="h-24 mb-2 flex items-center justify-center ${!isUnlocked ? 'grayscale brightness-50' : ''}">${createBrawlerSVG(name, 'small')}</div>
+                <div class="text-center text-lg text-black">${name}</div>
                 <div class="text-center text-xs opacity-70 text-black uppercase">${b.rarity}</div>
-                ${isUnlocked ? `<div class="text-center text-yellow-400">🏆 ${trophies}</div>` : ''}
-                ${isUnlocked ? `<div class="text-center text-blue-400">${levelText}</div>` : ''}
+                ${isUnlocked ? `<div class="text-center text-yellow-400 text-sm">🏆 ${trophies}</div>` : ''}
                 ${!isUnlocked ? '<div class="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>' : ''}
             `;
             
             if (isUnlocked) {
-                div.onclick = () => { 
-                    window.state.currentBrawler = name; 
-                    toggleBrawlers(false); 
-                    updateBrawlerMenu(); 
+                div.onclick = () => {
+                    // Instead of selecting brawler, open detail view
+                    showBrawlerDetail(name);
                 };
             }
             list.appendChild(div);
-            
-            // Add upgrade button if unlocked and not max level
-            if (isUnlocked && level < 11 && window.UPGRADE_COSTS) {
-                const upgradeDiv = document.createElement('div');
-                upgradeDiv.className = 'mt-2 flex justify-center';
-                const cost = window.UPGRADE_COSTS[level - 1];
-                if (cost && window.SVG_ICONS) {
-                    upgradeDiv.innerHTML = `
-                        <button onclick="event.stopPropagation(); showUpgradeModal('${name}')" 
-                                class="bg-green-500 hover:bg-green-400 text-black px-4 py-2 rounded-xl border-2 border-black text-sm flex items-center gap-1">
-                            Upgrade (${cost.coins} ${window.SVG_ICONS.coin(16)} ${cost.pp} ${window.SVG_ICONS.pp(16)})
-                        </button>
-                    `;
-                }
-                div.appendChild(upgradeDiv);
-            }
         });
     } else { 
         screen.classList.add('hidden'); 
