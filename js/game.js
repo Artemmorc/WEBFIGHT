@@ -32,7 +32,6 @@ let playerDead = false;
 // Cached DOM elements
 let brawlersLeftEl = document.getElementById('brawlers-left');
 let battleUiEl = document.getElementById('battle-ui');
-let superBtn = document.getElementById('super-btn');
 let killFeed = document.getElementById('kill-feed');
 
 // ========== FLAG TO PREVENT VISIBILITY FORCE AFTER GAME ENDS ==========
@@ -78,9 +77,13 @@ function ensureKillFeed() {
 }
 
 // ========== JOYSTICK SETUP (MOUSE + TOUCH) ==========
-function setupJoystick(id, stickId, type) {
+function setupJoystick(id, stickId, type, onRelease) {
     const base = document.getElementById(id);
     const stick = document.getElementById(stickId);
+    if (!base || !stick) {
+        console.error(`Joystick elements not found: ${id}, ${stickId}`);
+        return;
+    }
     let active = false;
     let rect = base.getBoundingClientRect();
 
@@ -115,21 +118,27 @@ function setupJoystick(id, stickId, type) {
         const normY = dy / max;
         window.state.battle.joystick[type] = { x: normX, y: normY };
 
-        if (type === 'attack' && (normX !== 0 || normY !== 0)) {
-            window.state.battle.aimAngle = Math.atan2(normY, normX);
-            window.state.battle.isAiming = true;
+        // Update aim angle for attack and super
+        if (type === 'attack' || type === 'super') {
+            if (normX !== 0 || normY !== 0) {
+                window.state.battle.aimAngle = Math.atan2(normY, normX);
+                window.state.battle.isAiming = true;
+            }
         }
     };
 
     const handleEnd = (e) => {
         e.preventDefault();
-        if (active && type === 'attack') {
-            const joy = window.state.battle.joystick.attack;
+        if (active) {
+            const joy = window.state.battle.joystick[type];
             if (Math.hypot(joy.x, joy.y) > 0.5) {
                 const ang = Math.atan2(joy.y, joy.x);
-                spawnBullet(window.state.battle.player, ang, false);
+                onRelease(ang);
             }
-            window.state.battle.isAiming = false;
+            // Clear aim only if not mouse aiming
+            if (type !== 'attack' && type !== 'super') {
+                window.state.battle.isAiming = false;
+            }
         }
         active = false;
         stick.style.transform = 'translate(0,0)';
@@ -207,10 +216,6 @@ canvas.addEventListener('mousedown', (e) => {
             p.superCharge = 0;
         }
     }
-});
-
-window.addEventListener('mouseup', (e) => {
-    // Not needed for firing, but we can track if needed
 });
 
 // ========== BUSH VISIBILITY ==========
@@ -342,7 +347,7 @@ function startBattle(customMap = null, background = 'floor') {
         barrels: [],
         spawnPoints: [],
         bots: [],
-        joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 } },
+        joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 }, super: { x: 0, y: 0 } },
         background: background,
         isAiming: false,
         aimAngle: 0
@@ -1059,22 +1064,6 @@ function drawGame() {
 
     ctx.restore();
 
-    // Refresh DOM element references
-    superBtn = document.getElementById('super-btn');
-    killFeed = document.getElementById('kill-feed');
-
-    if (p && p.superCharge >= p.superMax && !p.dying) {
-        if (superBtn) {
-            superBtn.style.opacity = '1';
-            superBtn.style.backgroundColor = '#fbbf24';
-        }
-    } else {
-        if (superBtn) {
-            superBtn.style.opacity = '0.5';
-            superBtn.style.backgroundColor = '';
-        }
-    }
-
     // Ensure kill feed exists
     if (!killFeed) {
         killFeed = ensureKillFeed();
@@ -1185,24 +1174,21 @@ function updateKeyboardMovement() {
     updateMoveJoystickVisual();
 }
 
-setupJoystick('move-joy-base', 'move-joy-stick', 'move');
-setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
-
-// On-screen super button – also uses aim angle if available
-document.getElementById('super-btn').onclick = (e) => {
-    e.stopPropagation();
-    if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
-        const p = window.state.battle.player;
-        if (p.superCharge >= p.superMax && !p.dying) {
-            let angle = p.angle;
-            if (window.state.battle.isAiming) {
-                angle = window.state.battle.aimAngle;
-            }
-            spawnBullet(p, angle, true);
-            p.superCharge = 0;
-        }
+// Setup joysticks
+setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
+setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
+    const p = window.state.battle.player;
+    if (p && !p.dying) {
+        spawnBullet(p, ang, false);
     }
-};
+});
+setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
+    const p = window.state.battle.player;
+    if (p && !p.dying && p.superCharge >= p.superMax) {
+        spawnBullet(p, ang, true);
+        p.superCharge = 0;
+    }
+});
 
 function spawnBullet(owner, angle, isSuper) {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
@@ -1232,9 +1218,11 @@ function spawnBullet(owner, angle, isSuper) {
 // ========== VISIBILITY CHANGE HANDLER ==========
 document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
-        console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded);
-        // Only force battle screen if game is still active and not ended
-        if (window.state.battle && window.state.battle.active && !gameEnded) {
+        const afterGameMenu = document.getElementById('aftergame-menu');
+        const menuVisible = afterGameMenu && (afterGameMenu.style.display === 'flex' || window.getComputedStyle(afterGameMenu).display === 'flex');
+        console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible);
+        // Only force battle screen if game is still active and not ended and menu not visible
+        if (window.state.battle && window.state.battle.active && !gameEnded && !menuVisible) {
             console.log('Tab visible, battle active – forcing battle screen');
             const battleScreen = document.getElementById('battle-screen');
             if (battleScreen) {
