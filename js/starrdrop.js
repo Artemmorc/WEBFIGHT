@@ -87,22 +87,49 @@ function revealReward() {
     document.getElementById('starr-drop-reward').classList.remove('hidden');
 
     const rIdx = rarities.indexOf(window.state.starrDropRarity);
-    const multiplier = rIdx + 1; // 1-5
-    const isLegendary = window.state.starrDropRarity === 'LEGENDARY';
+    const rarity = window.state.starrDropRarity;
+    const isLegendary = rarity === 'LEGENDARY';
+    const isMythic = rarity === 'MYTHIC';
 
-    const rewardType = Math.random() > 0.5 ? 'COINS' : 'PP';
-    let amount = multiplier * (50 + Math.floor(Math.random() * 50));
+    let rewardType = '';
+    let amount = 0;
+    let rewardText = '';
 
-    document.getElementById('reward-title').innerText = isLegendary ? '⭐ LEGENDARY ⭐' : 'REWARD';
-
-    if (rewardType === 'COINS') {
-        document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.coin(180);
-        document.getElementById('reward-desc').innerText = `${amount} Coins!`;
-        window.playerState.coins += amount;
+    // Anthony unlock logic
+    if ((isMythic && Math.random() < 0.05) || (isLegendary && Math.random() < 0.1)) {
+        // Try to give Anthony
+        if (window.brawlerProgress && window.brawlerProgress['Anthony'] && !window.brawlerProgress['Anthony'].unlocked) {
+            // Unlock Anthony
+            window.brawlerProgress['Anthony'].unlocked = true;
+            rewardType = 'ANTHONY';
+            rewardText = 'Anthony unlocked!';
+            document.getElementById('reward-visual').innerHTML = createBrawlerSVG('Anthony', 120);
+            document.getElementById('reward-desc').innerText = rewardText;
+            // Save progress
+            if (typeof saveBrawlerProgress === 'function') saveBrawlerProgress();
+        } else {
+            // Already unlocked or failed random, give 30 gems
+            window.playerState.gems += 30;
+            rewardType = 'GEMS';
+            amount = 30;
+            rewardText = `30 Gems!`;
+            document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.gem(120);
+            document.getElementById('reward-desc').innerText = rewardText;
+        }
     } else {
-        document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.pp(180);
-        document.getElementById('reward-desc').innerText = `${amount} Power Points!`;
-        window.playerState.pp += amount;
+        // Normal reward
+        const multiplier = rIdx + 1; // 1-5
+        const isCoins = Math.random() > 0.5;
+        amount = multiplier * (50 + Math.floor(Math.random() * 50));
+        rewardText = `${amount} ${isCoins ? 'Coins' : 'Power Points'}!`;
+        if (isCoins) {
+            window.playerState.coins += amount;
+            document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.coin(120);
+        } else {
+            window.playerState.pp += amount;
+            document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.pp(120);
+        }
+        document.getElementById('reward-desc').innerText = rewardText;
     }
 
     if (isLegendary) {
