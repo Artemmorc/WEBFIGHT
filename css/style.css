@@ -79,6 +79,10 @@ canvas {
     background: linear-gradient(145deg, #ef4444, #b91c1c);
     border-color: #fbbf24;
 }
+.bg-rare-brawler {
+    background: linear-gradient(145deg, #4ade80, #16a34a);
+    border-color: #fbbf24;
+}
 
 .shop-card {
     background: linear-gradient(180deg, #3b82f6 0%, #1e3a8a 100%);
