@@ -1223,9 +1223,16 @@ document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
         const afterGameMenu = document.getElementById('aftergame-menu');
         const menuVisible = afterGameMenu && (afterGameMenu.style.display === 'flex' || window.getComputedStyle(afterGameMenu).display === 'flex');
-        console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead);
+        const menuScreen = document.getElementById('menu-screen');
+        const mainMenuVisible = menuScreen && (menuScreen.style.display === 'flex' || window.getComputedStyle(menuScreen).display === 'flex');
+        console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead, 'mainMenuVisible:', mainMenuVisible);
         
         if (gameEnded || playerDead) {
+            // If main menu is already visible, do nothing
+            if (mainMenuVisible) {
+                console.log('Already at main menu, ignoring after-game menu');
+                return;
+            }
             console.log('Game ended or player dead, ensuring after-game menu');
             if (window.state.lastMatch) {
                 showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
