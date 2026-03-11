@@ -351,7 +351,48 @@
         <h1 class="text-5xl">CHOOSE BRAWLER</h1>
         <button onclick="toggleBrawlers(false)" class="bg-red-500 px-8 py-3 rounded-lg border-2 border-white text-2xl hover:bg-red-600">BACK</button>
     </div>
-    <div class="grid grid-cols-4 gap-6" id="brawler-list"></div>
+    <!-- Grid view -->
+    <div id="brawler-list" class="grid grid-cols-4 gap-6"></div>
+    <!-- Detail view (hidden initially) -->
+    <div id="brawler-detail" class="hidden flex flex-col h-full">
+        <div class="flex justify-between items-center mb-4">
+            <button onclick="showBrawlerGrid()" class="bg-gray-500 px-6 py-2 rounded-lg text-xl border-2 border-white hover:bg-gray-600">&larr; Back</button>
+            <h2 id="detail-brawler-name" class="text-4xl"></h2>
+        </div>
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
+            <div class="flex flex-col md:flex-row gap-6">
+                <div id="detail-brawler-portrait" class="w-full md:w-64 h-64 flex items-center justify-center"></div>
+                <div class="flex-1">
+                    <div class="text-2xl mb-2" id="detail-brawler-rarity"></div>
+                    <div class="text-xl mb-2">Trophies: <span id="detail-brawler-trophies"></span></div>
+                    <div class="text-xl mb-2">Level: <span id="detail-brawler-level"></span></div>
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div>Health: <span id="detail-brawler-hp"></span></div>
+                        <div>Damage: <span id="detail-brawler-damage"></span></div>
+                        <div>Super Damage: <span id="detail-brawler-super"></span></div>
+                        <div>Speed: <span id="detail-brawler-speed"></span></div>
+                        <div>Ammo: <span id="detail-brawler-ammo"></span></div>
+                        <div>Reload: <span id="detail-brawler-reload"></span>s</div>
+                    </div>
+                    <button id="detail-upgrade-btn" class="bg-green-500 px-8 py-3 rounded-xl text-2xl mt-4 border-2 border-black hover:bg-green-400">Upgrade</button>
+                    <div class="mt-6">
+                        <h3 class="text-3xl">Lore</h3>
+                        <p id="detail-brawler-lore" class="text-lg mt-2"></p>
+                    </div>
+                    <div class="mt-6">
+                        <h3 class="text-3xl">Ability</h3>
+                        <p id="detail-brawler-ability" class="text-lg mt-2"></p>
+                    </div>
+                    <div class="mt-6">
+                        <h3 class="text-3xl">Skins</h3>
+                        <div class="grid grid-cols-4 gap-4 mt-2" id="detail-skins-grid">
+                            <div class="bg-gray-700 p-4 rounded-xl text-center border-2 border-white/30">Default</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- BATTLE SCREEN -->
