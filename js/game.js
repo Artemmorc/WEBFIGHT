@@ -787,7 +787,7 @@ function updateGame() {
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0 || t.dying) continue;
-            const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 32 : 30; // 2x larger for Anthony's laser
+            const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 32 : 30;
             if (Math.hypot(b.x - t.x, b.y - t.y) < hitRadius) {
                 if (b.ownerType === 'Anthony' && b.super) {
                     createBombExplosion(b.x, b.y, battle, now, p);
@@ -949,13 +949,13 @@ function updateGame() {
             window.brawlerProgress[brawlerName] = { unlocked: true, trophies: 0, level: 1 };
         }
         const currentTrophies = window.brawlerProgress[brawlerName].trophies || 0;
-        const trophyGain = 10;
+        const trophyGain = 10; // Fixed 10 trophies per win
         window.brawlerProgress[brawlerName].trophies = currentTrophies + trophyGain;
         
         // Update total trophies
         window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + (b.trophies || 0), 0);
         
-        console.log(`Trophies: ${brawlerName} now has ${window.brawlerProgress[brawlerName].trophies}, total ${window.playerState.trophies}`);
+        console.log(`VICTORY: ${brawlerName} trophies: ${currentTrophies} + ${trophyGain} = ${window.brawlerProgress[brawlerName].trophies}, total ${window.playerState.trophies}`);
         
         let starrdropEarned = false;
         if (window.playerState.dailyWins < 3) {
