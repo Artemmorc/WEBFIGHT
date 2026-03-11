@@ -185,18 +185,32 @@ canvas.addEventListener('mousemove', (e) => {
     }
 });
 
+// Block right-click context menu on canvas
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
+// Mouse down handler: left click = main attack, right click = super
 canvas.addEventListener('mousedown', (e) => {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || playerDead) return;
-    mouseDown = true;
+    e.preventDefault(); // prevent any default actions (like drag)
     const rect = canvas.getBoundingClientRect();
     const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
     const p = window.state.battle.player;
-    spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+    
+    if (e.button === 0) { // Left click – main attack
+        spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+    } else if (e.button === 2) { // Right click – super
+        if (p.superCharge >= p.superMax && !p.dying) {
+            spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), true);
+            p.superCharge = 0;
+        }
+    }
 });
 
 window.addEventListener('mouseup', (e) => {
-    mouseDown = false;
+    // Not needed for firing, but we can track if needed
 });
 
 // ========== BUSH VISIBILITY ==========
@@ -1174,6 +1188,7 @@ function updateKeyboardMovement() {
 setupJoystick('move-joy-base', 'move-joy-stick', 'move');
 setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack');
 
+// On-screen super button – also uses aim angle if available
 document.getElementById('super-btn').onclick = (e) => {
     e.stopPropagation();
     if (window.state.battle && window.state.battle.player && !window.state.preBattle && !playerDead) {
