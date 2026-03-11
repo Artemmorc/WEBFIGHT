@@ -60,7 +60,9 @@ async function handleRegister() {
             daily_claimed: false,
             is_admin: false,
             daily_wins: 0,
-            daily_wins_date: new Date().toISOString().split('T')[0]
+            daily_wins_date: new Date().toISOString().split('T')[0],
+            selected_icon: 'Mysteria',      // default
+            name_color: '#4ade80'            // default
         });
 
     if (profileError) {
@@ -152,8 +154,8 @@ async function loadProfile() {
     window.currentProfile = data;
     window.playerState = {
         name: data.display_name,
-        nameColor: '#4ade80',
-        selectedIcon: 'Mysteria',
+        nameColor: data.name_color || '#4ade80',           // load from DB
+        selectedIcon: data.selected_icon || 'Mysteria',   // load from DB
         trophies: data.trophies,
         pp: data.pp,
         coins: data.coins,
@@ -291,6 +293,8 @@ async function saveProfileToDB() {
 
     const updates = {
         display_name: window.playerState.name,
+        selected_icon: window.playerState.selectedIcon,   // save selected icon
+        name_color: window.playerState.nameColor,         // save name color
         trophies: window.playerState.trophies,
         pp: window.playerState.pp,
         coins: window.playerState.coins,
