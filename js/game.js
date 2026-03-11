@@ -625,11 +625,11 @@ function updateGame() {
     }
 
     battle.bullets = battle.bullets.filter(b => {
-        const bulletSpeed = (b.ownerType === 'Anthony' && !b.super) ? 18 : 12; // Anthony's laser is faster
+        const bulletSpeed = (b.ownerType === 'Anthony' && !b.super) ? 18 : 12;
         const nextX = b.x + Math.cos(b.angle) * bulletSpeed;
         const nextY = b.y + Math.sin(b.angle) * bulletSpeed;
 
-        // Check box destruction
+        // Box destruction
         for (let box of battle.boxes) {
             if (box.hp <= 0) continue;
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
@@ -682,14 +682,12 @@ function updateGame() {
         b.x = nextX;
         b.y = nextY;
         b.dist += bulletSpeed;
-        // Anthony's laser has double range (600)
         const maxRange = (b.ownerType === 'Anthony' && !b.super) ? 600 : 300;
         if (b.dist > maxRange) return false;
 
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0 || t.dying) continue;
-            // Anthony's laser has larger hit radius (16)
             const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 16 : 30;
             if (Math.hypot(b.x - t.x, b.y - t.y) < hitRadius) {
                 if (b.ownerType === 'Anthony' && b.super) {
@@ -715,8 +713,12 @@ function updateGame() {
                         t.slowUntil = now + 1000;
                     }
 
+                    // Super charge for player when dealing damage with normal attack
                     if (b.ownerId === 'player' && !b.super) {
-                        p.superCharge = Math.min(p.superMax, p.superCharge + 10);
+                        let chargeAmount = 10;
+                        // Anthony charges super 4x faster
+                        if (p.type === 'Anthony') chargeAmount = 40;
+                        p.superCharge = Math.min(p.superMax, p.superCharge + chargeAmount);
                     }
 
                     if (t.hp <= 0 && !t.dying) {
@@ -752,6 +754,7 @@ function updateGame() {
         return true;
     });
 
+    // Power cube collection
     for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
         const cube = battle.powerCubes[i];
         if (!cube.collected && Math.hypot(p.x - cube.x, p.y - cube.y) < 30) {
@@ -763,10 +766,12 @@ function updateGame() {
         }
     }
 
+    // Ammo recharge
     if (p.ammo < p.maxAmmo && !p.dying) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
+    // Bot AI
     for (let bot of battle.bots) {
         if(bot.hp <= 0 || bot.dying) continue;
         if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
@@ -803,6 +808,7 @@ function updateGame() {
     const aliveCount = (p.hp > 0 && !p.dying ? 1 : 0) + aliveBots;
     brawlersLeftEl.innerText = aliveCount;
 
+    // Poison gas
     battle.poisonRadius -= 0.05;
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
     [...battle.bots, p].forEach(ent => {
@@ -814,11 +820,12 @@ function updateGame() {
         }
     });
 
+    // Natural regen (health)
     if (!p.dying && now - p.lastDamageTime > 2000 && now - p.lastAttackTime > 1500 && p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
-    // Safety net for player death
+    // Player death (safety net)
     if (p.hp <= 0 && !p.dying) {
         console.log('Player HP <= 0 (safety), setting death state');
         p.dying = true;
@@ -834,6 +841,7 @@ function updateGame() {
         return;
     }
 
+    // Victory condition
     if (aliveCount === 1 && p.hp > 0 && !p.dying) {
         const coinsEarned = 50 + Math.floor(Math.random() * 30) + p.power * 10;
         window.playerState.coins += coinsEarned;
