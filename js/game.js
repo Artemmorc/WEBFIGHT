@@ -189,7 +189,6 @@ canvas.addEventListener('mousemove', (e) => {
     const p = window.state.battle.player;
     if (p) {
         if (superAiming && p.type === 'Anthony') {
-            // Update Anthony's super target
             const dx = worldX - p.x;
             const dy = worldY - p.y;
             const dist = Math.hypot(dx, dy);
@@ -229,11 +228,10 @@ canvas.addEventListener('mousedown', (e) => {
                 // First right-click: enter aiming mode for Anthony's bomb
                 superAiming = true;
                 window.state.battle.isAiming = true;
-                // Set initial target at max distance along mouse direction
                 const dx = worldX - p.x;
                 const dy = worldY - p.y;
                 const dist = Math.hypot(dx, dy);
-                const maxDist = 1600; // 25 tiles
+                const maxDist = 1600;
                 const targetDist = Math.min(dist, maxDist);
                 const angle = Math.atan2(dy, dx);
                 window.state.battle.superTarget = {
@@ -244,14 +242,13 @@ canvas.addEventListener('mousedown', (e) => {
                 // Second right-click: throw bomb
                 if (p.superCharge >= p.superMax && !p.dying) {
                     if (window.state.battle.superTarget) {
-                        // Create a bomb projectile
                         const bomb = {
                             x: p.x,
                             y: p.y,
                             targetX: window.state.battle.superTarget.x,
                             targetY: window.state.battle.superTarget.y,
                             startTime: Date.now(),
-                            duration: 400, // ms to reach target
+                            duration: 400,
                             owner: p,
                             level: p.level
                         };
@@ -337,7 +334,6 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
     const radius = 192; // 3 tiles
     const pushForce = 200;
 
-    // Add explosion effect
     battle.explosions.push({
         x: centerX,
         y: centerY,
@@ -345,28 +341,24 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
         duration: 500
     });
 
-    // Destroy walls
     battle.walls = battle.walls.filter(w => {
         const dx = w.x + 32 - centerX;
         const dy = w.y + 32 - centerY;
         return Math.hypot(dx, dy) > radius;
     });
 
-    // Destroy bushes
     battle.bushes = battle.bushes.filter(b => {
         const dx = b.x + 32 - centerX;
         const dy = b.y + 32 - centerY;
         return Math.hypot(dx, dy) > radius;
     });
 
-    // Destroy barrels
     battle.barrels = battle.barrels.filter(b => {
         const dx = b.x + 32 - centerX;
         const dy = b.y + 32 - centerY;
         return Math.hypot(dx, dy) > radius;
     });
 
-    // Damage and push enemies
     const targets = [battle.player, ...battle.bots];
     targets.forEach(t => {
         if (t.hp <= 0 || t.dying) return;
@@ -381,7 +373,6 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
                 t.revealUntil = now + 1000;
                 if (t.id === 'player') t.lastDamageTime = now;
 
-                // Push away from center
                 if (dist > 1) {
                     const pushX = (dx / dist) * pushForce;
                     const pushY = (dy / dist) * pushForce;
@@ -470,8 +461,8 @@ function startBattle(customMap = null, background = 'floor') {
         poisonRadius: fullSize / 1.1,
         player: null,
         bullets: [],
-        bombs: [], // Anthony's bomb projectiles
-        explosions: [], // visual effects
+        bombs: [],
+        explosions: [],
         walls: [],
         bushes: [],
         water: [],
@@ -1006,8 +997,8 @@ function exitBattle() {
     window.keys = { w: false, a: false, s: false, d: false };
 }
 
-function showAfterGame(rank, coins, starrdropEarned = false) {
-    console.log('showAfterGame called with rank:', rank, 'coins:', coins, 'starrdrop:', starrdropEarned);
+function showAfterGame(rank, coins, starrdropEarned = false, trophyGain = 0) {
+    console.log('showAfterGame called with rank:', rank, 'coins:', coins, 'starrdrop:', starrdropEarned, 'trophyGain:', trophyGain);
     const menu = document.getElementById('aftergame-menu');
     if (!menu) {
         console.error('aftergame-menu not found!');
@@ -1018,6 +1009,13 @@ function showAfterGame(rank, coins, starrdropEarned = false) {
     menu.style.zIndex = '100000';
     document.getElementById('aftergame-rank').innerText = `Rank #${rank}`;
     document.getElementById('aftergame-reward').innerText = `+${coins} coins`;
+    
+    const trophyGainEl = document.getElementById('aftergame-trophy-gain');
+    if (trophyGainEl) {
+        trophyGainEl.innerText = `+${trophyGain} trophies`;
+    } else {
+        console.error('aftergame-trophy-gain element not found');
+    }
     
     const dailyWinsEl = document.getElementById('aftergame-daily-wins');
     if (dailyWinsEl) {
@@ -1233,7 +1231,7 @@ function drawGame() {
         }
     });
 
-    // Draw bombs (Anthony's super projectiles)
+    // Draw bombs
     window.state.battle.bombs.forEach(bomb => {
         ctx.save();
         ctx.translate(bomb.currentX, bomb.currentY);
@@ -1243,7 +1241,7 @@ function drawGame() {
         ctx.beginPath();
         ctx.arc(0, 0, 12, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#8B4513'; // brown
+        ctx.fillStyle = '#8B4513';
         ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.arc(0, 0, 8, 0, Math.PI * 2);
@@ -1259,7 +1257,7 @@ function drawGame() {
     window.state.battle.explosions.forEach(exp => {
         const elapsed = now - exp.startTime;
         const progress = elapsed / exp.duration;
-        const radius = 192 * progress; // expanding
+        const radius = 192 * progress;
         const alpha = 1 - progress;
         ctx.save();
         ctx.translate(exp.x, exp.y);
@@ -1276,15 +1274,15 @@ function drawGame() {
         ctx.restore();
     });
 
-    // Draw bullets with brawler-specific colors and sizes
+    // Draw bullets
     window.state.battle.bullets.forEach(b => {
         let bulletColor = 'white';
         let bulletRadius = 8;
         if (b.ownerType === 'Anthony' && !b.super) {
-            bulletColor = '#ff0000'; // red for laser
-            bulletRadius = 32; // 2x size (previously 16, now 32)
+            bulletColor = '#ff0000';
+            bulletRadius = 32;
         } else if (b.super) {
-            bulletColor = '#fbbf24'; // yellow for super
+            bulletColor = '#fbbf24';
         }
         ctx.fillStyle = bulletColor;
         ctx.beginPath();
@@ -1292,10 +1290,9 @@ function drawGame() {
         ctx.fill();
     });
 
-    // ========== DRAW AIMING LINES ==========
+    // Draw aiming lines
     if (mouseInsideCanvas && p && !p.dying) {
         if (superAiming && p.type === 'Anthony' && window.state.battle.superTarget) {
-            // Draw Anthony's bomb reticle
             const target = window.state.battle.superTarget;
             ctx.save();
             ctx.strokeStyle = '#ff0000';
@@ -1313,7 +1310,6 @@ function drawGame() {
             const lineLength = 300;
 
             if (p.type === 'Anthony') {
-                // Anthony's laser: single red line (double length)
                 ctx.save();
                 ctx.strokeStyle = '#ff0000';
                 ctx.lineWidth = 4;
@@ -1324,7 +1320,6 @@ function drawGame() {
                 ctx.stroke();
                 ctx.restore();
             } else {
-                // Mysteria's shotgun: 5 white lines
                 const spreadAngle = 0.15;
                 ctx.save();
                 ctx.strokeStyle = 'white';
@@ -1335,14 +1330,12 @@ function drawGame() {
                     const lineAngle = angle + i * spreadAngle;
                     const endX = startX + Math.cos(lineAngle) * lineLength;
                     const endY = startY + Math.sin(lineAngle) * lineLength;
-
                     ctx.beginPath();
                     ctx.moveTo(startX, startY);
                     ctx.lineTo(endX, endY);
                     ctx.stroke();
                 }
 
-                // Arrowhead on center line
                 const centerEndX = startX + Math.cos(angle) * lineLength;
                 const centerEndY = startY + Math.sin(angle) * lineLength;
                 ctx.fillStyle = 'white';
@@ -1361,7 +1354,6 @@ function drawGame() {
         }
     }
 
-    // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
@@ -1395,7 +1387,6 @@ function drawBrawler(ctx, type, x, y, angle) {
         return;
     }
 
-    // Fallback drawing
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
@@ -1491,7 +1482,6 @@ setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
     const p = window.state.battle.player;
     if (p && !p.dying && p.superCharge >= p.superMax) {
         if (p.type === 'Anthony') {
-            // For joystick, throw bomb at a point in front of the player
             const targetX = p.x + Math.cos(ang) * 800;
             const targetY = p.y + Math.sin(ang) * 800;
             const bomb = {
@@ -1549,13 +1539,14 @@ document.addEventListener('visibilitychange', function() {
         console.log('Tab became visible, battle active:', window.state.battle?.active, 'gameEnded:', gameEnded, 'menuVisible:', menuVisible, 'playerDead:', playerDead, 'mainMenuVisible:', mainMenuVisible);
         
         if (gameEnded || playerDead) {
-            if (mainMenuVisible) {
-                console.log('Already at main menu, ignoring after-game menu');
+            // If either the main menu or the after-game menu is already visible, do nothing
+            if (mainMenuVisible || menuVisible) {
+                console.log('Already at main menu or after-game menu visible, ignoring');
                 return;
             }
             console.log('Game ended or player dead, ensuring after-game menu');
             if (window.state.lastMatch) {
-                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
+                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned, 0);
             }
             return;
         }
@@ -1592,7 +1583,7 @@ setInterval(() => {
         if (menu && (menu.style.display !== 'flex' || window.getComputedStyle(menu).display !== 'flex')) {
             console.log('Fallback: forcing after-game menu');
             if (window.state.lastMatch) {
-                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned);
+                showAfterGame(window.state.lastMatch.rank, window.state.lastMatch.coinsEarned, window.state.lastMatch.starrdropEarned, 0);
             }
         }
     }
