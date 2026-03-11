@@ -41,6 +41,7 @@ let gameEnded = false;
 let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
+let superAiming = false; // for mouse two-step super
 
 // ========== KILL FEED QUEUE ==========
 let killMessages = [];
@@ -176,6 +177,7 @@ canvas.addEventListener('mouseleave', () => {
     if (window.state.battle) {
         window.state.battle.isAiming = false;
     }
+    superAiming = false; // cancel super aiming on mouse leave
 });
 
 canvas.addEventListener('mousemove', (e) => {
@@ -203,12 +205,23 @@ canvas.addEventListener('mousedown', (e) => {
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
     const p = window.state.battle.player;
     
-    if (e.button === 0) {
+    if (e.button === 0) { // Left click – main attack
         spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
-    } else if (e.button === 2) {
-        if (p.superCharge >= p.superMax && !p.dying) {
-            spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), true);
-            p.superCharge = 0;
+    } else if (e.button === 2) { // Right click – super aiming/firing
+        if (!superAiming) {
+            // First right-click: enter aiming mode
+            superAiming = true;
+            window.state.battle.isAiming = true;
+            console.log('Super aiming mode ON');
+        } else {
+            // Second right-click: fire super if charged
+            if (p.superCharge >= p.superMax && !p.dying) {
+                spawnBullet(p, window.state.battle.aimAngle, true);
+                p.superCharge = 0;
+                console.log('Super fired');
+            }
+            superAiming = false;
+            window.state.battle.isAiming = false;
         }
     }
 });
@@ -642,7 +655,7 @@ function updateGame() {
             }
         }
 
-        // Water collision (bullets don't pass water)
+        // Water collision
         for (const water of battle.water || []) {
             if (nextX + 8 > water.x && nextX - 8 < water.x + 64 &&
                 nextY + 8 > water.y && nextY - 8 < water.y + 64) {
@@ -678,8 +691,6 @@ function updateGame() {
                     return false;
                 }
                 if (!t.invincibleUntil || now > t.invincibleUntil) {
-                    const attackerType = 'Mysteria'; // default, but we need actual type
-                    // We'll use b.ownerType for damage calculation
                     const stats = typeof window.getBrawlerStats === 'function'
                         ? window.getBrawlerStats(b.ownerType, b.level)
                         : { damage: 800, superDamage: 1200 };
@@ -801,7 +812,6 @@ function updateGame() {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
-    // Safety net for player death
     if (p.hp <= 0 && !p.dying) {
         console.log('Player HP <= 0 (safety), setting death state');
         p.dying = true;
@@ -1106,53 +1116,76 @@ function drawGame() {
         }
     });
 
+    // Draw bullets
     window.state.battle.bullets.forEach(b => {
-        ctx.fillStyle = b.super ? '#fbbf24' : 'white';
+        if (b.ownerType === 'Anthony' && !b.super) {
+            ctx.fillStyle = '#ff0000'; // red for laser
+        } else if (b.super) {
+            ctx.fillStyle = '#fbbf24'; // yellow for super
+        } else {
+            ctx.fillStyle = 'white';
+        }
         ctx.beginPath();
         ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
         ctx.fill();
     });
 
+    // Draw aiming line
     if (mouseInsideCanvas && p && window.state.battle.isAiming && !p.dying) {
         const angle = window.state.battle.aimAngle;
         const startX = p.x;
         const startY = p.y;
         const lineLength = 300;
-        const spreadAngle = 0.15;
 
-        ctx.save();
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        ctx.globalAlpha = 0.4;
-
-        for (let i = -2; i <= 2; i++) {
-            const lineAngle = angle + i * spreadAngle;
-            const endX = startX + Math.cos(lineAngle) * lineLength;
-            const endY = startY + Math.sin(lineAngle) * lineLength;
-
+        if (p.type === 'Anthony') {
+            // Anthony's laser: single red line
+            ctx.save();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.6;
             ctx.beginPath();
             ctx.moveTo(startX, startY);
-            ctx.lineTo(endX, endY);
+            ctx.lineTo(startX + Math.cos(angle) * lineLength, startY + Math.sin(angle) * lineLength);
             ctx.stroke();
+            ctx.restore();
+        } else {
+            // Mysteria's shotgun: 5 white lines
+            const spreadAngle = 0.15;
+            ctx.save();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = 0.4;
+
+            for (let i = -2; i <= 2; i++) {
+                const lineAngle = angle + i * spreadAngle;
+                const endX = startX + Math.cos(lineAngle) * lineLength;
+                const endY = startY + Math.sin(lineAngle) * lineLength;
+
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+
+            // Arrowhead on center line
+            const centerEndX = startX + Math.cos(angle) * lineLength;
+            const centerEndY = startY + Math.sin(angle) * lineLength;
+            ctx.fillStyle = 'white';
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath();
+            ctx.translate(centerEndX, centerEndY);
+            ctx.rotate(angle);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-10, -5);
+            ctx.lineTo(-10, 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
         }
-
-        const centerEndX = startX + Math.cos(angle) * lineLength;
-        const centerEndY = startY + Math.sin(angle) * lineLength;
-        ctx.fillStyle = 'white';
-        ctx.globalAlpha = 0.4;
-        ctx.beginPath();
-        ctx.translate(centerEndX, centerEndY);
-        ctx.rotate(angle);
-        ctx.moveTo(0, 0);
-        ctx.lineTo(-10, -5);
-        ctx.lineTo(-10, 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
         ctx.globalAlpha = 1;
     }
 
+    // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
@@ -1177,11 +1210,11 @@ function drawGame() {
 }
 
 function drawBrawler(ctx, type, x, y, angle) {
-    if (window.BrawlerImages && window.BrawlerImages.game) {
+    if (window.BrawlerImages && window.BrawlerImages[type] && window.BrawlerImages[type].game) {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        ctx.drawImage(window.BrawlerImages.game, -40, -40, 80, 80);
+        ctx.drawImage(window.BrawlerImages[type].game, -40, -40, 80, 80);
         ctx.restore();
         return;
     }
@@ -1305,7 +1338,7 @@ function spawnBullet(owner, angle, isSuper) {
             super: isSuper,
             ownerId: owner.id,
             level: attackerLevel,
-            ownerType: owner.type // store brawler type
+            ownerType: owner.type
         });
     }
 }
