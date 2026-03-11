@@ -53,6 +53,19 @@ window.CONFIG = {
             pfp: 'M', 
             rarity: 'starter', 
             unlocked: true 
+        },
+        'Anthony': {
+            color: '#f97316', // orange
+            hp: 4200,
+            damage: 600,      // laser damage per hit
+            superDamage: 2000, // bomb explosion damage
+            ammo: 2,
+            speed: 5,
+            reload: 2.0,
+            type: 'Laser',
+            pfp: 'A',
+            rarity: 'mythic',
+            unlocked: false    // will be unlocked via starr drops
         }
     },
     COLORS: ['#4ade80', '#60a5fa', '#f87171', '#facc15', '#fb923c', '#c084fc', '#ffffff', '#9ca3af', '#fb7185', '#2dd4bf']
