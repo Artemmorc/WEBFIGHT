@@ -16,7 +16,7 @@
                 else alert('Game failed to load. Please refresh.');
             }, 500);
         };
-    </script> 
+    </script>
     <!-- Force admin panel styles (only for admin panel) -->
     <style>
         /* Make only the admin panel overlay transparent */
@@ -148,6 +148,8 @@
         <div class="aftergame-title">BATTLE ENDED</div>
         <div class="aftergame-rank" id="aftergame-rank">Rank #?</div>
         <div class="aftergame-reward" id="aftergame-reward">+0 coins</div>
+        <!-- Trophy gain -->
+        <div class="aftergame-trophy-gain" id="aftergame-trophy-gain">+0 trophies</div>
         <!-- Daily wins progress -->
         <div class="aftergame-daily-wins" id="aftergame-daily-wins">Daily Wins: 0/3</div>
         <!-- Starrdrop indicator (hidden by default) -->
@@ -356,6 +358,7 @@
 <div id="battle-screen" class="absolute inset-0 z-0 hidden">
     <canvas id="gameCanvas"></canvas>
     <div class="fight-text" id="fight-text">FIGHT!</div>
+    <!-- UPDATED BATTLE UI WITH SUPER BUTTON ABOVE ATTACK JOYSTICK -->
     <div class="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between" id="battle-ui" style="display: none;">
         <div class="flex justify-between items-start">
             <div class="bg-black/70 p-3 rounded-xl text-xl border-2 border-white/30">
@@ -381,9 +384,10 @@
             </div>
         </div>
     </div>
+    <!-- KILL FEED (left middle) -->
+    <div id="kill-feed" class="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-none z-[100000]" style="max-width: 300px;"></div>
 </div>
-<!-- KILL FEED (left middle) -->
-<div id="kill-feed" class="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-none z-50" style="max-width: 300px;"></div>
+
 <!-- ADMIN PANEL (full-screen, styled like profile) -->
 <div id="adminPanel" class="absolute inset-0 z-50 modal-overlay hidden flex items-center justify-center p-4 md:p-10">
     <div class="bg-blue-900 w-full max-w-6xl rounded-3xl border-4 border-white p-4 md:p-8 flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
@@ -592,6 +596,3 @@
 <script src="js/game.js?v=9"></script>
 </body>
 </html>
-
-
-
