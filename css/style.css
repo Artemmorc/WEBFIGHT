@@ -518,3 +518,69 @@ canvas {
         z-index: 9999;
     }
 }
+
+/* Brawler detail panel improvements */
+#brawler-detail {
+    color: white;
+}
+#brawler-detail .bg-black\/40 {
+    background-color: rgba(0,0,0,0.6) !important;
+    border-color: rgba(255,255,255,0.2) !important;
+}
+#brawler-detail .tab-btn {
+    transition: all 0.2s;
+    color: white;
+    font-weight: bold;
+    border-width: 2px;
+}
+#brawler-detail .tab-btn.bg-purple-600 {
+    background-color: #9333ea;
+}
+#brawler-detail .tab-btn.bg-gray-600 {
+    background-color: #4b5563;
+}
+#brawler-detail .tab-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+#brawler-detail .tab-content {
+    background: rgba(0,0,0,0.7);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    color: white;
+}
+#detail-brawler-portrait {
+    background: rgba(0,0,0,0.3);
+    border: 4px solid rgba(255,255,255,0.2);
+    border-radius: 2rem;
+}
+#detail-skins-grid div {
+    background: #2d3748;
+    color: white;
+    border: 2px solid #4a5568;
+}
+#detail-skins-grid div:hover {
+    border-color: #fbbf24;
+    cursor: pointer;
+}
+/* Fix text colors in brawler grid */
+#brawler-list .text-black {
+    color: white !important;
+}
+#brawler-list .text-black.uppercase {
+    color: #e2e8f0 !important;
+    opacity: 0.9;
+}
+#brawler-list .bg-starter, 
+#brawler-list .bg-mythic-brawler,
+#brawler-list .bg-rare-brawler {
+    /* Ensure backgrounds are dark enough for white text */
+    filter: brightness(0.8);
+}
+/* Stat values color */
+#detail-brawler-hp, #detail-brawler-damage, #detail-brawler-super,
+#detail-brawler-speed, #detail-brawler-ammo, #detail-brawler-reload {
+    font-weight: bold;
+    text-shadow: 0 0 5px currentColor;
+}
