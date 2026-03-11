@@ -41,7 +41,7 @@ let gameEnded = false;
 let mouseInsideCanvas = false;
 let mouseAimAngle = 0;
 let mouseDown = false;
-let superAiming = false; // for mouse right-click two-step aiming
+let superAiming = false;
 
 // ========== KILL FEED QUEUE ==========
 let killMessages = [];
@@ -176,7 +176,8 @@ canvas.addEventListener('mouseleave', () => {
     mouseInsideCanvas = false;
     if (window.state.battle) {
         window.state.battle.isAiming = false;
-        superAiming = false; // cancel super aiming on leave
+        superAiming = false;
+        window.state.battle.superTarget = null;
     }
 });
 
@@ -187,10 +188,23 @@ canvas.addEventListener('mousemove', (e) => {
     const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
     const p = window.state.battle.player;
     if (p) {
-        const angle = Math.atan2(worldY - p.y, worldX - p.x);
-        window.state.battle.aimAngle = angle;
-        if (!superAiming) {
-            window.state.battle.isAiming = true; // normal aiming for attack
+        if (superAiming && p.type === 'Anthony') {
+            // Update Anthony's super target
+            const dx = worldX - p.x;
+            const dy = worldY - p.y;
+            const dist = Math.hypot(dx, dy);
+            const maxDist = 1600; // 25 tiles
+            const targetDist = Math.min(dist, maxDist);
+            const angle = Math.atan2(dy, dx);
+            window.state.battle.superTarget = {
+                x: p.x + Math.cos(angle) * targetDist,
+                y: p.y + Math.sin(angle) * targetDist
+            };
+            window.state.battle.isAiming = true;
+        } else {
+            const angle = Math.atan2(worldY - p.y, worldX - p.x);
+            window.state.battle.aimAngle = angle;
+            window.state.battle.isAiming = true;
         }
     }
 });
@@ -209,21 +223,49 @@ canvas.addEventListener('mousedown', (e) => {
     
     if (e.button === 0) { // Left click – main attack
         spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
-    } else if (e.button === 2) { // Right click – two-step super aiming
-        if (!superAiming) {
-            // First right-click: enter aiming mode for super
-            superAiming = true;
-            window.state.battle.isAiming = true;
-            // Update aim angle based on mouse position
-            window.state.battle.aimAngle = Math.atan2(worldY - p.y, worldX - p.x);
-        } else {
-            // Second right-click: fire super if charged
-            if (p.superCharge >= p.superMax && !p.dying) {
-                spawnBullet(p, window.state.battle.aimAngle, true);
-                p.superCharge = 0;
+    } else if (e.button === 2) { // Right click – super
+        if (p.type === 'Anthony') {
+            if (!superAiming) {
+                // First right-click: enter aiming mode for Anthony's bomb
+                superAiming = true;
+                window.state.battle.isAiming = true;
+                // Set initial target at max distance along mouse direction
+                const dx = worldX - p.x;
+                const dy = worldY - p.y;
+                const dist = Math.hypot(dx, dy);
+                const maxDist = 1600; // 25 tiles
+                const targetDist = Math.min(dist, maxDist);
+                const angle = Math.atan2(dy, dx);
+                window.state.battle.superTarget = {
+                    x: p.x + Math.cos(angle) * targetDist,
+                    y: p.y + Math.sin(angle) * targetDist
+                };
+            } else {
+                // Second right-click: place bomb
+                if (p.superCharge >= p.superMax && !p.dying) {
+                    if (window.state.battle.superTarget) {
+                        createBombExplosion(window.state.battle.superTarget.x, window.state.battle.superTarget.y, window.state.battle, Date.now(), p);
+                        p.superCharge = 0;
+                    }
+                }
+                superAiming = false;
+                window.state.battle.isAiming = false;
+                window.state.battle.superTarget = null;
             }
-            superAiming = false;
-            window.state.battle.isAiming = false;
+        } else {
+            // Other brawlers: normal two-step super (aim then fire)
+            if (!superAiming) {
+                superAiming = true;
+                window.state.battle.isAiming = true;
+                window.state.battle.aimAngle = Math.atan2(worldY - p.y, worldX - p.x);
+            } else {
+                if (p.superCharge >= p.superMax && !p.dying) {
+                    spawnBullet(p, window.state.battle.aimAngle, true);
+                    p.superCharge = 0;
+                }
+                superAiming = false;
+                window.state.battle.isAiming = false;
+            }
         }
     }
 });
@@ -280,10 +322,9 @@ function checkCollision(x, y, radius) {
 }
 
 // ========== ANTHONY BOMB EXPLOSION ==========
-function explodeBomb(b, battle, now) {
-    const centerX = b.x;
-    const centerY = b.y;
+function createBombExplosion(centerX, centerY, battle, now, owner) {
     const radius = 192; // 3 tiles
+    const pushForce = 200;
 
     // Destroy walls
     battle.walls = battle.walls.filter(w => {
@@ -292,29 +333,47 @@ function explodeBomb(b, battle, now) {
         return Math.hypot(dx, dy) > radius;
     });
 
-    // Damage all entities in radius
+    // Destroy bushes
+    battle.bushes = battle.bushes.filter(b => {
+        const dx = b.x + 32 - centerX;
+        const dy = b.y + 32 - centerY;
+        return Math.hypot(dx, dy) > radius;
+    });
+
+    // Destroy barrels
+    battle.barrels = battle.barrels.filter(b => {
+        const dx = b.x + 32 - centerX;
+        const dy = b.y + 32 - centerY;
+        return Math.hypot(dx, dy) > radius;
+    });
+
+    // Damage and push enemies
     const targets = [battle.player, ...battle.bots];
     targets.forEach(t => {
         if (t.hp <= 0 || t.dying) return;
-        const dist = Math.hypot(t.x - centerX, t.y - centerY);
+        const dx = t.x - centerX;
+        const dy = t.y - centerY;
+        const dist = Math.hypot(dx, dy);
         if (dist < radius) {
             if (!t.invincibleUntil || now > t.invincibleUntil) {
-                const stats = window.getBrawlerStats('Anthony', b.level);
+                const stats = window.getBrawlerStats('Anthony', owner.level);
                 let damage = stats.superDamage;
                 t.hp -= damage;
                 t.revealUntil = now + 1000;
                 if (t.id === 'player') t.lastDamageTime = now;
 
+                // Push away from center
+                if (dist > 1) {
+                    const pushX = (dx / dist) * pushForce;
+                    const pushY = (dy / dist) * pushForce;
+                    t.x = Math.max(25, Math.min(window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE - 25, t.x + pushX));
+                    t.y = Math.max(25, Math.min(window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE - 25, t.y + pushY));
+                }
+
                 if (t.hp <= 0 && !t.dying) {
                     t.dying = true;
                     t.deathTime = now;
-                    let killerName = 'Unknown';
-                    if (b.ownerId === 'player') {
-                        killerName = battle.player.name;
-                    } else {
-                        const killerBot = battle.bots.find(bot => bot.id === b.ownerId);
-                        killerName = killerBot ? killerBot.name : 'Anthony';
-                    }
+                    let killerName = owner.name;
                     addKillMessage(killerName, t.name);
                 }
             }
@@ -403,7 +462,8 @@ function startBattle(customMap = null, background = 'floor') {
         joystick: { move: { x: 0, y: 0 }, attack: { x: 0, y: 0 }, super: { x: 0, y: 0 } },
         background: background,
         isAiming: false,
-        aimAngle: 0
+        aimAngle: 0,
+        superTarget: null
     };
 
     if (customMap) {
@@ -635,7 +695,7 @@ function updateGame() {
             if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
                 nextY + 8 > box.y && nextY - 8 < box.y + 64) {
                 if (b.ownerType === 'Anthony' && b.super) {
-                    explodeBomb(b, battle, now);
+                    createBombExplosion(b.x, b.y, battle, now, p);
                     return false;
                 }
                 box.hp -= 800;
@@ -651,7 +711,7 @@ function updateGame() {
             if (nextX + 8 > wall.x && nextX - 8 < wall.x + 64 &&
                 nextY + 8 > wall.y && nextY - 8 < wall.y + 64) {
                 if (b.ownerType === 'Anthony' && b.super) {
-                    explodeBomb(b, battle, now);
+                    createBombExplosion(b.x, b.y, battle, now, p);
                 }
                 return false;
             }
@@ -662,7 +722,7 @@ function updateGame() {
             if (nextX + 8 > water.x && nextX - 8 < water.x + 64 &&
                 nextY + 8 > water.y && nextY - 8 < water.y + 64) {
                 if (b.ownerType === 'Anthony' && b.super) {
-                    explodeBomb(b, battle, now);
+                    createBombExplosion(b.x, b.y, battle, now, p);
                 }
                 return false;
             }
@@ -673,7 +733,7 @@ function updateGame() {
             if (nextX + 8 > barrel.x && nextX - 8 < barrel.x + 64 &&
                 nextY + 8 > barrel.y && nextY - 8 < barrel.y + 64) {
                 if (b.ownerType === 'Anthony' && b.super) {
-                    explodeBomb(b, battle, now);
+                    createBombExplosion(b.x, b.y, battle, now, p);
                 }
                 return false;
             }
@@ -691,7 +751,7 @@ function updateGame() {
             const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 16 : 30;
             if (Math.hypot(b.x - t.x, b.y - t.y) < hitRadius) {
                 if (b.ownerType === 'Anthony' && b.super) {
-                    explodeBomb(b, battle, now);
+                    createBombExplosion(b.x, b.y, battle, now, p);
                     return false;
                 }
                 if (!t.invincibleUntil || now > t.invincibleUntil) {
@@ -716,8 +776,7 @@ function updateGame() {
                     // Super charge for player when dealing damage with normal attack
                     if (b.ownerId === 'player' && !b.super) {
                         let chargeAmount = 10;
-                        // Anthony charges super 4x faster
-                        if (p.type === 'Anthony') chargeAmount = 40;
+                        if (p.type === 'Anthony') chargeAmount = 40; // 4x faster
                         p.superCharge = Math.min(p.superMax, p.superCharge + chargeAmount);
                     }
 
@@ -854,7 +913,10 @@ function updateGame() {
         const trophyGain = 10;
         window.brawlerProgress[brawlerName].trophies = currentTrophies + trophyGain;
         
+        // Update total trophies
         window.playerState.trophies = Object.values(window.brawlerProgress).reduce((a, b) => a + (b.trophies || 0), 0);
+        
+        console.log(`Trophies: ${brawlerName} now has ${window.brawlerProgress[brawlerName].trophies}, total ${window.playerState.trophies}`);
         
         let starrdropEarned = false;
         if (window.playerState.dailyWins < 3) {
@@ -1147,61 +1209,76 @@ function drawGame() {
         ctx.fill();
     });
 
-    // ========== DRAW AIMING LINE ==========
-    if (mouseInsideCanvas && p && window.state.battle.isAiming && !p.dying) {
-        const angle = window.state.battle.aimAngle;
-        const startX = p.x;
-        const startY = p.y;
-        const lineLength = 300;
-
-        if (p.type === 'Anthony') {
-            // Anthony's laser: single red line (double length)
+    // ========== DRAW AIMING LINES ==========
+    if (mouseInsideCanvas && p && !p.dying) {
+        if (superAiming && p.type === 'Anthony' && window.state.battle.superTarget) {
+            // Draw Anthony's bomb reticle
+            const target = window.state.battle.superTarget;
             ctx.save();
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
-            ctx.globalAlpha = 0.6;
+            ctx.setLineDash([10, 10]);
             ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(startX + Math.cos(angle) * 600, startY + Math.sin(angle) * 600);
+            ctx.arc(target.x, target.y, 192, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.setLineDash([]);
             ctx.restore();
-        } else {
-            // Mysteria's shotgun: 5 white lines
-            const spreadAngle = 0.15;
-            ctx.save();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 3;
-            ctx.globalAlpha = 0.4;
+        } else if (window.state.battle.isAiming) {
+            const angle = window.state.battle.aimAngle;
+            const startX = p.x;
+            const startY = p.y;
+            const lineLength = 300;
 
-            for (let i = -2; i <= 2; i++) {
-                const lineAngle = angle + i * spreadAngle;
-                const endX = startX + Math.cos(lineAngle) * lineLength;
-                const endY = startY + Math.sin(lineAngle) * lineLength;
-
+            if (p.type === 'Anthony') {
+                // Anthony's laser: single red line (double length)
+                ctx.save();
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 4;
+                ctx.globalAlpha = 0.6;
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
+                ctx.lineTo(startX + Math.cos(angle) * 600, startY + Math.sin(angle) * 600);
                 ctx.stroke();
-            }
+                ctx.restore();
+            } else {
+                // Mysteria's shotgun: 5 white lines
+                const spreadAngle = 0.15;
+                ctx.save();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.4;
 
-            // Arrowhead on center line
-            const centerEndX = startX + Math.cos(angle) * lineLength;
-            const centerEndY = startY + Math.sin(angle) * lineLength;
-            ctx.fillStyle = 'white';
-            ctx.globalAlpha = 0.4;
-            ctx.beginPath();
-            ctx.translate(centerEndX, centerEndY);
-            ctx.rotate(angle);
-            ctx.moveTo(0, 0);
-            ctx.lineTo(-10, -5);
-            ctx.lineTo(-10, 5);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
+                for (let i = -2; i <= 2; i++) {
+                    const lineAngle = angle + i * spreadAngle;
+                    const endX = startX + Math.cos(lineAngle) * lineLength;
+                    const endY = startY + Math.sin(lineAngle) * lineLength;
+
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                }
+
+                // Arrowhead on center line
+                const centerEndX = startX + Math.cos(angle) * lineLength;
+                const centerEndY = startY + Math.sin(angle) * lineLength;
+                ctx.fillStyle = 'white';
+                ctx.globalAlpha = 0.4;
+                ctx.beginPath();
+                ctx.translate(centerEndX, centerEndY);
+                ctx.rotate(angle);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-10, -5);
+                ctx.lineTo(-10, 5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.globalAlpha = 1;
         }
-        ctx.globalAlpha = 1;
     }
 
+    // Poison gas
     ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.beginPath();
     ctx.rect(-2000, -2000, fullSize + 4000, fullSize + 4000);
@@ -1240,7 +1317,6 @@ function drawBrawler(ctx, type, x, y, angle) {
     ctx.translate(x, y);
     ctx.rotate(angle);
     
-    // Use brawler color from CONFIG
     const brawlerData = window.CONFIG.BRAWLERS[type];
     ctx.fillStyle = brawlerData ? brawlerData.color : '#a855f7';
     ctx.beginPath();
@@ -1331,8 +1407,16 @@ setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
 setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
     const p = window.state.battle.player;
     if (p && !p.dying && p.superCharge >= p.superMax) {
-        spawnBullet(p, ang, true);
-        p.superCharge = 0;
+        if (p.type === 'Anthony') {
+            // For joystick, we don't have a target, so we'll use a point in front of the player at max distance
+            const targetX = p.x + Math.cos(ang) * 800; // half of max for simplicity
+            const targetY = p.y + Math.sin(ang) * 800;
+            createBombExplosion(targetX, targetY, window.state.battle, Date.now(), p);
+            p.superCharge = 0;
+        } else {
+            spawnBullet(p, ang, true);
+            p.superCharge = 0;
+        }
     }
 });
 
