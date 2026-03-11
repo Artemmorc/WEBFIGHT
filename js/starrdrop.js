@@ -90,34 +90,40 @@ function revealReward() {
     const rarity = window.state.starrDropRarity;
     const isLegendary = rarity === 'LEGENDARY';
     const isMythic = rarity === 'MYTHIC';
+    const isEpic = rarity === 'EPIC';
+    const isSuperRare = rarity === 'SUPER RARE';
+    const isRare = rarity === 'RARE';
 
     let rewardType = '';
     let amount = 0;
     let rewardText = '';
 
-    // Anthony unlock logic
-    if ((isMythic && Math.random() < 0.05) || (isLegendary && Math.random() < 0.1)) {
-        // Try to give Anthony
-        if (window.brawlerProgress && window.brawlerProgress['Anthony'] && !window.brawlerProgress['Anthony'].unlocked) {
-            // Unlock Anthony
-            window.brawlerProgress['Anthony'].unlocked = true;
-            rewardType = 'ANTHONY';
-            rewardText = 'Anthony unlocked!';
-            document.getElementById('reward-visual').innerHTML = createBrawlerSVG('Anthony', 120);
+    // Define unlock chances for Brewiant
+    let unlockChance = 0;
+    if (isRare) unlockChance = 0.01;      // 1%
+    else if (isSuperRare) unlockChance = 0.04; // 4%
+    else if (isEpic) unlockChance = 0.10; // 10%
+    else if (isMythic) unlockChance = 0.20; // 20%
+    else if (isLegendary) unlockChance = 0.30; // 30% (just for fun, you can adjust)
+
+    // Try to unlock Brewiant
+    if (Math.random() < unlockChance) {
+        if (window.brawlerProgress && window.brawlerProgress['Brewiant'] && !window.brawlerProgress['Brewiant'].unlocked) {
+            window.brawlerProgress['Brewiant'].unlocked = true;
+            rewardType = 'BREWIANT';
+            rewardText = 'Brewiant unlocked!';
+            document.getElementById('reward-visual').innerHTML = createBrawlerSVG('Brewiant', 120);
             document.getElementById('reward-desc').innerText = rewardText;
-            // Save progress
             if (typeof saveBrawlerProgress === 'function') saveBrawlerProgress();
         } else {
-            // Already unlocked or failed random, give 30 gems
-            window.playerState.gems += 30;
-            rewardType = 'GEMS';
-            amount = 30;
-            rewardText = `30 Gems!`;
-            document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.gem(120);
-            document.getElementById('reward-desc').innerText = rewardText;
+            // Already unlocked – skip to a different reward
+            // We'll fall back to normal reward
+            unlockChance = 0; // force normal reward
         }
-    } else {
-        // Normal reward
+    }
+
+    // Normal reward (if unlock didn't happen or skipped)
+    if (unlockChance === 0) {
         const multiplier = rIdx + 1; // 1-5
         const isCoins = Math.random() > 0.5;
         amount = multiplier * (50 + Math.floor(Math.random() * 50));
