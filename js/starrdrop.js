@@ -9,7 +9,7 @@ function createStarrDropSVG(rarity, size) {
         <circle cx="50" cy="50" r="45" fill="#fbbf24" stroke="white" stroke-width="4"/>
         <path d="M50 20 L58 40 L80 40 L62 55 L70 75 L50 62 L30 75 L38 55 L20 40 L42 40 Z" fill="white" />
     </svg>`;
-} 
+}
 
 function startStarrDropAnimation() {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
@@ -80,65 +80,103 @@ document.getElementById('starr-drop-container').onclick = () => {
     }
 };
 
+function getRareBrawlers() {
+    return Object.keys(window.CONFIG.BRAWLERS).filter(name => 
+        window.CONFIG.BRAWLERS[name].rarity === 'rare'
+    );
+}
+
+function isAllRareUnlocked() {
+    const rareBrawlers = getRareBrawlers();
+    if (rareBrawlers.length === 0) return true;
+    for (let name of rareBrawlers) {
+        if (!window.brawlerProgress[name]?.unlocked) return false;
+    }
+    return true;
+}
+
+function getRandomRareBrawler() {
+    const rareBrawlers = getRareBrawlers().filter(name => !window.brawlerProgress[name]?.unlocked);
+    if (rareBrawlers.length === 0) return null;
+    return rareBrawlers[Math.floor(Math.random() * rareBrawlers.length)];
+}
+
+function getPossibleRewards(rarity) {
+    const rewards = [
+        { type: 'coins', min: 50, max: 150 },
+        { type: 'pp', min: 30, max: 100 },
+        { type: 'gems', min: 5, max: 20 }
+    ];
+    // Add brawler unlock chances based on rarity
+    let brawlerChance = 0;
+    switch (rarity) {
+        case 'SUPER RARE': brawlerChance = 0.01; break; // 1%
+        case 'EPIC': brawlerChance = 0.04; break;      // 4%
+        case 'MYTHIC': brawlerChance = 0.10; break;    // 10%
+        case 'LEGENDARY': brawlerChance = 0.20; break; // 20%
+        default: brawlerChance = 0;
+    }
+    return { rewards, brawlerChance };
+}
+
 function revealReward() {
     document.getElementById('starr-drop-hint').classList.add('hidden');
     document.getElementById('starr-drop-content').classList.add('hidden');
     document.getElementById('star-svg-container').style.animation = 'none';
     document.getElementById('starr-drop-reward').classList.remove('hidden');
 
-    const rIdx = rarities.indexOf(window.state.starrDropRarity);
     const rarity = window.state.starrDropRarity;
-    const isLegendary = rarity === 'LEGENDARY';
-    const isMythic = rarity === 'MYTHIC';
-    const isEpic = rarity === 'EPIC';
-    const isSuperRare = rarity === 'SUPER RARE';
-    const isRare = rarity === 'RARE';
+    const rIdx = rarities.indexOf(rarity);
+    const multiplier = rIdx + 1;
+    const { rewards, brawlerChance } = getPossibleRewards(rarity);
 
-    let rewardType = '';
+    // Check for brawler unlock
+    const rareBrawlers = getRareBrawlers();
+    if (rareBrawlers.length > 0 && Math.random() < brawlerChance) {
+        const newBrawler = getRandomRareBrawler();
+        if (newBrawler) {
+            window.brawlerProgress[newBrawler].unlocked = true;
+            document.getElementById('reward-visual').innerHTML = createBrawlerSVG(newBrawler, 120);
+            document.getElementById('reward-desc').innerText = `${newBrawler} unlocked!`;
+            if (typeof saveBrawlerProgress === 'function') saveBrawlerProgress();
+            if (typeof updateStatsUI === 'function') updateStatsUI();
+            document.getElementById('close-starr-drop').classList.remove('opacity-0', 'pointer-events-none');
+            return;
+        }
+    }
+
+    // Otherwise, random resource reward
+    const rewardType = rewards[Math.floor(Math.random() * rewards.length)];
     let amount = 0;
     let rewardText = '';
 
-    // Define unlock chances for Brewiant
-    let unlockChance = 0;
-    if (isRare) unlockChance = 0.01;      // 1%
-    else if (isSuperRare) unlockChance = 0.04; // 4%
-    else if (isEpic) unlockChance = 0.10; // 10%
-    else if (isMythic) unlockChance = 0.20; // 20%
-    else if (isLegendary) unlockChance = 0.30; // 30% (just for fun, you can adjust)
-
-    // Try to unlock Brewiant
-    if (Math.random() < unlockChance) {
-        if (window.brawlerProgress && window.brawlerProgress['Brewiant'] && !window.brawlerProgress['Brewiant'].unlocked) {
-            window.brawlerProgress['Brewiant'].unlocked = true;
-            rewardType = 'BREWIANT';
-            rewardText = 'Brewiant unlocked!';
-            document.getElementById('reward-visual').innerHTML = createBrawlerSVG('Brewiant', 120);
-            document.getElementById('reward-desc').innerText = rewardText;
-            if (typeof saveBrawlerProgress === 'function') saveBrawlerProgress();
-        } else {
-            // Already unlocked – skip to a different reward
-            // We'll fall back to normal reward
-            unlockChance = 0; // force normal reward
-        }
-    }
-
-    // Normal reward (if unlock didn't happen or skipped)
-    if (unlockChance === 0) {
-        const multiplier = rIdx + 1; // 1-5
-        const isCoins = Math.random() > 0.5;
-        amount = multiplier * (50 + Math.floor(Math.random() * 50));
-        rewardText = `${amount} ${isCoins ? 'Coins' : 'Power Points'}!`;
-        if (isCoins) {
+    switch (rewardType.type) {
+        case 'coins':
+            amount = Math.floor(Math.random() * (rewardType.max - rewardType.min + 1)) + rewardType.min;
+            amount *= multiplier;
             window.playerState.coins += amount;
             document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.coin(120);
-        } else {
+            rewardText = `${amount} Coins!`;
+            break;
+        case 'pp':
+            amount = Math.floor(Math.random() * (rewardType.max - rewardType.min + 1)) + rewardType.min;
+            amount *= multiplier;
             window.playerState.pp += amount;
             document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.pp(120);
-        }
-        document.getElementById('reward-desc').innerText = rewardText;
+            rewardText = `${amount} Power Points!`;
+            break;
+        case 'gems':
+            amount = Math.floor(Math.random() * (rewardType.max - rewardType.min + 1)) + rewardType.min;
+            amount *= multiplier;
+            window.playerState.gems += amount;
+            document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.gem(120);
+            rewardText = `${amount} Gems!`;
+            break;
     }
 
-    if (isLegendary) {
+    document.getElementById('reward-desc').innerText = rewardText;
+
+    if (rarity === 'LEGENDARY') {
         document.getElementById('starr-drop-screen').style.backgroundColor = 'rgba(255,215,0,0.3)';
         setTimeout(() => {
             document.getElementById('starr-drop-screen').style.backgroundColor = '';
