@@ -241,10 +241,21 @@ canvas.addEventListener('mousedown', (e) => {
                     y: p.y + Math.sin(angle) * targetDist
                 };
             } else {
-                // Second right-click: place bomb
+                // Second right-click: throw bomb
                 if (p.superCharge >= p.superMax && !p.dying) {
                     if (window.state.battle.superTarget) {
-                        createBombExplosion(window.state.battle.superTarget.x, window.state.battle.superTarget.y, window.state.battle, Date.now(), p);
+                        // Create a bomb projectile
+                        const bomb = {
+                            x: p.x,
+                            y: p.y,
+                            targetX: window.state.battle.superTarget.x,
+                            targetY: window.state.battle.superTarget.y,
+                            startTime: Date.now(),
+                            duration: 400, // ms to reach target
+                            owner: p,
+                            level: p.level
+                        };
+                        window.state.battle.bombs.push(bomb);
                         p.superCharge = 0;
                     }
                 }
@@ -325,6 +336,14 @@ function checkCollision(x, y, radius) {
 function createBombExplosion(centerX, centerY, battle, now, owner) {
     const radius = 192; // 3 tiles
     const pushForce = 200;
+
+    // Add explosion effect
+    battle.explosions.push({
+        x: centerX,
+        y: centerY,
+        startTime: now,
+        duration: 500
+    });
 
     // Destroy walls
     battle.walls = battle.walls.filter(w => {
@@ -451,6 +470,8 @@ function startBattle(customMap = null, background = 'floor') {
         poisonRadius: fullSize / 1.1,
         player: null,
         bullets: [],
+        bombs: [], // Anthony's bomb projectiles
+        explosions: [], // visual effects
         walls: [],
         bushes: [],
         water: [],
@@ -608,6 +629,24 @@ function updateGame() {
     const mapLimit = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
     const now = Date.now();
 
+    // Update bombs
+    battle.bombs = battle.bombs.filter(bomb => {
+        const elapsed = now - bomb.startTime;
+        if (elapsed >= bomb.duration) {
+            // Bomb reached target, explode
+            createBombExplosion(bomb.targetX, bomb.targetY, battle, now, bomb.owner);
+            return false;
+        }
+        // Update bomb position (linear interpolation)
+        const t = elapsed / bomb.duration;
+        bomb.currentX = bomb.x + (bomb.targetX - bomb.x) * t;
+        bomb.currentY = bomb.y + (bomb.targetY - bomb.y) * t;
+        return true;
+    });
+
+    // Remove old explosions after duration
+    battle.explosions = battle.explosions.filter(exp => now - exp.startTime < exp.duration);
+
     if (playerDead) {
         console.log('In playerDead block, elapsed:', now - deathAnimationStart);
         const elapsed = now - deathAnimationStart;
@@ -748,7 +787,7 @@ function updateGame() {
         const targets = [p, ...battle.bots];
         for (let t of targets) {
             if (t.id === b.ownerId || t.hp <= 0 || t.dying) continue;
-            const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 16 : 30;
+            const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 32 : 30; // 2x larger for Anthony's laser
             if (Math.hypot(b.x - t.x, b.y - t.y) < hitRadius) {
                 if (b.ownerType === 'Anthony' && b.super) {
                     createBombExplosion(b.x, b.y, battle, now, p);
@@ -1193,13 +1232,56 @@ function drawGame() {
         }
     });
 
+    // Draw bombs (Anthony's super projectiles)
+    window.state.battle.bombs.forEach(bomb => {
+        ctx.save();
+        ctx.translate(bomb.currentX, bomb.currentY);
+        ctx.fillStyle = '#000000';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#8B4513'; // brown
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(0, -3, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+
+    // Draw explosions
+    window.state.battle.explosions.forEach(exp => {
+        const elapsed = now - exp.startTime;
+        const progress = elapsed / exp.duration;
+        const radius = 192 * progress; // expanding
+        const alpha = 1 - progress;
+        ctx.save();
+        ctx.translate(exp.x, exp.y);
+        ctx.fillStyle = `rgba(255, 165, 0, ${alpha})`;
+        ctx.shadowColor = 'orange';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+
     // Draw bullets with brawler-specific colors and sizes
     window.state.battle.bullets.forEach(b => {
         let bulletColor = 'white';
         let bulletRadius = 8;
         if (b.ownerType === 'Anthony' && !b.super) {
             bulletColor = '#ff0000'; // red for laser
-            bulletRadius = 16; // 2x size
+            bulletRadius = 32; // 2x size (previously 16, now 32)
         } else if (b.super) {
             bulletColor = '#fbbf24'; // yellow for super
         }
@@ -1408,10 +1490,20 @@ setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
     const p = window.state.battle.player;
     if (p && !p.dying && p.superCharge >= p.superMax) {
         if (p.type === 'Anthony') {
-            // For joystick, we don't have a target, so we'll use a point in front of the player at max distance
-            const targetX = p.x + Math.cos(ang) * 800; // half of max for simplicity
+            // For joystick, throw bomb at a point in front of the player
+            const targetX = p.x + Math.cos(ang) * 800;
             const targetY = p.y + Math.sin(ang) * 800;
-            createBombExplosion(targetX, targetY, window.state.battle, Date.now(), p);
+            const bomb = {
+                x: p.x,
+                y: p.y,
+                targetX: targetX,
+                targetY: targetY,
+                startTime: Date.now(),
+                duration: 400,
+                owner: p,
+                level: p.level
+            };
+            window.state.battle.bombs.push(bomb);
             p.superCharge = 0;
         } else {
             spawnBullet(p, ang, true);
