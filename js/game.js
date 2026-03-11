@@ -828,7 +828,8 @@ function hideAfterGame() {
     menu.style.opacity = '0';
     setTimeout(() => {
         menu.style.display = 'none';
-        document.getElementById('menu-screen').style.display = 'flex';
+        // Fully exit battle to ensure main menu appears
+        exitBattle();
         if (window.state.lastMatch && window.state.lastMatch.starrdropEarned && typeof startStarrDropAnimation === 'function') {
             startStarrDropAnimation();
             window.state.lastMatch.starrdropEarned = false;
