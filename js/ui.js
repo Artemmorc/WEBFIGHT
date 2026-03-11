@@ -328,8 +328,8 @@ function toggleBrawlers(show) {
             
             div.innerHTML = `
                 <div class="h-24 mb-2 flex items-center justify-center ${!isUnlocked ? 'grayscale brightness-50' : ''}">${createBrawlerSVG(name, 'small')}</div>
-                <div class="text-center text-lg text-black">${name}</div>
-                <div class="text-center text-xs opacity-70 text-black uppercase">${b.rarity}</div>
+                <div class="text-center text-xl text-white">${name}</div>
+                <div class="text-center text-xs opacity-80 text-gray-300 uppercase">${b.rarity}</div>
                 ${isUnlocked ? `<div class="text-center text-yellow-400 text-sm">🏆 ${trophies}</div>` : ''}
                 ${!isUnlocked ? '<div class="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>' : ''}
             `;
