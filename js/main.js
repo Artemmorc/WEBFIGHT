@@ -56,6 +56,21 @@ window.CONFIG = {
             lore: 'Mysteria is a mysterious creature from the desert, wielding a powerful shotgun.',
             ability: 'Fires a spread of 5 bullets. Super fires a concentrated blast.'
         },
+        'Brewiant': {
+            color: '#3b82f6',
+            hp: 4500,
+            damage: 790,
+            superDamage: 830,
+            ammo: 2,
+            speed: 5,
+            reload: 1.8,
+            type: 'Thrower',
+            pfp: 'B',
+            rarity: 'rare',
+            unlocked: false,
+            lore: 'Brewiant is a robot working on the beach, selling drinks. But don’t anger him!',
+            ability: 'Throws a bottle that passes through walls and stays on ground for 2 seconds, dealing damage per second. Super creates a soap bubble around himself dealing damage per second.'
+        },
         'Anthony': {
             color: '#ef4444',
             hp: 3600,
@@ -104,6 +119,7 @@ window.getBrawlerStats = function(brawlerName, level = 1) {
 // ========== CUSTOM BRAWLER IMAGES ==========
 window.BrawlerImages = {
     'Mysteria': { menu: null, icon: null, game: null },
+    'Brewiant': { menu: null, icon: null, game: null },
     'Anthony': { menu: null, icon: null, game: null }
 };
 
