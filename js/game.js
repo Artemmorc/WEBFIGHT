@@ -621,6 +621,21 @@ function updateGame() {
                         }
                         console.log('DEATH DETECTED: killer', killerName, 'victim', t.name);
                         addKillMessage(killerName, t.name);
+
+                        // If the victim is the player, start death animation immediately
+                        if (t.id === 'player') {
+                            console.log('PLAYER DIED, starting death animation');
+                            playerDead = true;
+                            deathAnimationStart = now;
+                            // Calculate current alive count for rank
+                            const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
+                            const aliveCount = 0 + aliveBots; // player is dying, not counted
+                            window.state.lastMatch = {
+                                rank: aliveCount + 1,
+                                coinsEarned: 0,
+                                starrdropEarned: false
+                            };
+                        }
                     }
                 }
                 return false;
@@ -693,8 +708,10 @@ function updateGame() {
         p.hp = Math.min(p.maxHp, p.hp + 10);
     }
 
+    // This block is now mostly redundant because player death is handled in bullet collision,
+    // but keep it as a safety net.
     if (p.hp <= 0 && !p.dying) {
-        console.log('Player HP <= 0, setting death state');
+        console.log('Player HP <= 0 (safety), setting death state');
         p.dying = true;
         p.deathTime = now;
         playerDead = true;
@@ -704,7 +721,7 @@ function updateGame() {
             coinsEarned: 0,
             starrdropEarned: false
         };
-        console.log('PLAYER DIED, starting death animation, rank:', aliveCount+1);
+        console.log('PLAYER DIED (safety), starting death animation, rank:', aliveCount+1);
         return;
     }
 
