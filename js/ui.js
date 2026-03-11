@@ -6,7 +6,7 @@ function initUI() {
         updateBrawlerMenu();
         updateStatsUI();
         
-        if (window.SVG_ICONS) {
+        if (window.SVG_ICONS) { 
             document.getElementById('mode-icon-container').innerHTML = SVG_ICONS.showdown;
             document.getElementById('icon-trophy-sm').innerHTML = SVG_ICONS.trophy(18);
             document.getElementById('icon-pp-sm').innerHTML = SVG_ICONS.pp(18);
