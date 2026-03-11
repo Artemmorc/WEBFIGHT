@@ -7,7 +7,7 @@ window.playerState = {
     pp: 0,
     coins: 0,
     gems: 0,
-    dailyClaimed: false, 
+    dailyClaimed: false,
     dailyWins: 0
 };
 
@@ -59,8 +59,8 @@ window.CONFIG = {
         'Brewiant': {
             color: '#3b82f6',
             hp: 4500,
-            damage: 790,
-            superDamage: 830,
+            damage: 553,    // 790 * 0.7 = 553
+            superDamage: 581, // 830 * 0.7 = 581
             ammo: 2,
             speed: 5,
             reload: 1.8,
