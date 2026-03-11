@@ -69,19 +69,21 @@ async function handleRegister() {
         return;
     }
 
-    // Create initial brawler progress row
+    // Create initial brawler progress row with both brawlers
     const { error: brawlerError } = await sb
         .from('brawler_progress')
         .insert({
             user_id: data.user.id,
             mysteria_unlocked: true,
             mysteria_trophies: 0,
-            mysteria_power_level: 1
+            mysteria_power_level: 1,
+            anthony_unlocked: false,
+            anthony_trophies: 0,
+            anthony_power_level: 1
         });
 
     if (brawlerError) {
         console.error('Brawler progress insert error:', brawlerError);
-        // Non-fatal, but log it
     }
 
     msg.innerText = 'Registration successful! You can now login.';
@@ -168,7 +170,7 @@ async function loadProfile() {
         checkDailyReset();
     }
 
-    // Load per-brawler progress (new structure)
+    // Load per-brawler progress
     await loadBrawlerProgress();
 
     if (typeof updateStatsUI === 'function') updateStatsUI();
@@ -211,29 +213,33 @@ async function loadBrawlerProgress() {
     window.brawlerProgress = {};
 
     if (data) {
-        // Map database columns to our internal structure
-        // For Mysteria
+        // Mysteria
         window.brawlerProgress['Mysteria'] = {
             unlocked: data.mysteria_unlocked,
             trophies: data.mysteria_trophies,
             level: data.mysteria_power_level
         };
-        // Add other brawlers here when you add columns
+        // Anthony
+        window.brawlerProgress['Anthony'] = {
+            unlocked: data.anthony_unlocked,
+            trophies: data.anthony_trophies,
+            level: data.anthony_power_level
+        };
+        // Add other brawlers here
     } else {
         // Create default row if missing
-        window.brawlerProgress['Mysteria'] = {
-            unlocked: true,
-            trophies: 0,
-            level: 1
-        };
-        // Attempt to insert default row
+        window.brawlerProgress['Mysteria'] = { unlocked: true, trophies: 0, level: 1 };
+        window.brawlerProgress['Anthony'] = { unlocked: false, trophies: 0, level: 1 };
         await window.sb
             .from('brawler_progress')
             .insert({
                 user_id: window.currentUser.id,
                 mysteria_unlocked: true,
                 mysteria_trophies: 0,
-                mysteria_power_level: 1
+                mysteria_power_level: 1,
+                anthony_unlocked: false,
+                anthony_trophies: 0,
+                anthony_power_level: 1
             })
             .then(({ error }) => {
                 if (error) console.error('Error inserting default brawler progress:', error);
@@ -252,8 +258,10 @@ async function saveBrawlerProgress() {
         user_id: window.currentUser.id,
         mysteria_unlocked: window.brawlerProgress['Mysteria']?.unlocked ?? true,
         mysteria_trophies: window.brawlerProgress['Mysteria']?.trophies ?? 0,
-        mysteria_power_level: window.brawlerProgress['Mysteria']?.level ?? 1
-        // Add other brawlers here
+        mysteria_power_level: window.brawlerProgress['Mysteria']?.level ?? 1,
+        anthony_unlocked: window.brawlerProgress['Anthony']?.unlocked ?? false,
+        anthony_trophies: window.brawlerProgress['Anthony']?.trophies ?? 0,
+        anthony_power_level: window.brawlerProgress['Anthony']?.level ?? 1
     };
 
     const { error } = await window.sb
