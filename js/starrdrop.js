@@ -9,7 +9,7 @@ function createStarrDropSVG(rarity, size) {
         <circle cx="50" cy="50" r="45" fill="#fbbf24" stroke="white" stroke-width="4"/>
         <path d="M50 20 L58 40 L80 40 L62 55 L70 75 L50 62 L30 75 L38 55 L20 40 L42 40 Z" fill="white" />
     </svg>`;
-}
+} 
 
 function startStarrDropAnimation() {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
