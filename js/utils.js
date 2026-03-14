@@ -78,7 +78,7 @@ function checkLineOfSight(from, to, walls) {
     return true;
 }
 
-// Expose functions that need to be called from other scripts or HTML
+// Expose globally
 window.addKillMessage = addKillMessage;
 window.getKillMessages = getKillMessages;
 window.ensureKillFeed = ensureKillFeed;
