@@ -66,6 +66,11 @@ async function claimDailyReward() {
         window.currentProfile.daily_claimed = true;
         document.getElementById('daily-claim-text').innerText = 'CLAIMED';
         toggleShop(true);
+        
+        // 🔔 Update FREE badge on shop button
+        if (typeof window.updateShopButtonFreeIndicator === 'function') {
+            window.updateShopButtonFreeIndicator();
+        }
     }
 }
 
