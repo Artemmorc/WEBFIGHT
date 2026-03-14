@@ -1,19 +1,12 @@
 // ========== KEYBOARD, MOUSE, JOYSTICK HANDLERS ==========
-import { spawnBullet } from './utils.js';
-import { createBubble } from './effects.js';
 
-// Mouse aiming variables
-export let mouseInsideCanvas = false;
-export let mouseAimAngle = 0;
-export let superAiming = false;
-export let attackTarget = null; 
+// Mouse aiming variables (global)
+window.mouseInsideCanvas = false;
+window.mouseAimAngle = 0;
+window.superAiming = false;
+window.attackTarget = null;
 
-// Re-export for other modules
-export function setMouseInside(value) { mouseInsideCanvas = value; }
-export function setSuperAiming(value) { superAiming = value; }
-export function setAttackTarget(value) { attackTarget = value; }
-
-export function setupJoystick(id, stickId, type, onRelease) {
+function setupJoystick(id, stickId, type, onRelease) {
     const base = document.getElementById(id);
     const stick = document.getElementById(stickId);
     if (!base || !stick) {
@@ -91,7 +84,7 @@ export function setupJoystick(id, stickId, type, onRelease) {
     window.addEventListener('resize', updateRect);
 }
 
-export function updateMoveJoystickVisual() {
+function updateMoveJoystickVisual() {
     const stick = document.getElementById('move-joy-stick');
     if (!stick) return;
     const joy = window.state.battle.joystick.move;
@@ -101,7 +94,7 @@ export function updateMoveJoystickVisual() {
     stick.style.transform = `translate(${dx}px, ${dy}px)`;
 }
 
-export function updateKeyboardMovement() {
+function updateKeyboardMovement() {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || window.playerDead) return;
     let kx = 0, ky = 0;
     if (window.keys.w) ky -= 1;
@@ -119,7 +112,7 @@ export function updateKeyboardMovement() {
     updateMoveJoystickVisual();
 }
 
-// Keyboard listeners
+// Keyboard listeners (already in original game.js, but we keep them here)
 window.onkeydown = (e) => {
     if (!e) return;
     const active = document.activeElement;
@@ -147,3 +140,8 @@ window.onkeyup = (e) => {
         case 'KeyD': window.keys.d = false; e.preventDefault(); break;
     }
 };
+
+// Expose globally
+window.setupJoystick = setupJoystick;
+window.updateMoveJoystickVisual = updateMoveJoystickVisual;
+window.updateKeyboardMovement = updateKeyboardMovement;
