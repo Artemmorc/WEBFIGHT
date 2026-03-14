@@ -177,6 +177,11 @@ async function loadProfile() {
 
     if (typeof updateStatsUI === 'function') updateStatsUI();
 
+    // 🔔 Update FREE badge on shop button
+    if (typeof window.updateShopButtonFreeIndicator === 'function') {
+        window.updateShopButtonFreeIndicator();
+    }
+
     if (data.is_admin) {
         document.getElementById('adminBtnContainer').classList.remove('hidden');
     } else {
