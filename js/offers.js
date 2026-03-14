@@ -1,11 +1,8 @@
 // ========== SHOP OFFERS ==========
 
-let starrDropQueue = [];
-let starrDropProcessing = false;
-
-// Fetch currently active offers
+// Fetch currently active offers (excluding claimed ones)
 async function getActiveOffers() {
-    if (!window.sb) return [];
+    if (!window.sb || !window.currentUser) return [];
     const now = new Date().toISOString();
     const { data, error } = await window.sb
         .from('shop_offers')
@@ -18,10 +15,12 @@ async function getActiveOffers() {
         console.error('Error fetching offers:', error);
         return [];
     }
-    return data;
+    // Filter out offers already claimed by this user
+    const claimed = window.currentProfile?.claimed_offers || [];
+    return data.filter(offer => !claimed.includes(offer.id));
 }
 
-// Check if there is any active free offer
+// Check if there is any active free offer (unclaimed)
 async function hasFreeOffer() {
     const offers = await getActiveOffers();
     return offers.some(offer => offer.price_type === 'free');
@@ -34,6 +33,7 @@ async function purchaseOffer(offerId) {
         return;
     }
 
+    // Re-fetch offer to ensure it's still valid and not claimed
     const { data: offer, error } = await window.sb
         .from('shop_offers')
         .select('*')
@@ -45,6 +45,13 @@ async function purchaseOffer(offerId) {
         return;
     }
 
+    // Check if already claimed
+    const claimed = window.currentProfile?.claimed_offers || [];
+    if (claimed.includes(offer.id)) {
+        alert('You have already claimed this offer.');
+        return;
+    }
+
     const now = new Date();
     const start = new Date(offer.start_time);
     const end = new Date(offer.end_time);
@@ -53,6 +60,7 @@ async function purchaseOffer(offerId) {
         return;
     }
 
+    // Check price
     if (offer.price_type !== 'free') {
         const playerResource = window.playerState[offer.price_type];
         if (playerResource < offer.price_amount) {
@@ -61,44 +69,41 @@ async function purchaseOffer(offerId) {
         }
     }
 
+    // Deduct price
     if (offer.price_type !== 'free') {
         window.playerState[offer.price_type] -= offer.price_amount;
     }
 
-    // Grant reward (may trigger multiple Starr Drops)
+    // Mark as claimed in database
+    const newClaimed = [...claimed, offer.id];
+    const { error: updateError } = await window.sb
+        .from('profiles')
+        .update({ claimed_offers: newClaimed })
+        .eq('user_id', window.currentUser.id);
+    if (updateError) {
+        console.error('Error marking offer as claimed:', updateError);
+        alert('Failed to claim offer. Please try again.');
+        return;
+    }
+    window.currentProfile.claimed_offers = newClaimed;
+
+    // Grant reward(s) – handle multiple starrdrops
     await grantReward(offer);
 
-    // Save player state
+    // Save updated player state (coins, gems, etc. already updated in grantReward)
     await window.saveProfileToDB();
 
-    // Remove the offer card from the DOM
-    const card = document.getElementById(`offer-card-${offer.id}`);
-    if (card) card.remove();
-
-    // If no offers left, show placeholder
-    const container = document.getElementById('shop-offers-container');
-    if (container && container.children.length === 0) {
-        container.innerHTML = '<div class="col-span-4 text-center text-white/50 py-8">No special offers at the moment.</div>';
+    // Refresh shop display
+    if (!document.getElementById('shop-modal').classList.contains('hidden')) {
+        await refreshShopOffers();
     }
 
-    // Update FREE badge on shop button
+    // Update the FREE badge on the shop button
     if (typeof window.updateShopButtonFreeIndicator === 'function') {
         window.updateShopButtonFreeIndicator();
     }
 
-    // Show a small non-intrusive notification
-    showToast('Purchase successful!', 'success');
-}
-
-// Simple toast notification
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl text-white font-bold z-[10000] ${
-        type === 'success' ? 'bg-green-600' : 'bg-blue-600'
-    } border-4 border-white shadow-lg`;
-    toast.innerText = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+    // No success alert – removed
 }
 
 async function grantReward(offer) {
@@ -117,38 +122,19 @@ async function grantReward(offer) {
         case 'brawler':
             if (window.brawlerProgress[item_id]) {
                 window.brawlerProgress[item_id].unlocked = true;
+                await window.saveBrawlerProgress();
             }
             break;
         case 'starrdrop':
-            openMultipleStarrDrops(amount, item_id);
+            // Start a sequence of starrdrops
+            if (typeof window.startStarrDropSequence === 'function') {
+                window.startStarrDropSequence(amount, item_id); // item_id can be a specific rarity or null for random
+            } else {
+                console.error('startStarrDropSequence not available');
+            }
             break;
         default:
             console.warn('Unknown item_type:', item_type);
-    }
-}
-
-function openMultipleStarrDrops(count, forcedRarity = null) {
-    for (let i = 0; i < count; i++) {
-        starrDropQueue.push(forcedRarity);
-    }
-    if (!starrDropProcessing) {
-        processNextStarrDrop();
-    }
-}
-
-function processNextStarrDrop() {
-    if (starrDropQueue.length === 0) {
-        starrDropProcessing = false;
-        return;
-    }
-    starrDropProcessing = true;
-    const forcedRarity = starrDropQueue.shift();
-    // Start Starr Drop with a callback to process next when done
-    if (typeof window.startStarrDropAnimation === 'function') {
-        window.startStarrDropAnimation(forcedRarity, processNextStarrDrop);
-    } else {
-        console.error('startStarrDropAnimation not available');
-        starrDropProcessing = false;
     }
 }
 
@@ -179,7 +165,7 @@ function createOfferCard(offer) {
     const priceDisplay = offer.price_type === 'free' ? 'FREE' : `${offer.price_amount} ${offer.price_type}`;
     const rewardDisplay = getRewardDisplay(offer);
     return `
-    <div class="shop-card rounded-2xl p-4 flex flex-col items-center justify-between text-center min-h-[280px] relative overflow-hidden" id="offer-card-${offer.id}">
+    <div class="shop-card rounded-2xl p-4 flex flex-col items-center justify-between text-center min-h-[280px] relative overflow-hidden">
         ${offer.image_url ? `<img src="${offer.image_url}" class="absolute inset-0 w-full h-full object-cover opacity-20">` : ''}
         <div class="relative z-10">
             <h3 class="text-xl font-bold text-yellow-400 mb-1">${offer.title}</h3>
@@ -222,8 +208,7 @@ function updateTimer(el, endTime) {
         if (diff <= 0) {
             el.innerText = 'EXPIRED';
             clearInterval(interval);
-            const card = el.closest('.shop-card');
-            if (card) card.remove();
+            refreshShopOffers();
             return;
         }
         const hours = Math.floor(diff / 3600000);
@@ -238,4 +223,3 @@ window.getActiveOffers = getActiveOffers;
 window.purchaseOffer = purchaseOffer;
 window.refreshShopOffers = refreshShopOffers;
 window.hasFreeOffer = hasFreeOffer;
-window.openMultipleStarrDrops = openMultipleStarrDrops;
