@@ -1,25 +1,26 @@
 // ========== UTILITY FUNCTIONS ==========
 
-let killMessages = [];
+// Kill messages array (global)
+window.killMessages = window.killMessages || [];
 
-export function addKillMessage(killerName, victimName) {
+function addKillMessage(killerName, victimName) {
     const msg = {
         text: `${killerName} killed ${victimName}`,
         time: Date.now()
-    }; 
-    killMessages.push(msg);
+    };
+    window.killMessages.push(msg);
     console.log('KILL FEED: added message', msg.text);
     setTimeout(() => {
-        killMessages = killMessages.filter(m => m !== msg);
+        window.killMessages = window.killMessages.filter(m => m !== msg);
         console.log('KILL FEED: removed message', msg.text);
     }, 3000);
 }
 
-export function getKillMessages() {
-    return killMessages;
+function getKillMessages() {
+    return window.killMessages;
 }
 
-export function ensureKillFeed() {
+function ensureKillFeed() {
     let killFeed = document.getElementById('kill-feed');
     if (!killFeed) {
         console.warn('Kill feed element not found, creating it now');
@@ -36,7 +37,7 @@ export function ensureKillFeed() {
     return killFeed;
 }
 
-export function spawnBullet(owner, angle, isSuper) {
+function spawnBullet(owner, angle, isSuper) {
     if (!window.state.battle || !window.state.battle.active || window.state.preBattle || window.playerDead) return;
     if (owner.id === 'player') {
         owner.lastAttackTime = Date.now();
@@ -64,7 +65,7 @@ export function spawnBullet(owner, angle, isSuper) {
     }
 }
 
-export function checkLineOfSight(from, to, walls) {
+function checkLineOfSight(from, to, walls) {
     const steps = 10;
     for (let i = 1; i < steps; i++) {
         const t = i / steps;
@@ -76,3 +77,10 @@ export function checkLineOfSight(from, to, walls) {
     }
     return true;
 }
+
+// Expose functions that need to be called from other scripts or HTML
+window.addKillMessage = addKillMessage;
+window.getKillMessages = getKillMessages;
+window.ensureKillFeed = ensureKillFeed;
+window.spawnBullet = spawnBullet;
+window.checkLineOfSight = checkLineOfSight;
