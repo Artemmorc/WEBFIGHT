@@ -528,6 +528,20 @@ function applyAreaDamage(effect, battle, now) {
     }
 }
 
+// Line-of-sight helper for Anthony's super (checks if any wall blocks)
+function checkLineOfSight(from, to, walls) {
+    const steps = 10;
+    for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const x = from.x + (to.x - from.x) * t;
+        const y = from.y + (to.y - from.y) * t;
+        for (let w of walls) {
+            if (x > w.x && x < w.x + 64 && y > w.y && y < w.y + 64) return false;
+        }
+    }
+    return true;
+}
+
 async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
@@ -713,7 +727,7 @@ function startBattle(customMap = null, background = 'floor') {
         const botSpawn = pickSpawnPoint(usedSpawns);
         usedSpawns.push(botSpawn);
         
-        // Random brawler type (excluding maybe some? all are fine)
+        // Random brawler type
         const botType = brawlerTypes[Math.floor(Math.random() * brawlerTypes.length)];
         const botLevel = Math.floor(Math.random() * 3) + 1; // level 1-3
         const botStats = window.getBrawlerStats(botType, botLevel);
@@ -750,7 +764,6 @@ function startBattle(customMap = null, background = 'floor') {
             lastTargetUpdate: 0,
             retreatThreshold: personality === 'defensive' ? 0.6 : (personality === 'aggressive' ? 0.3 : 0.45),
             attackRange: 400,        // base attack range
-            superRange: 300,          // for super usage decisions
             lastSuperCheck: 0
         });
     }
@@ -1064,7 +1077,7 @@ function updateGame() {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
-    // ========== BOT AI (v2) ==========
+    // ========== BOT AI (v2) – with improved movement to prevent spinning ==========
     for (let bot of battle.bots) {
         if (bot.hp <= 0 || bot.dying) continue;
 
@@ -1080,7 +1093,7 @@ function updateGame() {
             // Filter visible
             const visible = possibleTargets.filter(t => canSee(bot, t, now));
             if (visible.length > 0) {
-                // Choose based on personality: aggressive picks closest, defensive picks weakest or farthest?
+                // Choose based on personality
                 if (bot.personality === 'aggressive') {
                     // Closest
                     visible.sort((a,b) => Math.hypot(bot.x - a.x, bot.y - a.y) - Math.hypot(bot.x - b.x, bot.y - b.y));
@@ -1100,9 +1113,8 @@ function updateGame() {
         }
 
         // ----- Movement -----
-        // Direction influenced by target and personality
-        let targetAngle = bot.angle; // default: keep current
         let moveSpeed = bot.speed;
+        let desiredAngle = bot.angle; // default if no target
 
         if (bot.targetEntity) {
             const dx = bot.targetEntity.x - bot.x;
@@ -1111,7 +1123,7 @@ function updateGame() {
             
             // Determine desired direction based on personality and health
             const healthPercent = bot.hp / bot.maxHp;
-            let desiredAngle = Math.atan2(dy, dx);
+            desiredAngle = Math.atan2(dy, dx);
 
             if (healthPercent < bot.retreatThreshold) {
                 // Retreat from target
@@ -1144,39 +1156,49 @@ function updateGame() {
                         // back off a bit
                         desiredAngle += Math.PI;
                     } else {
-                        moveSpeed *= 0.5; // strafe?
+                        moveSpeed *= 0.5; // strafe
                     }
-                }
-            }
-
-            // Try to move in desired direction
-            if (moveSpeed > 0) {
-                let newX = bot.x + Math.cos(desiredAngle) * moveSpeed;
-                let newY = bot.y + Math.sin(desiredAngle) * moveSpeed;
-                // Check collision and boundaries
-                newX = Math.max(25, Math.min(mapLimit - 25, newX));
-                newY = Math.max(25, Math.min(mapLimit - 25, newY));
-                if (!checkCollision(newX, newY, 25)) {
-                    bot.x = newX;
-                    bot.y = newY;
-                    bot.angle = desiredAngle;
-                } else {
-                    // If blocked, try random direction
-                    bot.angle += (Math.random() - 0.5) * Math.PI/2;
                 }
             }
         } else {
             // No target: wander randomly
-            if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
-            let newX = bot.x + Math.cos(bot.angle) * bot.speed * 0.5;
-            let newY = bot.y + Math.sin(bot.angle) * bot.speed * 0.5;
+            if (Math.random() < 0.02) desiredAngle += (Math.random() - 0.5) * 0.5;
+            moveSpeed *= 0.5;
+        }
+
+        // Attempt to move
+        if (moveSpeed > 0) {
+            let moved = false;
+            // Try the desired direction first
+            let newX = bot.x + Math.cos(desiredAngle) * moveSpeed;
+            let newY = bot.y + Math.sin(desiredAngle) * moveSpeed;
             newX = Math.max(25, Math.min(mapLimit - 25, newX));
             newY = Math.max(25, Math.min(mapLimit - 25, newY));
             if (!checkCollision(newX, newY, 25)) {
                 bot.x = newX;
                 bot.y = newY;
+                bot.angle = desiredAngle;
+                moved = true;
             } else {
-                bot.angle += Math.PI/2; // turn
+                // Collision: try a few random directions to escape
+                for (let attempt = 0; attempt < 5; attempt++) {
+                    let testAngle = desiredAngle + (Math.random() - 0.5) * Math.PI;
+                    let tx = bot.x + Math.cos(testAngle) * moveSpeed * 0.7; // slower escape
+                    let ty = bot.y + Math.sin(testAngle) * moveSpeed * 0.7;
+                    tx = Math.max(25, Math.min(mapLimit - 25, tx));
+                    ty = Math.max(25, Math.min(mapLimit - 25, ty));
+                    if (!checkCollision(tx, ty, 25)) {
+                        bot.x = tx;
+                        bot.y = ty;
+                        bot.angle = testAngle;
+                        moved = true;
+                        break;
+                    }
+                }
+            }
+            if (!moved) {
+                // Completely stuck – just rotate in place (visual only)
+                bot.angle += (Math.random() - 0.5) * 0.5;
             }
         }
 
@@ -1186,9 +1208,8 @@ function updateGame() {
             const dy = bot.targetEntity.y - bot.y;
             const dist = Math.hypot(dx, dy);
             if (dist < bot.attackRange) {
-                // Predictive aiming: assume target moves linearly
-                // Simple version: lead target by estimating future position
-                // For simplicity, we use current angle, but could improve
+                // Predictive aiming: lead target (simple)
+                // For simplicity, we just aim directly
                 const angle = Math.atan2(dy, dx);
                 spawnBullet(bot, angle, false);
                 bot.ammo--;
@@ -1208,7 +1229,6 @@ function updateGame() {
                     const dy = bot.targetEntity.y - bot.y;
                     const dist = Math.hypot(dx, dy);
                     if (dist < 400) {
-                        // Check if there are multiple enemies along the line? Simple: just fire if health low
                         if (bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3) {
                             spawnBullet(bot, Math.atan2(dy, dx), true);
                             bot.superCharge = 0;
@@ -1228,9 +1248,9 @@ function updateGame() {
             } else if (bot.type === 'Anthony') {
                 // Use bomb if enemy behind wall or multiple enemies in blast radius
                 if (bot.targetEntity) {
-                    // Check if target is behind a wall (simple line-of-sight check)
-                    const los = !checkLineOfSight(bot, bot.targetEntity, battle.walls);
-                    if (los || (bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3)) {
+                    // Check if target is behind a wall
+                    const los = checkLineOfSight(bot, bot.targetEntity, battle.walls);
+                    if (!los || (bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3)) {
                         // Aim at target's position
                         const bomb = {
                             x: bot.x,
@@ -1248,20 +1268,6 @@ function updateGame() {
                 }
             }
         }
-    }
-
-    // Helper for line-of-sight check (simple)
-    function checkLineOfSight(from, to, walls) {
-        const steps = 10;
-        for (let i = 1; i < steps; i++) {
-            const t = i / steps;
-            const x = from.x + (to.x - from.x) * t;
-            const y = from.y + (to.y - from.y) * t;
-            for (let w of walls) {
-                if (x > w.x && x < w.x + 64 && y > w.y && y < w.y + 64) return false;
-            }
-        }
-        return true;
     }
 
     const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
