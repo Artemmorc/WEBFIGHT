@@ -1,5 +1,4 @@
 // ========== UI FUNCTIONS ==========
-// ========== UI FUNCTIONS ==========
 
 let currentBrawlerDetail = null;
 let currentTab = 'stats';
@@ -29,7 +28,7 @@ function initUI() {
         if (typeof window.createRainbowStarrDropSVG === 'function') {
             document.getElementById('shop-starr-drop-icon').innerHTML = window.createRainbowStarrDropSVG(100);
         } else if (typeof createStarrDropSVG === 'function') {
-            document.getElementById('shop-starr-drop-icon').innerHTML = createStarrDropSVG('RARE', 100); // fallback
+            document.getElementById('shop-starr-drop-icon').innerHTML = createStarrDropSVG('RARE', 100);
         }
         
         setTimeout(() => {
@@ -89,11 +88,14 @@ function createBrawlerSVG(name, size) {
     </svg>`;
 }
 
-function toggleShop(show) {
+// UPDATED toggleShop – now refreshes offers when opened
+async function toggleShop(show) {
     const shop = document.getElementById('shop-modal');
     if (show) {
         shop.classList.remove('hidden');
         updateStatsUI();
+        
+        // Daily deal
         if (window.playerState.dailyClaimed) {
             document.getElementById('daily-reward-card').style.opacity = '0.5';
             document.getElementById('daily-reward-card').onclick = null;
@@ -102,6 +104,13 @@ function toggleShop(show) {
             document.getElementById('daily-reward-card').style.opacity = '1';
             document.getElementById('daily-reward-card').onclick = claimDailyReward;
             document.getElementById('daily-claim-text').innerText = 'CLAIM';
+        }
+        
+        // 🔔 Refresh special offers from the server
+        if (typeof window.refreshShopOffers === 'function') {
+            await window.refreshShopOffers();
+        } else {
+            console.warn('refreshShopOffers not loaded');
         }
     } else {
         shop.classList.add('hidden');
@@ -184,7 +193,6 @@ function showBrawlerGrid() {
 
 function switchBrawlerTab(tab) {
     currentTab = tab;
-    // Update tab button styles
     ['stats', 'upgrade', 'skins', 'lore'].forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         if (btn) {
@@ -212,14 +220,12 @@ function showBrawlerDetail(name) {
     const stats = getBrawlerStats(name, level);
     const nextLevelStats = level < 11 ? getBrawlerStats(name, level + 1) : null;
 
-    // Update portrait and basic info
     document.getElementById('detail-brawler-portrait').innerHTML = createBrawlerSVG(name, 'large');
     document.getElementById('detail-brawler-name').innerText = name;
     document.getElementById('detail-brawler-rarity').innerText = bData.rarity.toUpperCase();
     document.getElementById('detail-brawler-trophies').innerText = progress.trophies;
     document.getElementById('detail-brawler-level').innerText = level;
 
-    // Stats tab
     document.getElementById('detail-brawler-hp').innerText = stats.health;
     document.getElementById('detail-brawler-damage').innerText = stats.damage;
     document.getElementById('detail-brawler-super').innerText = stats.superDamage;
@@ -227,7 +233,6 @@ function showBrawlerDetail(name) {
     document.getElementById('detail-brawler-ammo').innerText = bData.ammo;
     document.getElementById('detail-brawler-reload').innerText = bData.reload;
 
-    // Upgrade tab
     if (level >= 11) {
         document.getElementById('upgrade-current-level').innerText = level;
         document.getElementById('upgrade-next-level').innerText = 'MAX';
@@ -249,11 +254,9 @@ function showBrawlerDetail(name) {
         };
     }
 
-    // Lore tab
     document.getElementById('detail-brawler-lore').innerText = bData.lore || 'No lore available.';
     document.getElementById('detail-brawler-ability').innerText = bData.ability || 'No special ability.';
 
-    // Skins tab (placeholder)
     const skinsGrid = document.getElementById('detail-skins-grid');
     skinsGrid.innerHTML = '';
     if (bData.skins && bData.skins.length) {
@@ -270,14 +273,12 @@ function showBrawlerDetail(name) {
         skinsGrid.appendChild(div);
     }
 
-    // Equip button – now closes brawler screen and returns to main menu
     document.getElementById('detail-equip-btn').onclick = () => {
         window.state.currentBrawler = name;
         updateBrawlerMenu();
-        toggleBrawlers(false); // Close brawler screen and return to main menu
+        toggleBrawlers(false);
     };
 
-    // Show detail, hide grid, reset to stats tab
     document.getElementById('brawler-list').classList.add('hidden');
     document.getElementById('brawler-detail').classList.remove('hidden');
     switchBrawlerTab('stats');
@@ -304,7 +305,6 @@ function toggleBrawlers(show) {
     const screen = document.getElementById('brawler-screen');
     if (show) {
         screen.classList.remove('hidden');
-        // Show grid, hide detail initially
         document.getElementById('brawler-list').classList.remove('hidden');
         document.getElementById('brawler-detail').classList.add('hidden');
         
@@ -343,7 +343,6 @@ function toggleBrawlers(show) {
             
             if (isUnlocked) {
                 div.onclick = () => {
-                    // Open detail view instead of selecting brawler
                     showBrawlerDetail(name);
                 };
             }
