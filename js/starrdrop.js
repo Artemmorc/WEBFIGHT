@@ -13,6 +13,25 @@ function createStarrDropSVG(rarity, size) {
 
 function startStarrDropAnimation() {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
+    
+    // Choose target rarity based on fixed probabilities
+    const rand = Math.random();
+    let cumulative = 0;
+    const rarityProbs = [
+        { rarity: 'RARE', prob: 0.50 },
+        { rarity: 'SUPER RARE', prob: 0.28 },
+        { rarity: 'EPIC', prob: 0.15 },
+        { rarity: 'MYTHIC', prob: 0.05 },
+        { rarity: 'LEGENDARY', prob: 0.02 }
+    ];
+    for (let r of rarityProbs) {
+        cumulative += r.prob;
+        if (rand < cumulative) {
+            window.state.starrDropTargetRarity = r.rarity;
+            break;
+        }
+    }
+    
     resetStarrDrop();
     document.getElementById('star-svg-container').style.animation = 'spin 8s linear infinite';
 }
@@ -44,29 +63,18 @@ document.getElementById('starr-drop-container').onclick = () => {
     // If reward already shown, do nothing
     if (!document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
 
-    // If legendary or already tapped 4 times, reveal reward
-    if (window.state.starrDropRarity === 'LEGENDARY' || window.state.starrDropTaps >= 4) {
+    // If reached target rarity or max taps, reveal reward
+    if (window.state.starrDropRarity === window.state.starrDropTargetRarity || window.state.starrDropTaps >= 4) {
         revealReward();
         return;
     }
 
-    // Upgrade chances: 0 steps (stay Rare) 50%, +1 step 28%, +2 steps 15%, +3 steps 5%, +4 steps 2%
-    const steps = [0, 1, 2, 3, 4];
-    const probs = [0.50, 0.28, 0.15, 0.05, 0.02];
-    const rand = Math.random();
-    let cum = 0;
-    let upgradeSteps = 0;
-    for (let i = 0; i < steps.length; i++) {
-        cum += probs[i];
-        if (rand < cum) {
-            upgradeSteps = steps[i];
-            break;
-        }
-    }
-
+    // Upgrade one step towards target rarity
     const currentIdx = rarities.indexOf(window.state.starrDropRarity);
-    let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
-    window.state.starrDropRarity = rarities[newIdx];
+    const targetIdx = rarities.indexOf(window.state.starrDropTargetRarity);
+    if (currentIdx < targetIdx) {
+        window.state.starrDropRarity = rarities[currentIdx + 1];
+    }
     window.state.starrDropTaps++;
 
     const container = document.getElementById('starr-drop-container');
@@ -75,8 +83,8 @@ document.getElementById('starr-drop-container').onclick = () => {
 
     updateStarrDropUI();
 
-    if (window.state.starrDropRarity === 'LEGENDARY') {
-        document.getElementById('starr-drop-hint').innerText = 'LEGENDARY! TAP TO OPEN';
+    if (window.state.starrDropRarity === window.state.starrDropTargetRarity) {
+        document.getElementById('starr-drop-hint').innerText = 'TAP TO OPEN';
     }
 };
 
