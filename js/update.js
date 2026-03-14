@@ -1,11 +1,6 @@
-// ========== MAIN UPDATE LOOGIC ==========
-import { checkCollision } from './core.js';
-import { spawnBullet, addKillMessage } from './utils.js';
-import { createBottle, createBombExplosion, applyAreaDamage } from './effects.js';
-import { updateBotAI } from './ai.js';
-import { updateKeyboardMovement } from './input.js';
+// ========== MAIN UPDATE LOGIC ==========
 
-export function updateGame() {
+function updateGame() {
     if (window.gameEnded) return;
 
     const battle = window.state.battle;
@@ -18,9 +13,9 @@ export function updateGame() {
         const elapsed = now - bomb.startTime;
         if (elapsed >= bomb.duration) {
             if (bomb.isBottle) {
-                createBottle(bomb.targetX, bomb.targetY, bomb.owner, bomb.level, battle, now);
+                window.createBottle(bomb.targetX, bomb.targetY, bomb.owner, bomb.level, battle, now);
             } else {
-                createBombExplosion(bomb.targetX, bomb.targetY, battle, now, bomb.owner);
+                window.createBombExplosion(bomb.targetX, bomb.targetY, battle, now, bomb.owner);
             }
             return false;
         }
@@ -37,7 +32,7 @@ export function updateGame() {
         const elapsed = now - effect.startTime;
         if (elapsed >= effect.duration) return false;
         while (effect.lastTick + 1000 <= now) {
-            applyAreaDamage(effect, battle, now);
+            window.applyAreaDamage(effect, battle, now);
             effect.lastTick += 1000;
         }
         return true;
@@ -99,7 +94,7 @@ export function updateGame() {
         return;
     }
 
-    updateKeyboardMovement();
+    window.updateKeyboardMovement();
 
     const move = battle.joystick.move;
     const len = Math.hypot(move.x, move.y);
@@ -112,10 +107,10 @@ export function updateGame() {
 
         let newX = p.x + dx;
         let newY = p.y;
-        if (!checkCollision(newX, newY, 25)) p.x = Math.max(25, Math.min(mapLimit - 25, newX));
+        if (!window.checkCollision(newX, newY, 25)) p.x = Math.max(25, Math.min(mapLimit - 25, newX));
         newX = p.x;
         newY = p.y + dy;
-        if (!checkCollision(newX, newY, 25)) p.y = Math.max(25, Math.min(mapLimit - 25, newY));
+        if (!window.checkCollision(newX, newY, 25)) p.y = Math.max(25, Math.min(mapLimit - 25, newY));
         p.angle = Math.atan2(dy, dx);
     }
 
@@ -132,7 +127,7 @@ export function updateGame() {
                 if (nextX + 8 > box.x && nextX - 8 < box.x + 64 &&
                     nextY + 8 > box.y && nextY - 8 < box.y + 64) {
                     if (b.ownerType === 'Anthony' && b.super) {
-                        createBombExplosion(b.x, b.y, battle, now, p);
+                        window.createBombExplosion(b.x, b.y, battle, now, p);
                         return false;
                     }
                     box.hp -= 800;
@@ -150,7 +145,7 @@ export function updateGame() {
                 if (nextX + 8 > wall.x && nextX - 8 < wall.x + 64 &&
                     nextY + 8 > wall.y && nextY - 8 < wall.y + 64) {
                     if (b.ownerType === 'Anthony' && b.super) {
-                        createBombExplosion(b.x, b.y, battle, now, p);
+                        window.createBombExplosion(b.x, b.y, battle, now, p);
                     }
                     return false;
                 }
@@ -163,7 +158,7 @@ export function updateGame() {
                 if (nextX + 8 > water.x && nextX - 8 < water.x + 64 &&
                     nextY + 8 > water.y && nextY - 8 < water.y + 64) {
                     if (b.ownerType === 'Anthony' && b.super) {
-                        createBombExplosion(b.x, b.y, battle, now, p);
+                        window.createBombExplosion(b.x, b.y, battle, now, p);
                     }
                     return false;
                 }
@@ -176,7 +171,7 @@ export function updateGame() {
                 if (nextX + 8 > barrel.x && nextX - 8 < barrel.x + 64 &&
                     nextY + 8 > barrel.y && nextY - 8 < barrel.y + 64) {
                     if (b.ownerType === 'Anthony' && b.super) {
-                        createBombExplosion(b.x, b.y, battle, now, p);
+                        window.createBombExplosion(b.x, b.y, battle, now, p);
                     }
                     return false;
                 }
@@ -189,7 +184,7 @@ export function updateGame() {
         const maxRange = (b.ownerType === 'Anthony' && !b.super) ? 600 : 300;
         if (b.dist > maxRange) {
             if (b.ownerType === 'Brewiant' && !b.super) {
-                createBottle(b.x, b.y, p, b.level, battle, now);
+                window.createBottle(b.x, b.y, p, b.level, battle, now);
             }
             return false;
         }
@@ -200,7 +195,7 @@ export function updateGame() {
             const hitRadius = (b.ownerType === 'Anthony' && !b.super) ? 32 : 30;
             if (Math.hypot(b.x - t.x, b.y - t.y) < hitRadius) {
                 if (b.ownerType === 'Anthony' && b.super) {
-                    createBombExplosion(b.x, b.y, battle, now, p);
+                    window.createBombExplosion(b.x, b.y, battle, now, p);
                     return false;
                 }
                 if (!t.invincibleUntil || now > t.invincibleUntil) {
@@ -236,7 +231,7 @@ export function updateGame() {
                             const killerBot = battle.bots.find(bot => bot.id === b.ownerId);
                             killerName = killerBot ? killerBot.name : 'Unknown';
                         }
-                        addKillMessage(killerName, t.name);
+                        window.addKillMessage(killerName, t.name);
 
                         if (t.id === 'player') {
                             console.log('PLAYER DIED, starting death animation');
@@ -288,7 +283,7 @@ export function updateGame() {
 
     // Bot AI
     for (let bot of battle.bots) {
-        updateBotAI(bot, battle, now, mapLimit, p);
+        window.updateBotAI(bot, battle, now, mapLimit, p);
     }
 
     const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
@@ -296,7 +291,7 @@ export function updateGame() {
     document.getElementById('brawlers-left').innerText = aliveCount;
 
     // Poison gas – FASTER!
-    battle.poisonRadius -= 0.5;   // <-- increased from 0.05 to 0.5
+    battle.poisonRadius -= 0.5;   // increased from 0.05
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
     [...battle.bots, p].forEach(ent => {
         if(ent.hp <= 0 || ent.dying) return;
@@ -368,3 +363,6 @@ export function updateGame() {
     battle.camera.x = p.x - (canvas.width / 2) / battle.camera.zoom;
     battle.camera.y = p.y - (canvas.height / 2) / battle.camera.zoom;
 }
+
+// Expose globally
+window.updateGame = updateGame;
