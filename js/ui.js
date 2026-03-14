@@ -1,4 +1,5 @@
 // ========== UI FUNCTIONS ==========
+// ========== UI FUNCTIONS ==========
 
 let currentBrawlerDetail = null;
 let currentTab = 'stats';
@@ -24,8 +25,11 @@ function initUI() {
             document.getElementById('shop-coins-bundle-icon').innerHTML = SVG_ICONS.coin(80);
         }
         
-        if (typeof createStarrDropSVG === 'function') {
-            document.getElementById('shop-starr-drop-icon').innerHTML = createStarrDropSVG('RARE', 100);
+        // 🌈 Use rainbow icon in shop
+        if (typeof window.createRainbowStarrDropSVG === 'function') {
+            document.getElementById('shop-starr-drop-icon').innerHTML = window.createRainbowStarrDropSVG(100);
+        } else if (typeof createStarrDropSVG === 'function') {
+            document.getElementById('shop-starr-drop-icon').innerHTML = createStarrDropSVG('RARE', 100); // fallback
         }
         
         setTimeout(() => {
