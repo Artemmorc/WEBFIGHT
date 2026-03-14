@@ -107,7 +107,7 @@ function hideAfterGame() {
     }, 300);
 }
 
-// Initialize joysticks (called after DOM is ready)
+// Initialize joysticks and mouse listeners (called after DOM is ready)
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.setupJoystick === 'function') {
         window.setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
@@ -146,6 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else {
         console.error('setupJoystick not loaded yet');
+    }
+
+    // Add mouse listeners for aiming
+    if (typeof window.setupMouseListeners === 'function') {
+        window.setupMouseListeners();
+    } else {
+        console.error('setupMouseListeners not loaded yet');
     }
 });
 
