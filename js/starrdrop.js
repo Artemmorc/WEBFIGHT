@@ -45,7 +45,7 @@ function createStarrDropSVG(rarity, size) {
     </svg>`;
 }
 
-// Start a sequence of starrdrops
+// Start a sequence of starrdrops (called from offers)
 function startStarrDropSequence(count, forcedRarity = null) {
     for (let i = 0; i < count; i++) {
         starrDropQueue.push(forcedRarity);
@@ -55,6 +55,7 @@ function startStarrDropSequence(count, forcedRarity = null) {
     }
 }
 
+// Process the next starrdrop in queue
 function processNextStarrDrop() {
     if (starrDropQueue.length === 0) {
         isStarrDropActive = false;
@@ -69,6 +70,7 @@ function processNextStarrDrop() {
     startSingleStarrDrop(forcedRarity);
 }
 
+// Start a single starrdrop animation
 function startSingleStarrDrop(forcedRarity) {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
     
@@ -90,6 +92,7 @@ function startSingleStarrDrop(forcedRarity) {
     resetSingleStarrDrop();
 }
 
+// Reset UI for a new starrdrop
 function resetSingleStarrDrop() {
     window.state.starrDropTaps = 0;
     window.state.starrDropFinalRarity = null;
@@ -111,9 +114,11 @@ function resetSingleStarrDrop() {
     
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
     document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
+    document.getElementById('starr-drop-hint').classList.remove('hidden'); // ensure visible
     document.getElementById('star-svg-container').style.animation = 'spin 4s linear infinite';
 }
 
+// Click handler for the starrdrop container
 document.getElementById('starr-drop-container').onclick = () => {
     if (!document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
 
@@ -136,6 +141,7 @@ document.getElementById('starr-drop-container').onclick = () => {
         document.getElementById('star-svg-container').style.animation = 'none';
         document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(window.state.starrDropFinalRarity, 250);
         
+        // Force centering
         const visual = document.getElementById('starr-drop-visual');
         visual.style.display = 'flex';
         visual.style.alignItems = 'center';
@@ -147,12 +153,14 @@ document.getElementById('starr-drop-container').onclick = () => {
         document.getElementById('star-glow').style.backgroundColor = rarityColors[rIdx];
         
         document.getElementById('starr-drop-hint').innerText = 'TAP TO OPEN';
+        document.getElementById('starr-drop-hint').classList.remove('hidden');
     }
     else if (window.state.starrDropTaps >= 5 && window.state.starrDropExploded) {
         revealSingleReward();
     }
 };
 
+// Reveal the reward for the current starrdrop
 function revealSingleReward() {
     document.getElementById('starr-drop-hint').classList.add('hidden');
     document.getElementById('starr-drop-content').classList.add('hidden');
@@ -229,27 +237,26 @@ function revealSingleReward() {
     setupNextStarrDropOnClose();
 }
 
+// Modify close button to process next starrdrop
 function setupNextStarrDropOnClose() {
-    // Replace the close button's onclick to process next starrdrop
     const closeBtn = document.getElementById('close-starr-drop');
-    const originalClick = closeBtn.onclick;
     closeBtn.onclick = () => {
         finishStarrDrop();
-        // Process next in queue
         processNextStarrDrop();
     };
 }
 
+// Hide the starrdrop screen
 function finishStarrDrop() {
     document.getElementById('starr-drop-screen').classList.add('hidden');
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
-    // Reset close button to default behavior (hides screen only)
+    // Reset close button to default (hide only)
     document.getElementById('close-starr-drop').onclick = () => {
         document.getElementById('starr-drop-screen').classList.add('hidden');
     };
 }
 
-// Helper functions (unchanged)
+// Helper functions
 function getRareBrawlers() {
     return Object.keys(window.CONFIG.BRAWLERS).filter(name => 
         window.CONFIG.BRAWLERS[name].rarity === 'rare'
@@ -282,6 +289,8 @@ function getPossibleRewards(rarity) {
     return { rewards, brawlerChance };
 }
 
-// Expose the sequence starter
+// Expose public functions
 window.startStarrDropSequence = startStarrDropSequence;
-window.finishStarrDrop = finishStarrDrop; // for manual close if needed
+window.finishStarrDrop = finishStarrDrop;
+// Also expose a single starrdrop starter for the regular shop
+window.startSingleStarrDrop = startSingleStarrDrop;
