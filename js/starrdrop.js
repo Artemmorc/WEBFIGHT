@@ -51,9 +51,14 @@ function resetStarrDrop() {
     window.state.starrDropExploded = false;
     
     document.getElementById('close-starr-drop').classList.add('opacity-0', 'pointer-events-none');
-    document.getElementById('starr-drop-hint').classList.remove('hidden');
-    document.getElementById('starr-drop-reward').classList.add('hidden');
-    document.getElementById('starr-drop-content').classList.remove('hidden');
+    
+    // Show content, hide reward
+    const content = document.getElementById('starr-drop-content');
+    const reward = document.getElementById('starr-drop-reward');
+    content.classList.remove('hidden');
+    content.style.display = 'flex';
+    reward.classList.add('hidden');
+    reward.style.display = 'none';
     
     // Show rainbow
     document.getElementById('star-svg-container').innerHTML = window.createRainbowStarrDropSVG(250);
@@ -166,9 +171,19 @@ function getPossibleRewards(rarity) {
 }
 
 function revealReward() {
+    console.log('revealReward called'); // Debug log
+
+    // Hide content, show reward
+    const content = document.getElementById('starr-drop-content');
+    const reward = document.getElementById('starr-drop-reward');
+    
+    content.classList.add('hidden');
+    content.style.display = 'none'; // force hide
+    reward.classList.remove('hidden');
+    reward.style.display = 'flex';   // force show
+
     document.getElementById('starr-drop-hint').classList.add('hidden');
-    document.getElementById('starr-drop-content').classList.add('hidden');
-    document.getElementById('starr-drop-reward').classList.remove('hidden');
+    document.getElementById('star-svg-container').style.animation = 'none';
 
     const rarity = window.state.starrDropFinalRarity;
     const rIdx = rarities.indexOf(rarity);
