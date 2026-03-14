@@ -111,7 +111,7 @@ function getRandomRareBrawler() {
 
 function getPossibleRewards(rarity) {
     // Base rewards for all rarities (coins and PP)
-    const baseRewards = [
+    const baseRewards = [ 
         { type: 'coins', min: 50, max: 150 },
         { type: 'pp', min: 30, max: 100 }
     ];
