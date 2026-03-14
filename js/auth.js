@@ -61,8 +61,8 @@ async function handleRegister() {
             is_admin: false,
             daily_wins: 0,
             daily_wins_date: new Date().toISOString().split('T')[0],
-            selected_icon: 'Mysteria',      // default
-            name_color: '#4ade80'            // default
+            selected_icon: 'Mysteria',
+            name_color: '#4ade80'
         });
 
     if (profileError) {
@@ -154,8 +154,8 @@ async function loadProfile() {
     window.currentProfile = data;
     window.playerState = {
         name: data.display_name,
-        nameColor: data.name_color || '#4ade80',           // load from DB
-        selectedIcon: data.selected_icon || 'Mysteria',   // load from DB
+        nameColor: data.name_color || '#4ade80',
+        selectedIcon: data.selected_icon || 'Mysteria',
         trophies: data.trophies,
         pp: data.pp,
         coins: data.coins,
@@ -167,15 +167,12 @@ async function loadProfile() {
     document.getElementById('displayUsername').innerText = data.username;
     document.getElementById('displayAccountId').innerText = '#' + data.account_id;
 
-    // Reset daily wins if date changed
     await checkDailyWinReset();
 
-    // Start daily timer and check daily claim status
     if (typeof checkDailyReset === 'function') {
         checkDailyReset();
     }
 
-    // Load per-brawler progress
     await loadBrawlerProgress();
 
     if (typeof updateStatsUI === 'function') updateStatsUI();
@@ -189,7 +186,7 @@ async function loadProfile() {
 
 async function checkDailyWinReset() {
     if (!window.currentUser || !window.currentProfile) return;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     if (window.currentProfile.daily_wins_date !== today) {
         window.currentProfile.daily_wins = 0;
         window.currentProfile.daily_wins_date = today;
@@ -218,26 +215,22 @@ async function loadBrawlerProgress() {
     window.brawlerProgress = {};
 
     if (data) {
-        // Mysteria
         window.brawlerProgress['Mysteria'] = {
             unlocked: data.mysteria_unlocked,
             trophies: data.mysteria_trophies,
             level: data.mysteria_power_level
         };
-        // Brewiant
         window.brawlerProgress['Brewiant'] = {
             unlocked: data.brewiant_unlocked,
             trophies: data.brewiant_trophies,
             level: data.brewiant_power_level
         };
-        // Anthony
         window.brawlerProgress['Anthony'] = {
             unlocked: data.anthony_unlocked,
             trophies: data.anthony_trophies,
             level: data.anthony_power_level
         };
     } else {
-        // Create default row if missing
         window.brawlerProgress['Mysteria'] = { unlocked: true, trophies: 0, level: 1 };
         window.brawlerProgress['Brewiant'] = { unlocked: false, trophies: 0, level: 1 };
         window.brawlerProgress['Anthony'] = { unlocked: false, trophies: 0, level: 1 };
@@ -260,7 +253,6 @@ async function loadBrawlerProgress() {
             });
     }
 
-    // Update total trophies in playerState
     window.playerState.trophies = Object.values(window.brawlerProgress).reduce((sum, b) => sum + (b.trophies || 0), 0);
     if (typeof updateStatsUI === 'function') updateStatsUI();
 }
@@ -293,8 +285,8 @@ async function saveProfileToDB() {
 
     const updates = {
         display_name: window.playerState.name,
-        selected_icon: window.playerState.selectedIcon,   // save selected icon
-        name_color: window.playerState.nameColor,         // save name color
+        selected_icon: window.playerState.selectedIcon,
+        name_color: window.playerState.nameColor,
         trophies: window.playerState.trophies,
         pp: window.playerState.pp,
         coins: window.playerState.coins,
@@ -322,7 +314,7 @@ async function upgradeBrawler(brawlerName) {
         alert('Already max level!');
         return;
     }
-    const costIndex = currentLevel - 1; // level 1 -> index 0
+    const costIndex = currentLevel - 1;
     const cost = window.UPGRADE_COSTS[costIndex];
     if (!cost) return;
 
@@ -331,25 +323,21 @@ async function upgradeBrawler(brawlerName) {
         return;
     }
 
-    // Deduct resources
     window.playerState.coins -= cost.coins;
     window.playerState.pp -= cost.pp;
     progress.level = currentLevel + 1;
 
-    // Save to DB
-    await saveBrawlerProgress(); // saves entire row
-    await saveProfileToDB(); // saves coins/pp
+    await saveBrawlerProgress();
+    await saveProfileToDB();
 
-    // Update UI
     if (typeof updateStatsUI === 'function') updateStatsUI();
-    // Refresh brawler selection if open
     if (!document.getElementById('brawler-screen').classList.contains('hidden')) {
         toggleBrawlers(true);
     }
     alert(`${brawlerName} upgraded to level ${progress.level}!`);
 }
 
-// Admin functions
+// ========== ADMIN FUNCTIONS ==========
 function toggleAdminPanel() {
     const panel = document.getElementById('adminPanel');
     panel.classList.toggle('hidden');
@@ -393,6 +381,147 @@ async function adminChangeUsername() {
     }
 }
 
+// ========== OFFER MANAGEMENT (ADMIN) ==========
+
+let currentEditingOfferId = null;
+
+function openOfferEditor() {
+    document.getElementById('offer-editor').classList.remove('hidden');
+    loadOffersList();
+    clearOfferForm();
+}
+
+function closeOfferEditor() {
+    document.getElementById('offer-editor').classList.add('hidden');
+}
+
+function clearOfferForm() {
+    currentEditingOfferId = null;
+    document.getElementById('offer-title').value = '';
+    document.getElementById('offer-description').value = '';
+    document.getElementById('offer-item-type').value = 'coins';
+    document.getElementById('offer-item-id').value = '';
+    document.getElementById('offer-amount').value = '1';
+    document.getElementById('offer-image').value = '';
+    document.getElementById('offer-price-type').value = 'coins';
+    document.getElementById('offer-price-amount').value = '0';
+    document.getElementById('offer-start').value = '';
+    document.getElementById('offer-end').value = '';
+    document.getElementById('offer-delete-btn').classList.add('hidden');
+}
+
+async function loadOffersList() {
+    if (!window.sb) return;
+    const { data, error } = await window.sb
+        .from('shop_offers')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error('Error loading offers:', error);
+        return;
+    }
+    const list = document.getElementById('offer-list');
+    list.innerHTML = data.map(offer => `
+        <div class="bg-black/40 p-3 rounded-lg flex justify-between items-center">
+            <span class="text-white">${offer.title} (${offer.item_type})</span>
+            <button onclick="editOffer(${offer.id})" class="bg-blue-500 px-3 py-1 rounded text-sm">Edit</button>
+        </div>
+    `).join('');
+}
+
+async function editOffer(id) {
+    if (!window.sb) return;
+    const { data, error } = await window.sb
+        .from('shop_offers')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error || !data) {
+        alert('Offer not found');
+        return;
+    }
+    currentEditingOfferId = id;
+    document.getElementById('offer-title').value = data.title || '';
+    document.getElementById('offer-description').value = data.description || '';
+    document.getElementById('offer-item-type').value = data.item_type || 'coins';
+    document.getElementById('offer-item-id').value = data.item_id || '';
+    document.getElementById('offer-amount').value = data.amount || 1;
+    document.getElementById('offer-image').value = data.image_url || '';
+    document.getElementById('offer-price-type').value = data.price_type || 'coins';
+    document.getElementById('offer-price-amount').value = data.price_amount || 0;
+    if (data.start_time) {
+        document.getElementById('offer-start').value = data.start_time.slice(0,16);
+    }
+    if (data.end_time) {
+        document.getElementById('offer-end').value = data.end_time.slice(0,16);
+    }
+    document.getElementById('offer-delete-btn').classList.remove('hidden');
+}
+
+async function saveOffer() {
+    if (!window.currentProfile?.is_admin) return;
+
+    const title = document.getElementById('offer-title').value.trim();
+    if (!title) {
+        alert('Title is required');
+        return;
+    }
+
+    const start = document.getElementById('offer-start').value;
+    const end = document.getElementById('offer-end').value;
+    if (!start || !end) {
+        alert('Start and end times are required');
+        return;
+    }
+
+    const offerData = {
+        title,
+        description: document.getElementById('offer-description').value.trim() || null,
+        item_type: document.getElementById('offer-item-type').value,
+        item_id: document.getElementById('offer-item-id').value.trim() || null,
+        amount: parseInt(document.getElementById('offer-amount').value) || 1,
+        image_url: document.getElementById('offer-image').value.trim() || null,
+        price_type: document.getElementById('offer-price-type').value,
+        price_amount: parseInt(document.getElementById('offer-price-amount').value) || 0,
+        start_time: new Date(start).toISOString(),
+        end_time: new Date(end).toISOString(),
+        is_active: true
+    };
+
+    let error;
+    if (currentEditingOfferId) {
+        ({ error } = await window.sb
+            .from('shop_offers')
+            .update(offerData)
+            .eq('id', currentEditingOfferId));
+    } else {
+        ({ error } = await window.sb
+            .from('shop_offers')
+            .insert(offerData));
+    }
+
+    if (error) {
+        alert('Error saving offer: ' + error.message);
+    } else {
+        alert('Offer saved successfully');
+        closeOfferEditor();
+    }
+}
+
+async function deleteOffer() {
+    if (!currentEditingOfferId || !confirm('Delete this offer?')) return;
+    const { error } = await window.sb
+        .from('shop_offers')
+        .delete()
+        .eq('id', currentEditingOfferId);
+    if (error) {
+        alert('Error deleting: ' + error.message);
+    } else {
+        alert('Offer deleted');
+        closeOfferEditor();
+    }
+}
+
 // Expose functions
 window.handleRegister = handleRegister;
 window.handleLogin = handleLogin;
@@ -408,3 +537,8 @@ window.adminGiveCoins = adminGiveCoins;
 window.adminGiveGems = adminGiveGems;
 window.adminGivePp = adminGivePp;
 window.adminChangeUsername = adminChangeUsername;
+window.openOfferEditor = openOfferEditor;
+window.closeOfferEditor = closeOfferEditor;
+window.editOffer = editOffer;
+window.saveOffer = saveOffer;
+window.deleteOffer = deleteOffer;
