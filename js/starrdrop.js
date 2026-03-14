@@ -12,7 +12,6 @@ const rarityProbs = [
     { rarity: 'LEGENDARY', prob: 0.02 }
 ];
 
-// Expose rainbow SVG globally
 window.createRainbowStarrDropSVG = function(size) {
     return `
     <svg width="${size}" height="${size}" viewBox="0 0 100 100">
@@ -40,18 +39,18 @@ function createStarrDropSVG(rarity, size) {
     </svg>`;
 }
 
-// Modified start function – accepts forced rarity and optional callback
+// Callback support
+let starrDropOnComplete = null;
+
 function startStarrDropAnimation(forcedRarity = null, onComplete = null) {
     window.starrDropActive = true;
-    window.starrDropOnComplete = onComplete;
+    starrDropOnComplete = onComplete;
     document.getElementById('starr-drop-screen').classList.remove('hidden');
     
-    // If forced rarity is provided, set it as target and also final (no randomness)
     if (forcedRarity && rarities.includes(forcedRarity)) {
         window.state.starrDropTargetRarity = forcedRarity;
-        window.state.starrDropFinalRarity = forcedRarity; // will be used after explosion
+        window.state.starrDropFinalRarity = forcedRarity;
     } else {
-        // Choose target rarity randomly
         const rand = Math.random();
         let cumulative = 0;
         for (let r of rarityProbs) {
@@ -107,14 +106,12 @@ document.getElementById('starr-drop-container').onclick = () => {
         document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
     }
     else if (window.state.starrDropTaps === 4 && !window.state.starrDropExploded) {
-        // Use target rarity if already set, otherwise choose randomly (should already be set)
         window.state.starrDropFinalRarity = window.state.starrDropTargetRarity;
         window.state.starrDropExploded = true;
 
         document.getElementById('star-svg-container').style.animation = 'none';
         document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(window.state.starrDropFinalRarity, 250);
         
-        // Force re-center
         const visual = document.getElementById('starr-drop-visual');
         visual.style.display = 'flex';
         visual.style.alignItems = 'center';
@@ -176,7 +173,6 @@ function revealReward() {
     const multiplier = rIdx + 1;
     const { rewards, brawlerChance } = getPossibleRewards(rarity);
 
-    // Brawler unlock
     const rareBrawlers = getRareBrawlers();
     if (rareBrawlers.length > 0 && Math.random() < brawlerChance) {
         const newBrawler = getRandomRareBrawler();
@@ -191,7 +187,6 @@ function revealReward() {
         }
     }
 
-    // Resource reward
     const rewardType = rewards[Math.floor(Math.random() * rewards.length)];
     let amount = 0;
     let rewardText = '';
@@ -240,15 +235,14 @@ function finishStarrDrop() {
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
     window.starrDropActive = false;
     
-    // If there's a callback (for multiple drops), call it
-    if (typeof window.starrDropOnComplete === 'function') {
-        const cb = window.starrDropOnComplete;
-        window.starrDropOnComplete = null;
+    if (typeof starrDropOnComplete === 'function') {
+        const cb = starrDropOnComplete;
+        starrDropOnComplete = null;
         cb();
     }
-    
-    // Check if there are more Starr Drops in queue
-    if (typeof window.processNextStarrDrop === 'function') {
-        window.processNextStarrDrop();
-    }
 }
+
+// Expose
+window.startStarrDropAnimation = startStarrDropAnimation;
+window.finishStarrDrop = finishStarrDrop;
+window.starrDropActive = false;
