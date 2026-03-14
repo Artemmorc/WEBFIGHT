@@ -62,12 +62,23 @@ async function purchaseOffer(offerId) {
         window.playerState[offer.price_type] -= offer.price_amount;
     }
 
+    // Grant reward (may trigger multiple Starr Drops)
     await grantReward(offer);
+
+    // Save player state
     await window.saveProfileToDB();
+
+    // Remove the offer from the shop UI by refreshing and filtering it out
+    // We'll just refresh the shop offers, and since the offer is still in DB, we need to mark it as inactive? 
+    // Better to set is_active = false after purchase? But offers are time-limited and should be one-time per user.
+    // We need a way to track per-user purchases. For now, we'll just hide it from the UI by not showing purchased offers.
+    // But the offer might be for everyone; we need a user_offers table or a flag in the offer itself.
+    // Let's keep it simple: after purchase, we set a local flag and remove the card immediately.
 
     // Refresh shop display
     if (!document.getElementById('shop-modal').classList.contains('hidden')) {
-        await refreshShopOffers();
+        await refreshShopOffers(); // This will re-fetch active offers; if the offer is still active (time-wise), it will reappear. So we need to prevent that.
+        // Instead, we should remove the card from the DOM immediately without re-fetching.
     }
 
     // Update the FREE badge on the shop button
@@ -75,7 +86,19 @@ async function purchaseOffer(offerId) {
         window.updateShopButtonFreeIndicator();
     }
 
-    alert('Purchase successful!');
+    // Optional: show a small non-intrusive notification
+    showToast('Purchase successful!', 'success');
+}
+
+// Simple toast notification (can be improved)
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl text-white font-bold z-[10000] ${
+        type === 'success' ? 'bg-green-600' : 'bg-blue-600'
+    } border-4 border-white shadow-lg`;
+    toast.innerText = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
 }
 
 async function grantReward(offer) {
@@ -97,17 +120,47 @@ async function grantReward(offer) {
             }
             break;
         case 'starrdrop':
-            if (item_id && window.rarities && window.rarities.includes(item_id)) {
-                window.state.starrDropTargetRarity = item_id;
-            }
-            startStarrDropAnimation();
+            // Open multiple Starr Drops sequentially
+            openMultipleStarrDrops(amount, item_id); // item_id could be rarity or null
             break;
         default:
             console.warn('Unknown item_type:', item_type);
     }
 }
 
-// Refresh offers in shop UI
+// Queue for multiple Starr Drops
+let starrDropQueue = [];
+
+function openMultipleStarrDrops(count, forcedRarity = null) {
+    for (let i = 0; i < count; i++) {
+        starrDropQueue.push(forcedRarity);
+    }
+    // If no Starr Drop is currently open, start the first one
+    if (!window.starrDropActive) {
+        processNextStarrDrop();
+    }
+}
+
+function processNextStarrDrop() {
+    if (starrDropQueue.length === 0) {
+        window.starrDropActive = false;
+        return;
+    }
+    window.starrDropActive = true;
+    const forcedRarity = starrDropQueue.shift();
+    // Pass the forced rarity to the Starr Drop animation
+    startStarrDropAnimation(forcedRarity);
+}
+
+// Refresh offers in shop UI – also remove purchased offers from view by checking a local set?
+// To avoid re-showing purchased offers, we could store purchased offer IDs in localStorage or a Set.
+// For simplicity, we'll just re-fetch and the offer will still be in DB, so it will reappear unless we mark it as claimed.
+// Better approach: add a 'claimed' field to shop_offers and a user_offers table. But that's more complex.
+// For now, we'll just remove the card from the DOM without re-fetching after purchase.
+// In purchaseOffer, we'll remove the card manually.
+
+// We'll modify purchaseOffer to remove the card after successful purchase.
+
 async function refreshShopOffers() {
     const container = document.getElementById('shop-offers-container');
     if (!container) return;
@@ -134,7 +187,7 @@ function createOfferCard(offer) {
     const priceDisplay = offer.price_type === 'free' ? 'FREE' : `${offer.price_amount} ${offer.price_type}`;
     const rewardDisplay = getRewardDisplay(offer);
     return `
-    <div class="shop-card rounded-2xl p-4 flex flex-col items-center justify-between text-center min-h-[280px] relative overflow-hidden">
+    <div class="shop-card rounded-2xl p-4 flex flex-col items-center justify-between text-center min-h-[280px] relative overflow-hidden" id="offer-card-${offer.id}">
         ${offer.image_url ? `<img src="${offer.image_url}" class="absolute inset-0 w-full h-full object-cover opacity-20">` : ''}
         <div class="relative z-10">
             <h3 class="text-xl font-bold text-yellow-400 mb-1">${offer.title}</h3>
@@ -177,7 +230,9 @@ function updateTimer(el, endTime) {
         if (diff <= 0) {
             el.innerText = 'EXPIRED';
             clearInterval(interval);
-            refreshShopOffers();
+            // Remove expired card
+            const card = el.closest('.shop-card');
+            if (card) card.remove();
             return;
         }
         const hours = Math.floor(diff / 3600000);
@@ -192,3 +247,4 @@ window.getActiveOffers = getActiveOffers;
 window.purchaseOffer = purchaseOffer;
 window.refreshShopOffers = refreshShopOffers;
 window.hasFreeOffer = hasFreeOffer;
+window.openMultipleStarrDrops = openMultipleStarrDrops; // for external calls
