@@ -522,6 +522,20 @@ canvas {
         z-index: 9999;
     }
 }
+/* Starr drop centering */
+#starr-drop-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+#starr-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
 
 /* Brawler detail panel improvements */
 #brawler-detail {
