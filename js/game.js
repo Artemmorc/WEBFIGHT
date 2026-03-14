@@ -4,18 +4,23 @@
 window.gameLoopId = null;
 window.preBattleStart = null;
 window.playerDead = false;
-window.deathAnimationStart = 0; 
+window.deathAnimationStart = 0;
 window.deathAnimationDuration = 1500;
 window.gameEnded = false;
 
-// Game loop
+// Game loop with error handling
 function gameLoop() {
-    if (!window.state.battle || !window.state.battle.active) {
-        return;
+    try {
+        if (!window.state.battle || !window.state.battle.active) {
+            return;
+        }
+        window.updateGame();
+        window.drawGame();
+        window.gameLoopId = requestAnimationFrame(gameLoop);
+    } catch (e) {
+        console.error('❌ Game loop error:', e);
+        // Optionally rethrow to stop the loop (but we want to see the error)
     }
-    window.updateGame();
-    window.drawGame();
-    window.gameLoopId = requestAnimationFrame(gameLoop);
 }
 
 // Expose gameLoop globally so it can be started from battle.js
