@@ -1,4 +1,4 @@
-// ========== STARR DROP (4 TAPS, RANDOM FINAL RARITY, GEMS ONLY LEGENDARY) ==========
+// ========== STARR DROP (5 TAPS: 4 SPIN, EXPLODE, 5TH OPEN) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -12,10 +12,30 @@ const rarityProbs = [
     { rarity: 'LEGENDARY', prob: 0.02 }
 ];
 
+// Create rainbow SVG (spinning animation)
+function createRainbowSVG(size) {
+    return `
+    <svg width="${size}" height="${size}" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="45" fill="url(#rainbow)" stroke="white" stroke-width="4"/>
+        <defs>
+            <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff0000" />
+                <stop offset="16%" stop-color="#ff7f00" />
+                <stop offset="33%" stop-color="#ffff00" />
+                <stop offset="50%" stop-color="#00ff00" />
+                <stop offset="66%" stop-color="#0000ff" />
+                <stop offset="83%" stop-color="#4b0082" />
+                <stop offset="100%" stop-color="#8f00ff" />
+            </linearGradient>
+        </defs>
+        <path d="M50 20 L58 40 L80 40 L62 55 L70 75 L50 62 L30 75 L38 55 L20 40 L42 40 Z" fill="white" />
+    </svg>`;
+}
+
 function createStarrDropSVG(rarity, size) {
     return `
     <svg width="${size}" height="${size}" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="#fbbf24" stroke="white" stroke-width="4"/>
+        <circle cx="50" cy="50" r="45" fill="${rarityColors[rarities.indexOf(rarity)]}" stroke="white" stroke-width="4"/>
         <path d="M50 20 L58 40 L80 40 L62 55 L70 75 L50 62 L30 75 L38 55 L20 40 L42 40 Z" fill="white" />
     </svg>`;
 }
@@ -23,31 +43,27 @@ function createStarrDropSVG(rarity, size) {
 function startStarrDropAnimation() {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
     resetStarrDrop();
-    document.getElementById('star-svg-container').style.animation = 'spin 8s linear infinite';
 }
 
 function resetStarrDrop() {
     window.state.starrDropTaps = 0;
-    window.state.starrDropVisualRarity = 'RARE';
-    window.state.starrDropFinalRarity = null; // not chosen yet
+    window.state.starrDropFinalRarity = null;
+    window.state.starrDropExploded = false;
+    
     document.getElementById('close-starr-drop').classList.add('opacity-0', 'pointer-events-none');
     document.getElementById('starr-drop-hint').classList.remove('hidden');
     document.getElementById('starr-drop-reward').classList.add('hidden');
     document.getElementById('starr-drop-content').classList.remove('hidden');
-    document.getElementById('star-svg-container').innerHTML = createStarrDropSVG('RARE', 250);
+    
+    // Show rainbow
+    document.getElementById('star-svg-container').innerHTML = createRainbowSVG(250);
+    document.getElementById('starr-drop-rarity').innerText = '???';
+    document.getElementById('starr-drop-rarity').className = 'text-6xl mb-4 text-white';
+    document.getElementById('star-glow').style.backgroundColor = 'white';
+    
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
-    document.getElementById('starr-drop-hint').innerText = 'TAP TO UPGRADE!';
-    updateStarrDropUI();
-}
-
-function updateStarrDropUI() {
-    const visualRarity = window.state.starrDropVisualRarity;
-    const rIdx = rarities.indexOf(visualRarity);
-    const textEl = document.getElementById('starr-drop-rarity');
-    textEl.innerText = visualRarity;
-    textEl.className = `text-6xl mb-4 ${rarityClasses[rIdx]}`;
-    document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(visualRarity, 250);
-    document.getElementById('star-glow').style.backgroundColor = rarityColors[rIdx];
+    document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
+    document.getElementById('star-svg-container').style.animation = 'spin 4s linear infinite'; // base speed
 }
 
 document.getElementById('starr-drop-container').onclick = () => {
@@ -57,21 +73,21 @@ document.getElementById('starr-drop-container').onclick = () => {
     // Increment tap count
     window.state.starrDropTaps++;
 
-    // Update visual rarity (cycle through rarities in order)
-    const currentIdx = rarities.indexOf(window.state.starrDropVisualRarity);
-    const nextIdx = (currentIdx + 1) % rarities.length;
-    window.state.starrDropVisualRarity = rarities[nextIdx];
-
     // Shake animation
     const container = document.getElementById('starr-drop-container');
     container.classList.add('starr-drop-shake');
     setTimeout(() => container.classList.remove('starr-drop-shake'), 400);
 
-    updateStarrDropUI();
-
-    // After 4 taps, determine final rarity and reveal reward
-    if (window.state.starrDropTaps >= 4) {
-        // Choose final rarity based on probabilities
+    // Taps 1-3: speed up spinning
+    if (window.state.starrDropTaps < 4) {
+        // Increase spin speed
+        const speed = 4 - window.state.starrDropTaps; // 3s, 2s, 1s
+        document.getElementById('star-svg-container').style.animation = `spin ${speed}s linear infinite`;
+        document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
+    }
+    // Tap 4: explode and show final starr drop
+    else if (window.state.starrDropTaps === 4 && !window.state.starrDropExploded) {
+        // Choose final rarity
         const rand = Math.random();
         let cumulative = 0;
         for (let r of rarityProbs) {
@@ -81,10 +97,23 @@ document.getElementById('starr-drop-container').onclick = () => {
                 break;
             }
         }
+        window.state.starrDropExploded = true;
+
+        // Replace rainbow with static starr drop of final rarity
+        document.getElementById('star-svg-container').style.animation = 'none';
+        document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(window.state.starrDropFinalRarity, 250);
+        
+        // Update text
+        document.getElementById('starr-drop-rarity').innerText = window.state.starrDropFinalRarity;
+        const rIdx = rarities.indexOf(window.state.starrDropFinalRarity);
+        document.getElementById('starr-drop-rarity').className = `text-6xl mb-4 ${rarityClasses[rIdx]}`;
+        document.getElementById('star-glow').style.backgroundColor = rarityColors[rIdx];
+        
+        document.getElementById('starr-drop-hint').innerText = 'TAP TO OPEN';
+    }
+    // Tap 5: reveal reward
+    else if (window.state.starrDropTaps >= 5 && window.state.starrDropExploded) {
         revealReward();
-    } else {
-        // Update hint text
-        document.getElementById('starr-drop-hint').innerText = 'TAP TO UPGRADE!';
     }
 };
 
@@ -134,7 +163,6 @@ function getPossibleRewards(rarity) {
 function revealReward() {
     document.getElementById('starr-drop-hint').classList.add('hidden');
     document.getElementById('starr-drop-content').classList.add('hidden');
-    document.getElementById('star-svg-container').style.animation = 'none';
     document.getElementById('starr-drop-reward').classList.remove('hidden');
 
     const rarity = window.state.starrDropFinalRarity;
