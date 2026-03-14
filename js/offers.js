@@ -18,6 +18,12 @@ async function getActiveOffers() {
     return data;
 }
 
+// Check if there is any active free offer
+async function hasFreeOffer() {
+    const offers = await getActiveOffers();
+    return offers.some(offer => offer.price_type === 'free');
+}
+
 // Purchase an offer
 async function purchaseOffer(offerId) {
     if (!window.currentUser) {
@@ -25,7 +31,6 @@ async function purchaseOffer(offerId) {
         return;
     }
 
-    // Fetch offer again to ensure it's still valid
     const { data: offer, error } = await window.sb
         .from('shop_offers')
         .select('*')
@@ -45,7 +50,6 @@ async function purchaseOffer(offerId) {
         return;
     }
 
-    // Check price
     if (offer.price_type !== 'free') {
         const playerResource = window.playerState[offer.price_type];
         if (playerResource < offer.price_amount) {
@@ -54,20 +58,21 @@ async function purchaseOffer(offerId) {
         }
     }
 
-    // Deduct price
     if (offer.price_type !== 'free') {
         window.playerState[offer.price_type] -= offer.price_amount;
     }
 
-    // Grant reward
     await grantReward(offer);
-
-    // Save updated player state
     await window.saveProfileToDB();
 
     // Refresh shop display
     if (!document.getElementById('shop-modal').classList.contains('hidden')) {
         await refreshShopOffers();
+    }
+
+    // Update the FREE badge on the shop button
+    if (typeof window.updateShopButtonFreeIndicator === 'function') {
+        window.updateShopButtonFreeIndicator();
     }
 
     alert('Purchase successful!');
@@ -92,20 +97,17 @@ async function grantReward(offer) {
             }
             break;
         case 'starrdrop':
-            // Start starr drop animation with predetermined rarity? For simplicity, just open a random one.
-            // We'll store rarity in item_id if needed, e.g., 'RARE', 'LEGENDARY'.
-            if (item_id && rarities.includes(item_id)) {
+            if (item_id && window.rarities && window.rarities.includes(item_id)) {
                 window.state.starrDropTargetRarity = item_id;
             }
             startStarrDropAnimation();
             break;
-        // Add more types as needed (skins, etc.)
         default:
             console.warn('Unknown item_type:', item_type);
     }
 }
 
-// Refresh offers in shop UI (called after purchase or when shop opens)
+// Refresh offers in shop UI
 async function refreshShopOffers() {
     const container = document.getElementById('shop-offers-container');
     if (!container) return;
@@ -118,7 +120,6 @@ async function refreshShopOffers() {
 
     container.innerHTML = offers.map(offer => createOfferCard(offer)).join('');
 
-    // Attach click handlers
     offers.forEach(offer => {
         const btn = document.getElementById(`offer-btn-${offer.id}`);
         if (btn) {
@@ -126,7 +127,6 @@ async function refreshShopOffers() {
         }
     });
 
-    // Start timers
     startOfferTimers(offers);
 }
 
@@ -177,7 +177,6 @@ function updateTimer(el, endTime) {
         if (diff <= 0) {
             el.innerText = 'EXPIRED';
             clearInterval(interval);
-            // Optionally refresh offers
             refreshShopOffers();
             return;
         }
@@ -192,3 +191,4 @@ function updateTimer(el, endTime) {
 window.getActiveOffers = getActiveOffers;
 window.purchaseOffer = purchaseOffer;
 window.refreshShopOffers = refreshShopOffers;
+window.hasFreeOffer = hasFreeOffer;
