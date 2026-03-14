@@ -51,6 +51,7 @@ function updateGame() {
         if (elapsed < window.deathAnimationDuration) {
             const t = elapsed / window.deathAnimationDuration;
             battle.camera.zoom = 0.8 + (0.5 - 0.8) * t;
+            const canvas = document.getElementById('gameCanvas');
             battle.camera.x = p.x - (canvas.width/2)/battle.camera.zoom;
             battle.camera.y = p.y - (canvas.height/2)/battle.camera.zoom;
         } else {
@@ -80,6 +81,7 @@ function updateGame() {
         if (elapsed < 1000) {
             const t = elapsed / 1000;
             const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
+            const canvas = document.getElementById('gameCanvas');
             const startX = fullSize/2 - (canvas.width/2)/battle.camera.zoom;
             const startY = fullSize/2 - (canvas.height/2)/battle.camera.zoom;
             const targetX = p.x - (canvas.width/2)/battle.camera.zoom;
@@ -370,6 +372,7 @@ function updateGame() {
 
     // Update camera
     if (p) {
+        const canvas = document.getElementById('gameCanvas');
         battle.camera.x = p.x - (canvas.width / 2) / battle.camera.zoom;
         battle.camera.y = p.y - (canvas.height / 2) / battle.camera.zoom;
     }
