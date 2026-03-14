@@ -1,14 +1,12 @@
 // ========== AREA EFFECTS (Brewiant & Anthony) ==========
-import { checkCollision } from './core.js';
-import { addKillMessage } from './utils.js';
 
-export function createBombExplosion(centerX, centerY, battle, now, owner) {
+function createBombExplosion(centerX, centerY, battle, now, owner) {
     const radius = 192; // 3 tiles
     const pushForce = 200;
     const mapSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
 
     battle.explosions.push({
-        x: centerX, 
+        x: centerX,
         y: centerY,
         startTime: now,
         duration: 500
@@ -53,7 +51,7 @@ export function createBombExplosion(centerX, centerY, battle, now, owner) {
                     let newY = t.y + pushY;
                     newX = Math.max(25, Math.min(mapSize - 25, newX));
                     newY = Math.max(25, Math.min(mapSize - 25, newY));
-                    if (!checkCollision(newX, newY, 25)) {
+                    if (!window.checkCollision(newX, newY, 25)) {
                         t.x = newX;
                         t.y = newY;
                     }
@@ -63,14 +61,14 @@ export function createBombExplosion(centerX, centerY, battle, now, owner) {
                     t.dying = true;
                     t.deathTime = now;
                     let killerName = owner.name;
-                    addKillMessage(killerName, t.name);
+                    window.addKillMessage(killerName, t.name);
                 }
             }
         }
     });
 }
 
-export function createBottle(x, y, owner, level, battle, now) {
+function createBottle(x, y, owner, level, battle, now) {
     const stats = window.getBrawlerStats('Brewiant', level);
     const effect = {
         type: 'bottle',
@@ -88,7 +86,7 @@ export function createBottle(x, y, owner, level, battle, now) {
     applyAreaDamage(effect, battle, now);
 }
 
-export function createBubble(centerX, centerY, owner, level, battle, now) {
+function createBubble(centerX, centerY, owner, level, battle, now) {
     const stats = window.getBrawlerStats('Brewiant', level);
     const effect = {
         type: 'bubble',
@@ -106,7 +104,7 @@ export function createBubble(centerX, centerY, owner, level, battle, now) {
     applyAreaDamage(effect, battle, now);
 }
 
-export function applyAreaDamage(effect, battle, now) {
+function applyAreaDamage(effect, battle, now) {
     const p = battle.player;
     const targets = [p, ...battle.bots];
     targets.forEach(t => {
@@ -133,7 +131,7 @@ export function applyAreaDamage(effect, battle, now) {
                         const killerBot = battle.bots.find(bot => bot.id === effect.ownerId);
                         killerName = killerBot ? killerBot.name : 'Brewiant';
                     }
-                    addKillMessage(killerName, t.name);
+                    window.addKillMessage(killerName, t.name);
                 }
             }
         }
@@ -150,3 +148,9 @@ export function applyAreaDamage(effect, battle, now) {
         }
     }
 }
+
+// Expose globally
+window.createBombExplosion = createBombExplosion;
+window.createBottle = createBottle;
+window.createBubble = createBubble;
+window.applyAreaDamage = applyAreaDamage;
