@@ -114,7 +114,7 @@ function resetSingleStarrDrop() {
     
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
     document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
-    document.getElementById('starr-drop-hint').classList.remove('hidden'); // ensure visible
+    document.getElementById('starr-drop-hint').classList.remove('hidden');
     document.getElementById('star-svg-container').style.animation = 'spin 4s linear infinite';
 }
 
@@ -141,11 +141,21 @@ document.getElementById('starr-drop-container').onclick = () => {
         document.getElementById('star-svg-container').style.animation = 'none';
         document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(window.state.starrDropFinalRarity, 250);
         
-        // Force centering
+        // 🔥 FORCE CENTERING – ensure container and SVG are perfectly centered
         const visual = document.getElementById('starr-drop-visual');
         visual.style.display = 'flex';
         visual.style.alignItems = 'center';
         visual.style.justifyContent = 'center';
+        visual.style.width = '250px';
+        visual.style.height = '250px';
+        visual.style.margin = '0 auto';
+        
+        const svgContainer = document.getElementById('star-svg-container');
+        svgContainer.style.display = 'flex';
+        svgContainer.style.alignItems = 'center';
+        svgContainer.style.justifyContent = 'center';
+        svgContainer.style.width = '250px';
+        svgContainer.style.height = '250px';
         
         document.getElementById('starr-drop-rarity').innerText = window.state.starrDropFinalRarity;
         const rIdx = rarities.indexOf(window.state.starrDropFinalRarity);
@@ -185,7 +195,6 @@ function revealSingleReward() {
             if (typeof saveBrawlerProgress === 'function') saveBrawlerProgress();
             if (typeof updateStatsUI === 'function') updateStatsUI();
             document.getElementById('close-starr-drop').classList.remove('opacity-0', 'pointer-events-none');
-            // Set up next starrdrop after closing
             setupNextStarrDropOnClose();
             return;
         }
@@ -292,5 +301,4 @@ function getPossibleRewards(rarity) {
 // Expose public functions
 window.startStarrDropSequence = startStarrDropSequence;
 window.finishStarrDrop = finishStarrDrop;
-// Also expose a single starrdrop starter for the regular shop
 window.startSingleStarrDrop = startSingleStarrDrop;
