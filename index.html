@@ -307,7 +307,7 @@
             </div>
         </div>
 
-        <!-- NEW: Special Offers Section -->
+        <!-- Special Offers Section -->
         <h2 class="text-4xl text-purple-400 mb-6 uppercase">Special Offers</h2>
         <div id="shop-offers-container" class="grid grid-cols-4 gap-6 mb-12">
             <!-- Offers will be loaded here dynamically -->
@@ -361,7 +361,7 @@
     <div id="brawler-list" class="grid grid-cols-4 gap-6"></div>
     <!-- Detail view (hidden initially) -->
     <div id="brawler-detail" class="hidden flex flex-col h-full">
-        <!-- ... existing detail view (unchanged) ... -->
+        <!-- (Detail content as before – unchanged) -->
     </div>
 </div>
 
@@ -446,7 +446,7 @@
                 <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">3 MIN</button>
                 <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL</button>
             </div>
-            <!-- NEW: Shop Offers Management -->
+            <!-- Shop Offers Management -->
             <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
                 <label class="block text-2xl mb-2">Shop Offers</label>
                 <button onclick="openOfferEditor()" class="w-full bg-green-500 hover:bg-green-600 mt-4 py-3 rounded-xl text-2xl">MANAGE OFFERS</button>
@@ -461,22 +461,142 @@
 
 <!-- MAP EDITOR (with background selector) -->
 <div id="map-editor" class="absolute inset-0 bg-gray-900 z-[400] hidden flex flex-col p-4">
-    <!-- ... existing map editor (unchanged) ... -->
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-4xl text-yellow-400">MAP EDITOR (60x60)</h1>
+        <div class="flex gap-4">
+            <button onclick="closeMapEditor()" class="bg-red-500 px-6 py-2 rounded-xl border-2 border-white text-2xl">CLOSE</button>
+        </div>
+    </div>
+    <!-- Toolbar -->
+    <div class="flex flex-col gap-4 mb-4">
+        <div class="flex gap-2 items-center flex-wrap">
+            <span class="text-white font-bold mr-2">Brush:</span>
+            <div class="flex items-center gap-1">
+                <div id="palette-wall" class="w-10 h-10 bg-[#8b5a2b] border-4 border-white cursor-pointer" onclick="selectTile(1)" title="Wall"></div>
+                <span class="text-white text-sm">Wall</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="palette-bush" class="w-10 h-10 bg-[#b45309] border-4 border-white cursor-pointer" onclick="selectTile(2)" title="Bush (wheat)"></div>
+                <span class="text-white text-sm">Bush</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="palette-water" class="w-10 h-10 bg-[#0284c7] border-4 border-white cursor-pointer" onclick="selectTile(3)" title="Water"></div>
+                <span class="text-white text-sm">Water</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="palette-powercube" class="w-10 h-10 bg-[#fbbf24] border-4 border-white cursor-pointer" onclick="selectTile(4)" title="Power Cube Box"></div>
+                <span class="text-white text-sm">Cube Box</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="palette-barrel" class="w-10 h-10 bg-[#b91c1c] border-4 border-white cursor-pointer" onclick="selectTile(5)" title="Barrel"></div>
+                <span class="text-white text-sm">Barrel</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="palette-spawn" class="w-10 h-10 bg-[#22c55e] border-4 border-white cursor-pointer" onclick="selectTile(6)" title="Spawn Point"></div>
+                <span class="text-white text-sm">Spawn</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div id="palette-erase" class="w-10 h-10 bg-[#d4a373] border-4 border-white cursor-pointer flex items-center justify-center text-black font-bold" onclick="selectTile(0)" title="Erase">X</div>
+                <span class="text-white text-sm">Erase</span>
+            </div>
+        </div>
+        <div class="flex gap-2 items-center">
+            <span class="text-white font-bold mr-2">Mirror:</span>
+            <button onclick="setMirrorMode('none')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">Single</button>
+            <button onclick="setMirrorMode('horizontal')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">H</button>
+            <button onclick="setMirrorMode('vertical')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">V</button>
+            <button onclick="setMirrorMode('diagonal')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">D</button>
+            <button onclick="setMirrorMode('all')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">All</button>
+        </div>
+    </div>
+    <!-- Background selector -->
+    <div class="flex gap-4 mb-4 items-center flex-wrap">
+        <span class="text-white font-bold">Background:</span>
+        <select id="background-select" class="px-4 py-2 rounded text-black">
+            <option value="floor">Desert (default)</option>
+            <option value="water">Water</option>
+            <option value="grass">Grass</option>
+            <option value="stone">Stone</option>
+        </select>
+        <button onclick="setMapBackground()" class="bg-blue-500 px-4 py-2 rounded text-white">SET BACKGROUND</button>
+    </div>
+    <!-- Server map controls -->
+    <div class="flex gap-4 mb-4 items-center flex-wrap">
+        <span class="text-white font-bold">Server Maps:</span>
+        <input type="text" id="map-name-input" placeholder="Map name" class="px-4 py-2 rounded text-black">
+        <button onclick="saveMapToServer()" class="bg-green-500 px-4 py-2 rounded text-white">Save to Server</button>
+        <select id="map-list-select" class="px-4 py-2 rounded text-black">
+            <option value="">-- Select a map to load --</option>
+        </select>
+        <button onclick="loadMapFromServer()" class="bg-blue-500 px-4 py-2 rounded text-white">Load Selected</button>
+        <button onclick="setActiveMap()" class="bg-purple-500 px-4 py-2 rounded text-white">Set as Active</button>
+        <span id="active-map-indicator" class="text-yellow-400 font-bold"></span>
+    </div>
+    <!-- Grid -->
+    <div id="editor-grid" class="grid gap-0 overflow-auto border-2 border-gray-600" style="grid-template-columns: repeat(60, 40px);">
+        <!-- Generated by JS -->
+    </div>
 </div>
 
 <!-- NEWS VIEWER MODAL -->
 <div id="news-viewer" class="absolute inset-0 bg-gray-900 z-[450] hidden flex flex-col p-8 overflow-auto">
-    <!-- ... existing news viewer (unchanged) ... -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl text-yellow-400">NEWS</h1>
+        <div class="flex gap-4">
+            <button id="news-create-btn" onclick="openNewsEditor()" class="bg-green-500 px-6 py-2 rounded-xl text-2xl hidden">CREATE NEWS</button>
+            <button onclick="closeNewsViewer()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+        </div>
+    </div>
+    <div id="news-list" class="space-y-4">
+        <!-- News cards will be inserted here -->
+    </div>
 </div>
 
 <!-- NEWS DETAIL MODAL -->
 <div id="news-detail" class="absolute inset-0 bg-gray-900 z-[460] hidden flex flex-col p-8 overflow-auto">
-    <!-- ... existing news detail (unchanged) ... -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl text-yellow-400" id="detail-title"></h1>
+        <button onclick="closeNewsDetail()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+    </div>
+    <div class="bg-black/60 p-6 rounded-xl border-2 border-white/30">
+        <div class="text-gray-300 mb-4" id="detail-date"></div>
+        <div class="text-white text-xl prose prose-invert max-w-none" id="detail-content"></div>
+    </div>
 </div>
 
 <!-- NEWS EDITOR MODAL (with poll and slider) -->
 <div id="news-editor" class="absolute inset-0 bg-gray-900 z-[500] hidden flex flex-col p-4 md:p-8 max-h-screen overflow-y-auto">
-    <!-- ... existing news editor (unchanged) ... -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl text-yellow-400">EDIT NEWS</h1>
+        <button onclick="closeNewsEditor()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+    </div>
+    <div class="space-y-4">
+        <input type="text" id="news-title" placeholder="Title" class="w-full p-4 rounded-xl text-black text-2xl">
+        <textarea id="news-content" placeholder="Content (HTML allowed)" rows="10" class="w-full p-4 rounded-xl text-black text-xl"></textarea>
+        
+        <!-- Poll section with slider -->
+        <div class="mt-4">
+            <label class="text-white text-xl">Poll (optional)</label>
+            <input type="text" id="poll-question" placeholder="Poll question" class="w-full p-2 rounded text-black mt-2">
+            
+            <div class="flex items-center gap-4 mt-4">
+                <span class="text-white">Number of options:</span>
+                <input type="range" id="poll-option-count" min="2" max="6" value="2" class="w-48" oninput="updatePollOptions(this.value)">
+                <span id="poll-count-display" class="text-white">2</span>
+            </div>
+            
+            <div id="poll-options" class="mt-2">
+                <input type="text" placeholder="Option 1" class="poll-option w-full p-2 rounded text-black mt-1">
+                <input type="text" placeholder="Option 2" class="poll-option w-full p-2 rounded text-black mt-1">
+            </div>
+        </div>
+        
+        <div class="flex gap-4">
+            <button onclick="saveNewsAsDraft()" class="bg-blue-500 px-8 py-4 rounded-xl text-2xl">Save Draft</button>
+            <button onclick="publishNews()" class="bg-green-500 px-8 py-4 rounded-xl text-2xl">Publish</button>
+            <button onclick="clearNewsEditor()" class="bg-gray-500 px-8 py-4 rounded-xl text-2xl">Clear</button>
+        </div>
+    </div>
 </div>
 
 <!-- OFFER EDITOR MODAL (NEW) -->
