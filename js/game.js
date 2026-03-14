@@ -1,5 +1,8 @@
 // ========== MAIN GAME ENTRY POINT ==========
 
+// Initialize global key state
+window.keys = window.keys || { w: false, a: false, s: false, d: false };
+
 // Global variables
 window.gameLoopId = null;
 window.preBattleStart = null;
@@ -19,11 +22,10 @@ function gameLoop() {
         window.gameLoopId = requestAnimationFrame(gameLoop);
     } catch (e) {
         console.error('❌ Game loop error:', e);
-        // Optionally rethrow to stop the loop (but we want to see the error)
     }
 }
 
-// Expose gameLoop globally so it can be started from battle.js
+// Expose gameLoop globally
 window.gameLoop = gameLoop;
 
 // Exit battle
@@ -107,40 +109,44 @@ function hideAfterGame() {
 
 // Initialize joysticks (called after DOM is ready)
 document.addEventListener('DOMContentLoaded', () => {
-    window.setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
-    window.setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
-        const p = window.state.battle?.player;
-        if (p && !p.dying) {
-            window.spawnBullet(p, ang, false);
-        }
-    });
-    window.setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
-        const p = window.state.battle?.player;
-        if (p && !p.dying && p.superCharge >= p.superMax) {
-            if (p.type === 'Anthony') {
-                const targetX = p.x + Math.cos(ang) * 800;
-                const targetY = p.y + Math.sin(ang) * 800;
-                const bomb = {
-                    x: p.x,
-                    y: p.y,
-                    targetX: targetX,
-                    targetY: targetY,
-                    startTime: Date.now(),
-                    duration: 400,
-                    owner: p,
-                    level: p.level
-                };
-                window.state.battle.bombs.push(bomb);
-                p.superCharge = 0;
-            } else if (p.type === 'Brewiant') {
-                window.createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
-                p.superCharge = 0;
-            } else {
-                window.spawnBullet(p, ang, true);
-                p.superCharge = 0;
+    if (typeof window.setupJoystick === 'function') {
+        window.setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
+        window.setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
+            const p = window.state.battle?.player;
+            if (p && !p.dying) {
+                window.spawnBullet(p, ang, false);
             }
-        }
-    });
+        });
+        window.setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
+            const p = window.state.battle?.player;
+            if (p && !p.dying && p.superCharge >= p.superMax) {
+                if (p.type === 'Anthony') {
+                    const targetX = p.x + Math.cos(ang) * 800;
+                    const targetY = p.y + Math.sin(ang) * 800;
+                    const bomb = {
+                        x: p.x,
+                        y: p.y,
+                        targetX: targetX,
+                        targetY: targetY,
+                        startTime: Date.now(),
+                        duration: 400,
+                        owner: p,
+                        level: p.level
+                    };
+                    window.state.battle.bombs.push(bomb);
+                    p.superCharge = 0;
+                } else if (p.type === 'Brewiant') {
+                    window.createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
+                    p.superCharge = 0;
+                } else {
+                    window.spawnBullet(p, ang, true);
+                    p.superCharge = 0;
+                }
+            }
+        });
+    } else {
+        console.error('setupJoystick not loaded yet');
+    }
 });
 
 // Visibility change handler
