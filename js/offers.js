@@ -1,5 +1,8 @@
 // ========== SHOP OFFERS ==========
 
+let starrDropQueue = [];
+let starrDropProcessing = false;
+
 // Fetch currently active offers
 async function getActiveOffers() {
     if (!window.sb) return [];
@@ -68,29 +71,26 @@ async function purchaseOffer(offerId) {
     // Save player state
     await window.saveProfileToDB();
 
-    // Remove the offer from the shop UI by refreshing and filtering it out
-    // We'll just refresh the shop offers, and since the offer is still in DB, we need to mark it as inactive? 
-    // Better to set is_active = false after purchase? But offers are time-limited and should be one-time per user.
-    // We need a way to track per-user purchases. For now, we'll just hide it from the UI by not showing purchased offers.
-    // But the offer might be for everyone; we need a user_offers table or a flag in the offer itself.
-    // Let's keep it simple: after purchase, we set a local flag and remove the card immediately.
+    // Remove the offer card from the DOM
+    const card = document.getElementById(`offer-card-${offer.id}`);
+    if (card) card.remove();
 
-    // Refresh shop display
-    if (!document.getElementById('shop-modal').classList.contains('hidden')) {
-        await refreshShopOffers(); // This will re-fetch active offers; if the offer is still active (time-wise), it will reappear. So we need to prevent that.
-        // Instead, we should remove the card from the DOM immediately without re-fetching.
+    // If no offers left, show placeholder
+    const container = document.getElementById('shop-offers-container');
+    if (container && container.children.length === 0) {
+        container.innerHTML = '<div class="col-span-4 text-center text-white/50 py-8">No special offers at the moment.</div>';
     }
 
-    // Update the FREE badge on the shop button
+    // Update FREE badge on shop button
     if (typeof window.updateShopButtonFreeIndicator === 'function') {
         window.updateShopButtonFreeIndicator();
     }
 
-    // Optional: show a small non-intrusive notification
+    // Show a small non-intrusive notification
     showToast('Purchase successful!', 'success');
 }
 
-// Simple toast notification (can be improved)
+// Simple toast notification
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl text-white font-bold z-[10000] ${
@@ -120,47 +120,39 @@ async function grantReward(offer) {
             }
             break;
         case 'starrdrop':
-            // Open multiple Starr Drops sequentially
-            openMultipleStarrDrops(amount, item_id); // item_id could be rarity or null
+            openMultipleStarrDrops(amount, item_id);
             break;
         default:
             console.warn('Unknown item_type:', item_type);
     }
 }
 
-// Queue for multiple Starr Drops
-let starrDropQueue = [];
-
 function openMultipleStarrDrops(count, forcedRarity = null) {
     for (let i = 0; i < count; i++) {
         starrDropQueue.push(forcedRarity);
     }
-    // If no Starr Drop is currently open, start the first one
-    if (!window.starrDropActive) {
+    if (!starrDropProcessing) {
         processNextStarrDrop();
     }
 }
 
 function processNextStarrDrop() {
     if (starrDropQueue.length === 0) {
-        window.starrDropActive = false;
+        starrDropProcessing = false;
         return;
     }
-    window.starrDropActive = true;
+    starrDropProcessing = true;
     const forcedRarity = starrDropQueue.shift();
-    // Pass the forced rarity to the Starr Drop animation
-    startStarrDropAnimation(forcedRarity);
+    // Start Starr Drop with a callback to process next when done
+    if (typeof window.startStarrDropAnimation === 'function') {
+        window.startStarrDropAnimation(forcedRarity, processNextStarrDrop);
+    } else {
+        console.error('startStarrDropAnimation not available');
+        starrDropProcessing = false;
+    }
 }
 
-// Refresh offers in shop UI – also remove purchased offers from view by checking a local set?
-// To avoid re-showing purchased offers, we could store purchased offer IDs in localStorage or a Set.
-// For simplicity, we'll just re-fetch and the offer will still be in DB, so it will reappear unless we mark it as claimed.
-// Better approach: add a 'claimed' field to shop_offers and a user_offers table. But that's more complex.
-// For now, we'll just remove the card from the DOM without re-fetching after purchase.
-// In purchaseOffer, we'll remove the card manually.
-
-// We'll modify purchaseOffer to remove the card after successful purchase.
-
+// Refresh offers in shop UI
 async function refreshShopOffers() {
     const container = document.getElementById('shop-offers-container');
     if (!container) return;
@@ -230,7 +222,6 @@ function updateTimer(el, endTime) {
         if (diff <= 0) {
             el.innerText = 'EXPIRED';
             clearInterval(interval);
-            // Remove expired card
             const card = el.closest('.shop-card');
             if (card) card.remove();
             return;
@@ -247,4 +238,4 @@ window.getActiveOffers = getActiveOffers;
 window.purchaseOffer = purchaseOffer;
 window.refreshShopOffers = refreshShopOffers;
 window.hasFreeOffer = hasFreeOffer;
-window.openMultipleStarrDrops = openMultipleStarrDrops; // for external calls
+window.openMultipleStarrDrops = openMultipleStarrDrops;
