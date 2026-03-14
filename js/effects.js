@@ -8,7 +8,7 @@ function createBombExplosion(centerX, centerY, battle, now, owner) {
     battle.explosions.push({
         x: centerX,
         y: centerY,
-        startTime: now, 
+        startTime: now,
         duration: 500
     });
 
