@@ -706,22 +706,34 @@ function startBattle(customMap = null, background = 'floor') {
         slowUntil: 0
     };
 
+    // ========== BOT CREATION (v2) ==========
+    const brawlerTypes = Object.keys(window.CONFIG.BRAWLERS);
+    const personalities = ['aggressive', 'defensive', 'balanced'];
     for(let i=0; i<9; i++) {
         const botSpawn = pickSpawnPoint(usedSpawns);
         usedSpawns.push(botSpawn);
-        const botLevel = 1;
-        const botStats = typeof window.getBrawlerStats === 'function'
-            ? window.getBrawlerStats('Mysteria', botLevel)
-            : { health: 3800, damage: 800, superDamage: 1200 };
+        
+        // Random brawler type (excluding maybe some? all are fine)
+        const botType = brawlerTypes[Math.floor(Math.random() * brawlerTypes.length)];
+        const botLevel = Math.floor(Math.random() * 3) + 1; // level 1-3
+        const botStats = window.getBrawlerStats(botType, botLevel);
+        const botData = window.CONFIG.BRAWLERS[botType];
+        
+        // Random personality
+        const personality = personalities[Math.floor(Math.random() * personalities.length)];
+        
         window.state.battle.bots.push({
             id: 'bot_'+i, 
-            name: 'Bot-'+(i+1),
+            name: `${botType}-${i+1}`,
             x: botSpawn.x, y: botSpawn.y,
             hp: botStats.health, 
             maxHp: botStats.health,
             level: botLevel,
-            type: 'Mysteria', 
-            speed: window.CONFIG.BRAWLERS['Mysteria'].speed,
+            type: botType, 
+            speed: botData.speed,
+            ammo: botData.ammo,
+            maxAmmo: botData.ammo,
+            reloadTimer: 0,
             angle: Math.random()*Math.PI*2, 
             lastShot: 0,
             inBush: false, 
@@ -732,7 +744,14 @@ function startBattle(customMap = null, background = 'floor') {
             superMax: 100,
             dying: false,
             deathTime: 0,
-            slowUntil: 0
+            slowUntil: 0,
+            personality: personality,
+            targetEntity: null,      // current target (player or another bot)
+            lastTargetUpdate: 0,
+            retreatThreshold: personality === 'defensive' ? 0.6 : (personality === 'aggressive' ? 0.3 : 0.45),
+            attackRange: 400,        // base attack range
+            superRange: 300,          // for super usage decisions
+            lastSuperCheck: 0
         });
     }
 
@@ -868,6 +887,7 @@ function updateGame() {
         p.angle = Math.atan2(dy, dx);
     }
 
+    // ========== BULLET UPDATE (with super charge for bots) ==========
     battle.bullets = battle.bullets.filter(b => {
         const bulletSpeed = (b.ownerType === 'Anthony' && !b.super) ? 18 : 12;
         const nextX = b.x + Math.cos(b.angle) * bulletSpeed;
@@ -971,11 +991,14 @@ function updateGame() {
                         t.slowUntil = now + 1000;
                     }
 
-                    // Super charge for player when dealing damage with normal attack
-                    if (b.ownerId === 'player' && !b.super) {
+                    // Super charge for the attacker (player or bot)
+                    if (!b.super) {
                         let chargeAmount = 10;
-                        if (p.type === 'Anthony') chargeAmount = 40;
-                        p.superCharge = Math.min(p.superMax, p.superCharge + chargeAmount);
+                        if (b.ownerType === 'Anthony') chargeAmount = 40;
+                        const attacker = (b.ownerId === 'player') ? p : battle.bots.find(bot => bot.id === b.ownerId);
+                        if (attacker) {
+                            attacker.superCharge = Math.min(attacker.superMax, attacker.superCharge + chargeAmount);
+                        }
                     }
 
                     if (t.hp <= 0 && !t.dying) {
@@ -1011,54 +1034,234 @@ function updateGame() {
         return true;
     });
 
-    // Power cube collection
+    // ========== POWER CUBE COLLECTION ==========
     for (let i = battle.powerCubes.length - 1; i >= 0; i--) {
         const cube = battle.powerCubes[i];
-        if (!cube.collected && Math.hypot(p.x - cube.x, p.y - cube.y) < 30) {
-            cube.collected = true;
-            p.power++;
-            p.maxHp += 500;
-            p.hp = Math.min(p.hp + 500, p.maxHp);
-            powerCubesCollected++;
+        if (!cube.collected) {
+            // Player collection
+            if (Math.hypot(p.x - cube.x, p.y - cube.y) < 30) {
+                cube.collected = true;
+                p.power++;
+                p.maxHp += 500;
+                p.hp = Math.min(p.hp + 500, p.maxHp);
+                powerCubesCollected++;
+            }
+            // Bot collection
+            for (let bot of battle.bots) {
+                if (bot.hp > 0 && !bot.dying && Math.hypot(bot.x - cube.x, bot.y - cube.y) < 30) {
+                    cube.collected = true;
+                    bot.power++;
+                    bot.maxHp += 500;
+                    bot.hp = Math.min(bot.hp + 500, bot.maxHp);
+                    break;
+                }
+            }
         }
     }
 
-    // Ammo recharge
+    // ========== AMMO RECHARGE FOR PLAYER ==========
     if (p.ammo < p.maxAmmo && !p.dying) {
         p.ammo = Math.min(p.maxAmmo, p.ammo + 0.01);
     }
 
-    // Bot AI
+    // ========== BOT AI (v2) ==========
     for (let bot of battle.bots) {
-        if(bot.hp <= 0 || bot.dying) continue;
-        if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
-        
-        let botSpeed = bot.speed;
-        if (bot.slowUntil > now) botSpeed *= 0.95;
-        let nx = bot.x + Math.cos(bot.angle) * botSpeed;
-        let ny = bot.y + Math.sin(bot.angle) * botSpeed;
-        nx = Math.max(25, Math.min(mapLimit - 25, nx));
-        ny = Math.max(25, Math.min(mapLimit - 25, ny));
+        if (bot.hp <= 0 || bot.dying) continue;
 
-        if (!checkCollision(nx, ny, 25)) {
-            bot.x = nx;
-            bot.y = ny;
+        // ----- Reload ammo -----
+        if (bot.ammo < bot.maxAmmo) {
+            bot.ammo = Math.min(bot.maxAmmo, bot.ammo + 0.005); // slower than player
+        }
+
+        // ----- Choose target (player or other bot) -----
+        // Update target every 2 seconds or if current target is invalid/dead
+        if (!bot.targetEntity || (bot.targetEntity.hp <= 0 || bot.targetEntity.dying) || now - bot.lastTargetUpdate > 2000) {
+            const possibleTargets = [p, ...battle.bots.filter(b => b.id !== bot.id && b.hp > 0 && !b.dying)];
+            // Filter visible
+            const visible = possibleTargets.filter(t => canSee(bot, t, now));
+            if (visible.length > 0) {
+                // Choose based on personality: aggressive picks closest, defensive picks weakest or farthest?
+                if (bot.personality === 'aggressive') {
+                    // Closest
+                    visible.sort((a,b) => Math.hypot(bot.x - a.x, bot.y - a.y) - Math.hypot(bot.x - b.x, bot.y - b.y));
+                    bot.targetEntity = visible[0];
+                } else if (bot.personality === 'defensive') {
+                    // Farthest (to keep distance)
+                    visible.sort((a,b) => Math.hypot(bot.x - b.x, bot.y - b.y) - Math.hypot(bot.x - a.x, bot.y - a.y));
+                    bot.targetEntity = visible[0];
+                } else {
+                    // Balanced: random among visible
+                    bot.targetEntity = visible[Math.floor(Math.random() * visible.length)];
+                }
+            } else {
+                bot.targetEntity = null;
+            }
+            bot.lastTargetUpdate = now;
+        }
+
+        // ----- Movement -----
+        // Direction influenced by target and personality
+        let targetAngle = bot.angle; // default: keep current
+        let moveSpeed = bot.speed;
+
+        if (bot.targetEntity) {
+            const dx = bot.targetEntity.x - bot.x;
+            const dy = bot.targetEntity.y - bot.y;
+            const distToTarget = Math.hypot(dx, dy);
+            
+            // Determine desired direction based on personality and health
+            const healthPercent = bot.hp / bot.maxHp;
+            let desiredAngle = Math.atan2(dy, dx);
+
+            if (healthPercent < bot.retreatThreshold) {
+                // Retreat from target
+                desiredAngle += Math.PI;
+                moveSpeed *= 0.8;
+            } else {
+                // Approach or maintain distance based on personality
+                if (bot.personality === 'aggressive') {
+                    if (distToTarget > bot.attackRange * 0.7) {
+                        // Move closer
+                        // desiredAngle already correct
+                    } else {
+                        // Stop moving if within comfortable range
+                        moveSpeed = 0;
+                    }
+                } else if (bot.personality === 'defensive') {
+                    if (distToTarget < bot.attackRange * 0.5) {
+                        // Too close, back off
+                        desiredAngle += Math.PI;
+                    } else if (distToTarget > bot.attackRange) {
+                        // Too far, move closer
+                        // desiredAngle correct
+                    } else {
+                        moveSpeed = 0; // hold position
+                    }
+                } else { // balanced
+                    if (distToTarget > bot.attackRange) {
+                        // move closer
+                    } else if (distToTarget < bot.attackRange * 0.4) {
+                        // back off a bit
+                        desiredAngle += Math.PI;
+                    } else {
+                        moveSpeed *= 0.5; // strafe?
+                    }
+                }
+            }
+
+            // Try to move in desired direction
+            if (moveSpeed > 0) {
+                let newX = bot.x + Math.cos(desiredAngle) * moveSpeed;
+                let newY = bot.y + Math.sin(desiredAngle) * moveSpeed;
+                // Check collision and boundaries
+                newX = Math.max(25, Math.min(mapLimit - 25, newX));
+                newY = Math.max(25, Math.min(mapLimit - 25, newY));
+                if (!checkCollision(newX, newY, 25)) {
+                    bot.x = newX;
+                    bot.y = newY;
+                    bot.angle = desiredAngle;
+                } else {
+                    // If blocked, try random direction
+                    bot.angle += (Math.random() - 0.5) * Math.PI/2;
+                }
+            }
         } else {
-            bot.angle += (Math.random() - 0.5) * Math.PI;
+            // No target: wander randomly
+            if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5);
+            let newX = bot.x + Math.cos(bot.angle) * bot.speed * 0.5;
+            let newY = bot.y + Math.sin(bot.angle) * bot.speed * 0.5;
+            newX = Math.max(25, Math.min(mapLimit - 25, newX));
+            newY = Math.max(25, Math.min(mapLimit - 25, newY));
+            if (!checkCollision(newX, newY, 25)) {
+                bot.x = newX;
+                bot.y = newY;
+            } else {
+                bot.angle += Math.PI/2; // turn
+            }
         }
-        
-        let targets = [p, ...battle.bots.filter(b => b.id !== bot.id && b.hp > 0 && !b.dying)];
-        let visibleTargets = targets.filter(t => canSee(bot, t, now));
-        let closest = null, minDist = Infinity;
-        for (let t of visibleTargets) {
-            const d = Math.hypot(bot.x - t.x, bot.y - t.y);
-            if (d < minDist) { minDist = d; closest = t; }
+
+        // ----- Attack -----
+        if (bot.targetEntity && bot.ammo >= 1 && now - bot.lastShot > 2000) { // fire rate ~0.5 per second
+            const dx = bot.targetEntity.x - bot.x;
+            const dy = bot.targetEntity.y - bot.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < bot.attackRange) {
+                // Predictive aiming: assume target moves linearly
+                // Simple version: lead target by estimating future position
+                // For simplicity, we use current angle, but could improve
+                const angle = Math.atan2(dy, dx);
+                spawnBullet(bot, angle, false);
+                bot.ammo--;
+                bot.lastShot = now;
+                bot.revealUntil = now + 500;
+            }
         }
-        if (closest && minDist < 400 && now - bot.lastShot > 2000) {
-            spawnBullet(bot, Math.atan2(closest.y - bot.y, closest.x - bot.x), false);
-            bot.lastShot = now;
-            bot.revealUntil = now + 500;
+
+        // ----- Super usage -----
+        if (bot.superCharge >= bot.superMax && now - bot.lastSuperCheck > 1000) {
+            bot.lastSuperCheck = now;
+            // Decide based on brawler type and situation
+            if (bot.type === 'Mysteria') {
+                // Use super if target is within range and either low health or multiple enemies in line
+                if (bot.targetEntity) {
+                    const dx = bot.targetEntity.x - bot.x;
+                    const dy = bot.targetEntity.y - bot.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 400) {
+                        // Check if there are multiple enemies along the line? Simple: just fire if health low
+                        if (bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3) {
+                            spawnBullet(bot, Math.atan2(dy, dx), true);
+                            bot.superCharge = 0;
+                        }
+                    }
+                }
+            } else if (bot.type === 'Brewiant') {
+                // Use bubble if surrounded by at least 2 enemies (including player) within bubble radius
+                const nearbyEnemies = [p, ...battle.bots].filter(t => 
+                    t.id !== bot.id && t.hp > 0 && !t.dying && 
+                    Math.hypot(t.x - bot.x, t.y - bot.y) < 192
+                ).length;
+                if (nearbyEnemies >= 2 || bot.hp / bot.maxHp < 0.25) {
+                    createBubble(bot.x, bot.y, bot, bot.level, battle, now);
+                    bot.superCharge = 0;
+                }
+            } else if (bot.type === 'Anthony') {
+                // Use bomb if enemy behind wall or multiple enemies in blast radius
+                if (bot.targetEntity) {
+                    // Check if target is behind a wall (simple line-of-sight check)
+                    const los = !checkLineOfSight(bot, bot.targetEntity, battle.walls);
+                    if (los || (bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3)) {
+                        // Aim at target's position
+                        const bomb = {
+                            x: bot.x,
+                            y: bot.y,
+                            targetX: bot.targetEntity.x,
+                            targetY: bot.targetEntity.y,
+                            startTime: now,
+                            duration: 400,
+                            owner: bot,
+                            level: bot.level
+                        };
+                        battle.bombs.push(bomb);
+                        bot.superCharge = 0;
+                    }
+                }
+            }
         }
+    }
+
+    // Helper for line-of-sight check (simple)
+    function checkLineOfSight(from, to, walls) {
+        const steps = 10;
+        for (let i = 1; i < steps; i++) {
+            const t = i / steps;
+            const x = from.x + (to.x - from.x) * t;
+            const y = from.y + (to.y - from.y) * t;
+            for (let w of walls) {
+                if (x > w.x && x < w.x + 64 && y > w.y && y < w.y + 64) return false;
+            }
+        }
+        return true;
     }
 
     const aliveBots = battle.bots.filter(b => b.hp > 0 && !b.dying).length;
