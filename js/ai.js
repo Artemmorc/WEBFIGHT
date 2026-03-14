@@ -1,9 +1,6 @@
 // ========== BOT AI ==========
-import { canSee } from './core.js';
-import { spawnBullet, checkLineOfSight } from './utils.js';
-import { createBubble } from './effects.js';
 
-export function updateBotAI(bot, battle, now, mapLimit, player) {
+function updateBotAI(bot, battle, now, mapLimit, player) {
     if (bot.hp <= 0 || bot.dying) return;
 
     // Reload ammo
@@ -14,7 +11,7 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
     // Choose target
     if (!bot.targetEntity || (bot.targetEntity.hp <= 0 || bot.targetEntity.dying) || now - bot.lastTargetUpdate > 2000) {
         const possibleTargets = [player, ...battle.bots.filter(b => b.id !== bot.id && b.hp > 0 && !b.dying)];
-        const visible = possibleTargets.filter(t => canSee(bot, t, now));
+        const visible = possibleTargets.filter(t => window.canSee(bot, t, now));
         if (visible.length > 0) {
             if (bot.personality === 'aggressive') {
                 visible.sort((a,b) => Math.hypot(bot.x - a.x, bot.y - a.y) - Math.hypot(bot.x - b.x, bot.y - b.y));
@@ -81,7 +78,7 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
         let newY = bot.y + Math.sin(desiredAngle) * moveSpeed;
         newX = Math.max(25, Math.min(mapLimit - 25, newX));
         newY = Math.max(25, Math.min(mapLimit - 25, newY));
-        if (!checkCollision(newX, newY, 25)) {
+        if (!window.checkCollision(newX, newY, 25)) {
             bot.x = newX;
             bot.y = newY;
             bot.angle = desiredAngle;
@@ -93,7 +90,7 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
                 let ty = bot.y + Math.sin(testAngle) * moveSpeed * 0.7;
                 tx = Math.max(25, Math.min(mapLimit - 25, tx));
                 ty = Math.max(25, Math.min(mapLimit - 25, ty));
-                if (!checkCollision(tx, ty, 25)) {
+                if (!window.checkCollision(tx, ty, 25)) {
                     bot.x = tx;
                     bot.y = ty;
                     bot.angle = testAngle;
@@ -114,7 +111,7 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
         const dist = Math.hypot(dx, dy);
         if (dist < bot.attackRange) {
             const angle = Math.atan2(dy, dx);
-            spawnBullet(bot, angle, false);
+            window.spawnBullet(bot, angle, false);
             bot.ammo--;
             bot.lastShot = now;
             bot.revealUntil = now + 500;
@@ -130,7 +127,7 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
                 const dy = bot.targetEntity.y - bot.y;
                 const dist = Math.hypot(dx, dy);
                 if (dist < 400 && bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3) {
-                    spawnBullet(bot, Math.atan2(dy, dx), true);
+                    window.spawnBullet(bot, Math.atan2(dy, dx), true);
                     bot.superCharge = 0;
                 }
             }
@@ -140,12 +137,12 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
                 Math.hypot(t.x - bot.x, t.y - bot.y) < 192
             ).length;
             if (nearbyEnemies >= 2 || bot.hp / bot.maxHp < 0.25) {
-                createBubble(bot.x, bot.y, bot, bot.level, battle, now);
+                window.createBubble(bot.x, bot.y, bot, bot.level, battle, now);
                 bot.superCharge = 0;
             }
         } else if (bot.type === 'Anthony') {
             if (bot.targetEntity) {
-                const los = checkLineOfSight(bot, bot.targetEntity, battle.walls);
+                const los = window.checkLineOfSight(bot, bot.targetEntity, battle.walls);
                 if (!los || (bot.targetEntity.hp / bot.targetEntity.maxHp < 0.3)) {
                     const bomb = {
                         x: bot.x,
@@ -164,3 +161,6 @@ export function updateBotAI(bot, battle, now, mapLimit, player) {
         }
     }
 }
+
+// Expose globally
+window.updateBotAI = updateBotAI;
