@@ -7,7 +7,7 @@ export async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
     
-    let customMap = null;
+    let customMap = null; 
     let mapBackground = 'floor';
     if (typeof window.sb !== 'undefined') {
         try {
