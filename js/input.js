@@ -122,7 +122,6 @@ window.onkeydown = (e) => {
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
         return;
     }
-    // Ensure window.keys exists
     if (!window.keys) window.keys = { w: false, a: false, s: false, d: false };
     switch (e.code) {
         case 'KeyW': window.keys.w = true; e.preventDefault(); break;
@@ -147,7 +146,171 @@ window.onkeyup = (e) => {
     }
 };
 
+// ========== MOUSE AIMING HANDLERS ==========
+function setupMouseListeners() {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) {
+        console.error('Canvas not found for mouse listeners');
+        return;
+    }
+
+    canvas.addEventListener('mouseenter', () => {
+        if (window.state.battle && window.state.battle.active) {
+            window.mouseInsideCanvas = true;
+        }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        window.mouseInsideCanvas = false;
+        if (window.state.battle) {
+            window.state.battle.isAiming = false;
+            window.superAiming = false;
+            window.state.battle.superTarget = null;
+            window.attackTarget = null;
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!window.state.battle || !window.state.battle.active || window.state.preBattle || window.playerDead) return;
+        const rect = canvas.getBoundingClientRect();
+        const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
+        const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
+        const p = window.state.battle.player;
+        if (p) {
+            if (window.superAiming && p.type === 'Anthony') {
+                const dx = worldX - p.x;
+                const dy = worldY - p.y;
+                const dist = Math.hypot(dx, dy);
+                const maxDist = 1600; // 25 tiles
+                const targetDist = Math.min(dist, maxDist);
+                const angle = Math.atan2(dy, dx);
+                window.state.battle.superTarget = {
+                    x: p.x + Math.cos(angle) * targetDist,
+                    y: p.y + Math.sin(angle) * targetDist
+                };
+                window.state.battle.isAiming = true;
+            } else if (p.type === 'Brewiant') {
+                // Always update attackTarget for Brewiant
+                const dx = worldX - p.x;
+                const dy = worldY - p.y;
+                const dist = Math.hypot(dx, dy);
+                const maxDist = 1600;
+                const targetDist = Math.min(dist, maxDist);
+                const angle = Math.atan2(dy, dx);
+                window.attackTarget = {
+                    x: p.x + Math.cos(angle) * targetDist,
+                    y: p.y + Math.sin(angle) * targetDist
+                };
+                window.state.battle.isAiming = true;
+                window.state.battle.aimAngle = angle;
+            } else {
+                const angle = Math.atan2(worldY - p.y, worldX - p.x);
+                window.state.battle.aimAngle = angle;
+                window.state.battle.isAiming = true;
+            }
+        }
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (!window.state.battle || !window.state.battle.active || window.state.preBattle || window.playerDead) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const worldX = (e.clientX - rect.left) / window.state.battle.camera.zoom + window.state.battle.camera.x;
+        const worldY = (e.clientY - rect.top) / window.state.battle.camera.zoom + window.state.battle.camera.y;
+        const p = window.state.battle.player;
+
+        if (e.button === 0) { // Left click – main attack
+            if (p.type === 'Brewiant') {
+                // One‑step attack: use current attackTarget
+                if (p.ammo >= 1 && !p.dying && window.attackTarget) {
+                    const bomb = {
+                        x: p.x,
+                        y: p.y,
+                        targetX: window.attackTarget.x,
+                        targetY: window.attackTarget.y,
+                        startTime: Date.now(),
+                        duration: 400,
+                        owner: p,
+                        level: p.level,
+                        isBottle: true
+                    };
+                    window.state.battle.bombs.push(bomb);
+                    p.ammo--;
+                    p.lastAttackTime = Date.now();
+                }
+            } else {
+                window.spawnBullet(p, Math.atan2(worldY - p.y, worldX - p.x), false);
+            }
+        } else if (e.button === 2) { // Right click – super
+            if (p.type === 'Anthony') {
+                if (!window.superAiming) {
+                    window.superAiming = true;
+                    window.state.battle.isAiming = true;
+                    const dx = worldX - p.x;
+                    const dy = worldY - p.y;
+                    const dist = Math.hypot(dx, dy);
+                    const maxDist = 1600;
+                    const targetDist = Math.min(dist, maxDist);
+                    const angle = Math.atan2(dy, dx);
+                    window.state.battle.superTarget = {
+                        x: p.x + Math.cos(angle) * targetDist,
+                        y: p.y + Math.sin(angle) * targetDist
+                    };
+                } else {
+                    if (p.superCharge >= p.superMax && !p.dying) {
+                        if (window.state.battle.superTarget) {
+                            const bomb = {
+                                x: p.x,
+                                y: p.y,
+                                targetX: window.state.battle.superTarget.x,
+                                targetY: window.state.battle.superTarget.y,
+                                startTime: Date.now(),
+                                duration: 400,
+                                owner: p,
+                                level: p.level
+                            };
+                            window.state.battle.bombs.push(bomb);
+                            p.superCharge = 0;
+                        }
+                    }
+                    window.superAiming = false;
+                    window.state.battle.isAiming = false;
+                    window.state.battle.superTarget = null;
+                }
+            } else if (p.type === 'Brewiant') {
+                // One‑step super: create bubble at current position
+                if (p.superCharge >= p.superMax && !p.dying) {
+                    window.createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
+                    p.superCharge = 0;
+                }
+                window.superAiming = false;
+                window.state.battle.isAiming = false;
+                window.state.battle.superTarget = null;
+            } else {
+                // Other brawlers: normal two-step super (aim then fire)
+                if (!window.superAiming) {
+                    window.superAiming = true;
+                    window.state.battle.isAiming = true;
+                    window.state.battle.aimAngle = Math.atan2(worldY - p.y, worldX - p.x);
+                } else {
+                    if (p.superCharge >= p.superMax && !p.dying) {
+                        window.spawnBullet(p, window.state.battle.aimAngle, true);
+                        p.superCharge = 0;
+                    }
+                    window.superAiming = false;
+                    window.state.battle.isAiming = false;
+                }
+            }
+        }
+    });
+}
+
 // Expose globally
 window.setupJoystick = setupJoystick;
 window.updateMoveJoystickVisual = updateMoveJoystickVisual;
 window.updateKeyboardMovement = updateKeyboardMovement;
+window.setupMouseListeners = setupMouseListeners;
