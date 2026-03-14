@@ -2,7 +2,7 @@
 
 async function startBattlePre() {
     console.log('startBattlePre called');
-    document.getElementById('prematch-loading').classList.add('active'); 
+    document.getElementById('prematch-loading').classList.add('active');
     
     let customMap = null;
     let mapBackground = 'floor';
@@ -227,6 +227,11 @@ function startBattle(customMap = null, background = 'floor') {
 
     window.ensureKillFeed();
 
+    // Safety check before starting game loop
+    if (typeof window.gameLoop !== 'function') {
+        console.error('❌ window.gameLoop is not a function! Check script loading order.');
+        return;
+    }
     if (window.gameLoopId) cancelAnimationFrame(window.gameLoopId);
     window.gameLoopId = requestAnimationFrame(window.gameLoop);
 }
