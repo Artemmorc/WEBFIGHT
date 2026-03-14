@@ -2,7 +2,7 @@
 
 // Mouse aiming variables (global)
 window.mouseInsideCanvas = false;
-window.mouseAimAngle = 0;
+window.mouseAimAngle = 0; 
 window.superAiming = false;
 window.attackTarget = null;
 
