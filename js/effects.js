@@ -8,7 +8,7 @@ export function createBombExplosion(centerX, centerY, battle, now, owner) {
     const mapSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
 
     battle.explosions.push({
-        x: centerX,
+        x: centerX, 
         y: centerY,
         startTime: now,
         duration: 500
