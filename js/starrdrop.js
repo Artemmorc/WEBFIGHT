@@ -1,4 +1,4 @@
-// ========== STARR DROP (FIXED CHANCES, EXACTLY 4 TAPS, GEMS ONLY LEGENDARY) ==========
+// ========== STARR DROP (RANDOM UPGRADES PER TAP, 4 TAPS MAX, GEMS ONLY LEGENDARY) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -13,24 +13,6 @@ function createStarrDropSVG(rarity, size) {
 
 function startStarrDropAnimation() {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
-    
-    // Choose target rarity based on fixed probabilities
-    const rand = Math.random();
-    let cumulative = 0;
-    const rarityProbs = [
-        { rarity: 'RARE', prob: 0.50 },
-        { rarity: 'SUPER RARE', prob: 0.28 },
-        { rarity: 'EPIC', prob: 0.15 },
-        { rarity: 'MYTHIC', prob: 0.05 },
-        { rarity: 'LEGENDARY', prob: 0.02 }
-    ];
-    for (let r of rarityProbs) {
-        cumulative += r.prob;
-        if (rand < cumulative) {
-            window.state.starrDropTargetRarity = r.rarity;
-            break;
-        }
-    }
     
     resetStarrDrop();
     document.getElementById('star-svg-container').style.animation = 'spin 8s linear infinite';
@@ -63,22 +45,30 @@ document.getElementById('starr-drop-container').onclick = () => {
     // If reward already shown, do nothing
     if (!document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
 
-    // Always do exactly 4 taps before revealing
-    if (window.state.starrDropTaps >= 4) {
+    // If already legendary or reached 4 taps, reveal reward
+    if (window.state.starrDropRarity === 'LEGENDARY' || window.state.starrDropTaps >= 4) {
         revealReward();
         return;
     }
 
-    // Increment tap count
-    window.state.starrDropTaps++;
-
-    // Determine next rarity (upgrade towards target, but never exceed target)
-    const currentIdx = rarities.indexOf(window.state.starrDropRarity);
-    const targetIdx = rarities.indexOf(window.state.starrDropTargetRarity);
-    if (currentIdx < targetIdx) {
-        window.state.starrDropRarity = rarities[currentIdx + 1];
+    // Upgrade chances based on current rarity (same as original)
+    const steps = [0, 1, 2, 3, 4];
+    const probs = [0.50, 0.28, 0.15, 0.05, 0.02];
+    const rand = Math.random();
+    let cum = 0;
+    let upgradeSteps = 0;
+    for (let i = 0; i < steps.length; i++) {
+        cum += probs[i];
+        if (rand < cum) {
+            upgradeSteps = steps[i];
+            break;
+        }
     }
-    // If already at or above target, stay at target (no further upgrade)
+
+    const currentIdx = rarities.indexOf(window.state.starrDropRarity);
+    let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
+    window.state.starrDropRarity = rarities[newIdx];
+    window.state.starrDropTaps++;
 
     // Shake animation
     const container = document.getElementById('starr-drop-container');
@@ -87,8 +77,10 @@ document.getElementById('starr-drop-container').onclick = () => {
 
     updateStarrDropUI();
 
-    // Update hint text on last tap
-    if (window.state.starrDropTaps === 4) {
+    // Update hint text if legendary or last tap
+    if (window.state.starrDropRarity === 'LEGENDARY') {
+        document.getElementById('starr-drop-hint').innerText = 'LEGENDARY! TAP TO OPEN';
+    } else if (window.state.starrDropTaps === 4) {
         document.getElementById('starr-drop-hint').innerText = 'TAP TO OPEN';
     }
 };
