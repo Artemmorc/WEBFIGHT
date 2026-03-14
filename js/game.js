@@ -1,12 +1,6 @@
 // ========== MAIN GAME ENTRY POINT ==========
-import { startBattlePre } from './battle.js';
-import { updateGame } from './update.js';
-import { drawGame } from './render.js';
-import { setupJoystick } from './input.js';
-import { spawnBullet } from './utils.js';
-import { createBubble } from './effects.js';
 
-// Global variables (exposed on window for other scripts)
+// Global variables
 window.gameLoopId = null;
 window.preBattleStart = null;
 window.playerDead = false;
@@ -14,28 +8,21 @@ window.deathAnimationStart = 0;
 window.deathAnimationDuration = 1500;
 window.gameEnded = false;
 
-// Canvas and context (already in HTML)
-export const canvas = document.getElementById('gameCanvas');
-export const ctx = canvas.getContext('2d');
-
 // Game loop
-export function gameLoop() {
+function gameLoop() {
     if (!window.state.battle || !window.state.battle.active) {
         return;
     }
-    updateGame();
-    drawGame();
+    window.updateGame();
+    window.drawGame();
     window.gameLoopId = requestAnimationFrame(gameLoop);
 }
 
-// Expose needed functions globally for HTML buttons
-window.startBattlePre = startBattlePre;
-window.exitBattle = exitBattle;
-window.showAfterGame = showAfterGame;
-window.hideAfterGame = hideAfterGame;
+// Expose gameLoop globally so it can be started from battle.js
+window.gameLoop = gameLoop;
 
-// Exit battle (also used by hideAfterGame)
-export function exitBattle() {
+// Exit battle
+function exitBattle() {
     console.log('exitBattle called');
     window.gameEnded = true;
     if (window.gameLoopId) {
@@ -56,8 +43,8 @@ export function exitBattle() {
     window.keys = { w: false, a: false, s: false, d: false };
 }
 
-// After-game menu (must be global)
-export function showAfterGame(rank, coins, starrdropEarned = false, trophyGain = 0) {
+// After-game menu
+function showAfterGame(rank, coins, starrdropEarned = false, trophyGain = 0) {
     console.log('showAfterGame called with rank:', rank, 'coins:', coins, 'starrdrop:', starrdropEarned, 'trophyGain:', trophyGain);
     const menu = document.getElementById('aftergame-menu');
     if (!menu) {
@@ -100,7 +87,7 @@ export function showAfterGame(rank, coins, starrdropEarned = false, trophyGain =
     battleScreen.style.display = 'block';
 }
 
-export function hideAfterGame() {
+function hideAfterGame() {
     const menu = document.getElementById('aftergame-menu');
     menu.style.opacity = '0';
     setTimeout(() => {
@@ -115,14 +102,14 @@ export function hideAfterGame() {
 
 // Initialize joysticks (called after DOM is ready)
 document.addEventListener('DOMContentLoaded', () => {
-    setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
-    setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
+    window.setupJoystick('move-joy-base', 'move-joy-stick', 'move', () => {});
+    window.setupJoystick('attack-joy-base', 'attack-joy-stick', 'attack', (ang) => {
         const p = window.state.battle?.player;
         if (p && !p.dying) {
-            spawnBullet(p, ang, false);
+            window.spawnBullet(p, ang, false);
         }
     });
-    setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
+    window.setupJoystick('super-joy-base', 'super-joy-stick', 'super', (ang) => {
         const p = window.state.battle?.player;
         if (p && !p.dying && p.superCharge >= p.superMax) {
             if (p.type === 'Anthony') {
@@ -141,10 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.state.battle.bombs.push(bomb);
                 p.superCharge = 0;
             } else if (p.type === 'Brewiant') {
-                createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
+                window.createBubble(p.x, p.y, p, p.level, window.state.battle, Date.now());
                 p.superCharge = 0;
             } else {
-                spawnBullet(p, ang, true);
+                window.spawnBullet(p, ang, true);
                 p.superCharge = 0;
             }
         }
@@ -189,7 +176,7 @@ document.addEventListener('visibilitychange', function() {
                 canvas.width = oldWidth;
                 console.log('Forced canvas repaint');
             }
-            const killFeed = ensureKillFeed();
+            const killFeed = window.ensureKillFeed();
             if (killFeed) {
                 killFeed.style.display = 'flex';
                 killFeed.style.zIndex = '100000';
@@ -210,3 +197,8 @@ setInterval(() => {
         }
     }
 }, 1000);
+
+// Expose functions for HTML
+window.exitBattle = exitBattle;
+window.showAfterGame = showAfterGame;
+window.hideAfterGame = hideAfterGame;
