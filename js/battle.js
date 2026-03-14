@@ -1,13 +1,10 @@
 // ========== BATTLE INITIALIZATION ==========
-import { checkCollision } from './core.js';
-import { ensureKillFeed } from './utils.js';
-import { createBubble } from './effects.js'; // for bot creation? not needed here but kept for consistency
 
-export async function startBattlePre() {
+async function startBattlePre() {
     console.log('startBattlePre called');
     document.getElementById('prematch-loading').classList.add('active');
     
-    let customMap = null; 
+    let customMap = null;
     let mapBackground = 'floor';
     if (typeof window.sb !== 'undefined') {
         try {
@@ -40,7 +37,7 @@ export async function startBattlePre() {
     }, 500);
 }
 
-export function startBattle(customMap = null, background = 'floor') {
+function startBattle(customMap = null, background = 'floor') {
     window.gameEnded = false;
     window.state.screen = 'battle';
     document.getElementById('menu-screen').style.display = 'none';
@@ -66,8 +63,7 @@ export function startBattle(customMap = null, background = 'floor') {
     const maxHp = stats.health;
     
     window.powerCubesCollected = 0;
-    // Kill messages are managed in utils.js, we clear the array there? We'll rely on the module's internal array.
-    // For now, we can re-initialize by resetting the module's variable if needed. Simpler: keep as is.
+    window.killMessages = []; // reset kill feed
 
     window.state.battle = {
         active: true,
@@ -229,8 +225,12 @@ export function startBattle(customMap = null, background = 'floor') {
         });
     }
 
-    ensureKillFeed();
+    window.ensureKillFeed();
 
     if (window.gameLoopId) cancelAnimationFrame(window.gameLoopId);
     window.gameLoopId = requestAnimationFrame(window.gameLoop);
 }
+
+// Expose globally (for HTML onclick)
+window.startBattlePre = startBattlePre;
+window.startBattle = startBattle;
