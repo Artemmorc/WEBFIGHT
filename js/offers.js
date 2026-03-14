@@ -6,7 +6,7 @@ async function getActiveOffers() {
     const now = new Date().toISOString();
     const { data, error } = await window.sb
         .from('shop_offers')
-        .select('*')
+        .select('*') 
         .eq('is_active', true)
         .lte('start_time', now)
         .gte('end_time', now)
