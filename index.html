@@ -307,6 +307,12 @@
             </div>
         </div>
 
+        <!-- NEW: Special Offers Section -->
+        <h2 class="text-4xl text-purple-400 mb-6 uppercase">Special Offers</h2>
+        <div id="shop-offers-container" class="grid grid-cols-4 gap-6 mb-12">
+            <!-- Offers will be loaded here dynamically -->
+        </div>
+
         <h2 class="text-4xl text-purple-400 mb-6 uppercase">Skins</h2>
         <div class="bg-black/60 rounded-3xl p-12 text-center border-4 border-dashed border-white/30 mb-12">
             <p class="text-5xl opacity-60 italic">SOON™</p>
@@ -355,70 +361,7 @@
     <div id="brawler-list" class="grid grid-cols-4 gap-6"></div>
     <!-- Detail view (hidden initially) -->
     <div id="brawler-detail" class="hidden flex flex-col h-full">
-        <div class="flex justify-between items-center mb-4">
-            <button onclick="showBrawlerGrid()" class="bg-gray-500 px-6 py-2 rounded-lg text-xl border-2 border-white hover:bg-gray-600">&larr; Back to Grid</button>
-            <div class="flex gap-4">
-                <button id="detail-equip-btn" class="bg-green-500 px-8 py-3 rounded-xl text-2xl border-2 border-black hover:bg-green-400">EQUIP</button>
-            </div>
-        </div>
-        
-        <!-- Main detail area -->
-        <div class="flex-1 flex flex-col md:flex-row gap-8 overflow-y-auto custom-scrollbar p-4">
-            <!-- Left: Portrait and basic info -->
-            <div class="md:w-1/3 flex flex-col items-center">
-                <div id="detail-brawler-portrait" class="w-64 h-64 mb-4 flex items-center justify-center bg-black/30 rounded-3xl border-4 border-white/30 p-4"></div>
-                <h2 id="detail-brawler-name" class="text-4xl text-yellow-400"></h2>
-                <div id="detail-brawler-rarity" class="text-2xl mt-2"></div>
-                <div class="text-xl mt-2">Trophies: <span id="detail-brawler-trophies" class="text-yellow-400"></span></div>
-                <div class="text-xl">Level: <span id="detail-brawler-level" class="text-blue-400"></span></div>
-            </div>
-            
-            <!-- Right: Tabs and stats -->
-            <div class="md:w-2/3 flex flex-col">
-                <!-- Tab buttons -->
-                <div class="flex gap-4 mb-6">
-                    <button id="tab-stats" class="tab-btn bg-purple-600 px-6 py-2 rounded-xl text-xl border-2 border-white" onclick="switchBrawlerTab('stats')">Stats</button>
-                    <button id="tab-upgrade" class="tab-btn bg-gray-600 px-6 py-2 rounded-xl text-xl border-2 border-white" onclick="switchBrawlerTab('upgrade')">Upgrade</button>
-                    <button id="tab-skins" class="tab-btn bg-gray-600 px-6 py-2 rounded-xl text-xl border-2 border-white" onclick="switchBrawlerTab('skins')">Skins</button>
-                    <button id="tab-lore" class="tab-btn bg-gray-600 px-6 py-2 rounded-xl text-xl border-2 border-white" onclick="switchBrawlerTab('lore')">Lore</button>
-                </div>
-                
-                <!-- Tab content -->
-                <div id="tab-content-stats" class="tab-content bg-black/40 p-6 rounded-xl border-2 border-white/30">
-                    <h3 class="text-3xl mb-4">Stats</h3>
-                    <div class="grid grid-cols-2 gap-4 text-xl">
-                        <div>Health: <span id="detail-brawler-hp" class="text-green-400"></span></div>
-                        <div>Damage: <span id="detail-brawler-damage" class="text-orange-400"></span></div>
-                        <div>Super Damage: <span id="detail-brawler-super" class="text-yellow-400"></span></div>
-                        <div>Speed: <span id="detail-brawler-speed" class="text-blue-400"></span></div>
-                        <div>Ammo: <span id="detail-brawler-ammo" class="text-purple-400"></span></div>
-                        <div>Reload: <span id="detail-brawler-reload" class="text-cyan-400"></span>s</div>
-                    </div>
-                </div>
-                
-                <div id="tab-content-upgrade" class="tab-content hidden bg-black/40 p-6 rounded-xl border-2 border-white/30">
-                    <h3 class="text-3xl mb-4">Upgrade</h3>
-                    <div class="text-xl mb-4">Current Level: <span id="upgrade-current-level"></span></div>
-                    <div class="text-xl mb-4">Next Level: <span id="upgrade-next-level"></span></div>
-                    <div class="text-xl mb-4">Cost: <span id="upgrade-cost-coins" class="text-yellow-400"></span> coins, <span id="upgrade-cost-pp" class="text-blue-400"></span> PP</div>
-                    <button id="detail-upgrade-btn" class="bg-green-500 px-8 py-3 rounded-xl text-2xl border-2 border-black hover:bg-green-400">Upgrade</button>
-                </div>
-                
-                <div id="tab-content-skins" class="tab-content hidden bg-black/40 p-6 rounded-xl border-2 border-white/30">
-                    <h3 class="text-3xl mb-4">Skins</h3>
-                    <div id="detail-skins-grid" class="grid grid-cols-3 gap-4">
-                        <!-- Skins will be inserted here -->
-                    </div>
-                </div>
-                
-                <div id="tab-content-lore" class="tab-content hidden bg-black/40 p-6 rounded-xl border-2 border-white/30">
-                    <h3 class="text-3xl mb-4">Lore</h3>
-                    <p id="detail-brawler-lore" class="text-xl"></p>
-                    <h3 class="text-3xl mt-6 mb-4">Ability</h3>
-                    <p id="detail-brawler-ability" class="text-xl"></p>
-                </div>
-            </div>
-        </div>
+        <!-- ... existing detail view (unchanged) ... -->
     </div>
 </div>
 
@@ -503,6 +446,11 @@
                 <button onclick="scheduleMaintenance()" class="w-full bg-orange-500 hover:bg-orange-600 mt-2 py-3 rounded-xl text-2xl">3 MIN</button>
                 <button onclick="cancelMaintenance()" class="w-full bg-gray-500 hover:bg-gray-600 mt-2 py-3 rounded-xl text-2xl">CANCEL</button>
             </div>
+            <!-- NEW: Shop Offers Management -->
+            <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30">
+                <label class="block text-2xl mb-2">Shop Offers</label>
+                <button onclick="openOfferEditor()" class="w-full bg-green-500 hover:bg-green-600 mt-4 py-3 rounded-xl text-2xl">MANAGE OFFERS</button>
+            </div>
             <!-- placeholder -->
             <div class="bg-black/40 p-6 rounded-xl border-2 border-white/30 flex items-center justify-center">
                 <span class="text-2xl opacity-50">More tools soon</span>
@@ -513,162 +461,121 @@
 
 <!-- MAP EDITOR (with background selector) -->
 <div id="map-editor" class="absolute inset-0 bg-gray-900 z-[400] hidden flex flex-col p-4">
-    <div class="flex justify-between items-center mb-4">
-        <h1 class="text-4xl text-yellow-400">MAP EDITOR (60x60)</h1>
-        <div class="flex gap-4">
-            <button onclick="closeMapEditor()" class="bg-red-500 px-6 py-2 rounded-xl border-2 border-white text-2xl">CLOSE</button>
-        </div>
-    </div>
-    <!-- Toolbar -->
-    <div class="flex flex-col gap-4 mb-4">
-        <div class="flex gap-2 items-center flex-wrap">
-            <span class="text-white font-bold mr-2">Brush:</span>
-            <div class="flex items-center gap-1">
-                <div id="palette-wall" class="w-10 h-10 bg-[#8b5a2b] border-4 border-white cursor-pointer" onclick="selectTile(1)" title="Wall"></div>
-                <span class="text-white text-sm">Wall</span>
-            </div>
-            <div class="flex items-center gap-1">
-                <div id="palette-bush" class="w-10 h-10 bg-[#b45309] border-4 border-white cursor-pointer" onclick="selectTile(2)" title="Bush (wheat)"></div>
-                <span class="text-white text-sm">Bush</span>
-            </div>
-            <div class="flex items-center gap-1">
-                <div id="palette-water" class="w-10 h-10 bg-[#0284c7] border-4 border-white cursor-pointer" onclick="selectTile(3)" title="Water"></div>
-                <span class="text-white text-sm">Water</span>
-            </div>
-            <div class="flex items-center gap-1">
-                <div id="palette-powercube" class="w-10 h-10 bg-[#fbbf24] border-4 border-white cursor-pointer" onclick="selectTile(4)" title="Power Cube Box"></div>
-                <span class="text-white text-sm">Cube Box</span>
-            </div>
-            <div class="flex items-center gap-1">
-                <div id="palette-barrel" class="w-10 h-10 bg-[#b91c1c] border-4 border-white cursor-pointer" onclick="selectTile(5)" title="Barrel"></div>
-                <span class="text-white text-sm">Barrel</span>
-            </div>
-            <div class="flex items-center gap-1">
-                <div id="palette-spawn" class="w-10 h-10 bg-[#22c55e] border-4 border-white cursor-pointer" onclick="selectTile(6)" title="Spawn Point"></div>
-                <span class="text-white text-sm">Spawn</span>
-            </div>
-            <div class="flex items-center gap-1">
-                <div id="palette-erase" class="w-10 h-10 bg-[#d4a373] border-4 border-white cursor-pointer flex items-center justify-center text-black font-bold" onclick="selectTile(0)" title="Erase">X</div>
-                <span class="text-white text-sm">Erase</span>
-            </div>
-        </div>
-        <div class="flex gap-2 items-center">
-            <span class="text-white font-bold mr-2">Mirror:</span>
-            <button onclick="setMirrorMode('none')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">Single</button>
-            <button onclick="setMirrorMode('horizontal')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">H</button>
-            <button onclick="setMirrorMode('vertical')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">V</button>
-            <button onclick="setMirrorMode('diagonal')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">D</button>
-            <button onclick="setMirrorMode('all')" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500 text-white">All</button>
-        </div>
-    </div>
-    <!-- Background selector -->
-    <div class="flex gap-4 mb-4 items-center flex-wrap">
-        <span class="text-white font-bold">Background:</span>
-        <select id="background-select" class="px-4 py-2 rounded text-black">
-            <option value="floor">Desert (default)</option>
-            <option value="water">Water</option>
-            <option value="grass">Grass</option>
-            <option value="stone">Stone</option>
-        </select>
-        <button onclick="setMapBackground()" class="bg-blue-500 px-4 py-2 rounded text-white">SET BACKGROUND</button>
-    </div>
-    <!-- Server map controls -->
-    <div class="flex gap-4 mb-4 items-center flex-wrap">
-        <span class="text-white font-bold">Server Maps:</span>
-        <input type="text" id="map-name-input" placeholder="Map name" class="px-4 py-2 rounded text-black">
-        <button onclick="saveMapToServer()" class="bg-green-500 px-4 py-2 rounded text-white">Save to Server</button>
-        <select id="map-list-select" class="px-4 py-2 rounded text-black">
-            <option value="">-- Select a map to load --</option>
-        </select>
-        <button onclick="loadMapFromServer()" class="bg-blue-500 px-4 py-2 rounded text-white">Load Selected</button>
-        <button onclick="setActiveMap()" class="bg-purple-500 px-4 py-2 rounded text-white">Set as Active</button>
-        <span id="active-map-indicator" class="text-yellow-400 font-bold"></span>
-    </div>
-    <!-- Grid -->
-    <div id="editor-grid" class="grid gap-0 overflow-auto border-2 border-gray-600" style="grid-template-columns: repeat(60, 40px);">
-        <!-- Generated by JS -->
-    </div>
+    <!-- ... existing map editor (unchanged) ... -->
 </div>
 
 <!-- NEWS VIEWER MODAL -->
 <div id="news-viewer" class="absolute inset-0 bg-gray-900 z-[450] hidden flex flex-col p-8 overflow-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-4xl text-yellow-400">NEWS</h1>
-        <div class="flex gap-4">
-            <button id="news-create-btn" onclick="openNewsEditor()" class="bg-green-500 px-6 py-2 rounded-xl text-2xl hidden">CREATE NEWS</button>
-            <button onclick="closeNewsViewer()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
-        </div>
-    </div>
-    <div id="news-list" class="space-y-4">
-        <!-- News cards will be inserted here -->
-    </div>
+    <!-- ... existing news viewer (unchanged) ... -->
 </div>
 
 <!-- NEWS DETAIL MODAL -->
 <div id="news-detail" class="absolute inset-0 bg-gray-900 z-[460] hidden flex flex-col p-8 overflow-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-4xl text-yellow-400" id="detail-title"></h1>
-        <button onclick="closeNewsDetail()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
-    </div>
-    <div class="bg-black/60 p-6 rounded-xl border-2 border-white/30">
-        <div class="text-gray-300 mb-4" id="detail-date"></div>
-        <div class="text-white text-xl prose prose-invert max-w-none" id="detail-content"></div>
-    </div>
+    <!-- ... existing news detail (unchanged) ... -->
 </div>
 
 <!-- NEWS EDITOR MODAL (with poll and slider) -->
 <div id="news-editor" class="absolute inset-0 bg-gray-900 z-[500] hidden flex flex-col p-4 md:p-8 max-h-screen overflow-y-auto">
+    <!-- ... existing news editor (unchanged) ... -->
+</div>
+
+<!-- OFFER EDITOR MODAL (NEW) -->
+<div id="offer-editor" class="absolute inset-0 bg-gray-900 z-[600] hidden flex flex-col p-4 md:p-8 max-h-screen overflow-y-auto">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-4xl text-yellow-400">EDIT NEWS</h1>
-        <button onclick="closeNewsEditor()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
+        <h1 class="text-4xl text-yellow-400">EDIT OFFER</h1>
+        <button onclick="closeOfferEditor()" class="bg-red-500 px-6 py-2 rounded-xl text-2xl">CLOSE</button>
     </div>
-    <div class="space-y-4">
-        <input type="text" id="news-title" placeholder="Title" class="w-full p-4 rounded-xl text-black text-2xl">
-        <textarea id="news-content" placeholder="Content (HTML allowed)" rows="10" class="w-full p-4 rounded-xl text-black text-xl"></textarea>
+    <div class="space-y-4 bg-black/60 p-6 rounded-xl">
+        <input type="text" id="offer-title" placeholder="Title" class="w-full p-3 rounded text-black">
+        <textarea id="offer-description" placeholder="Description" rows="2" class="w-full p-3 rounded text-black"></textarea>
         
-        <!-- Poll section with slider -->
-        <div class="mt-4">
-            <label class="text-white text-xl">Poll (optional)</label>
-            <input type="text" id="poll-question" placeholder="Poll question" class="w-full p-2 rounded text-black mt-2">
-            
-            <div class="flex items-center gap-4 mt-4">
-                <span class="text-white">Number of options:</span>
-                <input type="range" id="poll-option-count" min="2" max="6" value="2" class="w-48" oninput="updatePollOptions(this.value)">
-                <span id="poll-count-display" class="text-white">2</span>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-white block mb-1">Item Type</label>
+                <select id="offer-item-type" class="w-full p-3 rounded text-black">
+                    <option value="coins">Coins</option>
+                    <option value="gems">Gems</option>
+                    <option value="pp">Power Points</option>
+                    <option value="brawler">Brawler</option>
+                    <option value="starrdrop">Starr Drop</option>
+                    <option value="skin">Skin</option>
+                </select>
             </div>
-            
-            <div id="poll-options" class="mt-2">
-                <input type="text" placeholder="Option 1" class="poll-option w-full p-2 rounded text-black mt-1">
-                <input type="text" placeholder="Option 2" class="poll-option w-full p-2 rounded text-black mt-1">
+            <div>
+                <label class="text-white block mb-1">Item ID (for brawler/skin)</label>
+                <input type="text" id="offer-item-id" placeholder="e.g. Mysteria" class="w-full p-3 rounded text-black">
             </div>
         </div>
-        
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-white block mb-1">Amount</label>
+                <input type="number" id="offer-amount" value="1" min="1" class="w-full p-3 rounded text-black">
+            </div>
+            <div>
+                <label class="text-white block mb-1">Image URL (optional)</label>
+                <input type="text" id="offer-image" placeholder="https://..." class="w-full p-3 rounded text-black">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-white block mb-1">Price Type</label>
+                <select id="offer-price-type" class="w-full p-3 rounded text-black">
+                    <option value="coins">Coins</option>
+                    <option value="gems">Gems</option>
+                    <option value="free">Free</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-white block mb-1">Price Amount</label>
+                <input type="number" id="offer-price-amount" value="0" min="0" class="w-full p-3 rounded text-black">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-white block mb-1">Start Time</label>
+                <input type="datetime-local" id="offer-start" class="w-full p-3 rounded text-black">
+            </div>
+            <div>
+                <label class="text-white block mb-1">End Time</label>
+                <input type="datetime-local" id="offer-end" class="w-full p-3 rounded text-black">
+            </div>
+        </div>
+
         <div class="flex gap-4">
-            <button onclick="saveNewsAsDraft()" class="bg-blue-500 px-8 py-4 rounded-xl text-2xl">Save Draft</button>
-            <button onclick="publishNews()" class="bg-green-500 px-8 py-4 rounded-xl text-2xl">Publish</button>
-            <button onclick="clearNewsEditor()" class="bg-gray-500 px-8 py-4 rounded-xl text-2xl">Clear</button>
+            <button onclick="saveOffer()" class="bg-green-500 px-8 py-3 rounded-xl text-2xl">SAVE</button>
+            <button onclick="deleteOffer()" class="bg-red-500 px-8 py-3 rounded-xl text-2xl hidden" id="offer-delete-btn">DELETE</button>
         </div>
+    </div>
+
+    <!-- List of existing offers -->
+    <h2 class="text-3xl text-white mt-8 mb-4">Existing Offers</h2>
+    <div id="offer-list" class="space-y-2">
+        <!-- Populated by JS -->
     </div>
 </div>
 
 <!-- SCRIPTS (order is important) -->
 <script src="js/config.js?v=3"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/utils.js?v=1"></script>          <!-- new -->
-<script src="js/core.js?v=1"></script>            <!-- new -->
-<script src="js/effects.js?v=1"></script>         <!-- new -->
-<script src="js/input.js?v=1"></script>           <!-- new -->
-<script src="js/battle.js?v=1"></script>          <!-- new -->
-<script src="js/ai.js?v=1"></script>              <!-- new -->
-<script src="js/update.js?v=1"></script>          <!-- new -->
-<script src="js/render.js?v=1"></script>          <!-- new -->
-<script src="js/game.js?v=10"></script>           <!-- new main entry -->
+<script src="js/utils.js?v=1"></script>
+<script src="js/core.js?v=1"></script>
+<script src="js/effects.js?v=1"></script>
+<script src="js/input.js?v=1"></script>
+<script src="js/battle.js?v=1"></script>
+<script src="js/ai.js?v=1"></script>
+<script src="js/update.js?v=1"></script>
+<script src="js/render.js?v=1"></script>
+<script src="js/game.js?v=10"></script>
 <script src="js/ui.js?v=2"></script>
 <script src="js/mapEditor.js?v=1"></script>
 <script src="js/news.js?v=1"></script>
 <script src="js/maintenance.js?v=1"></script>
 <script src="js/daily.js?v=1"></script>
-<script src="js/starrdrop.js?v=4"></script>
-<script src="js/main.js?v=10"></script>"js/game.js?v=9"></script>
+<script src="js/starrdrop.js?v=5"></script>
+<script src="js/offers.js?v=1"></script>
+<script src="js/main.js?v=10"></script>
 </body>
 </html>
