@@ -301,7 +301,7 @@ function updateGame() {
     document.getElementById('brawlers-left').innerText = aliveCount;
 
     // Poison gas – FASTER!
-    battle.poisonRadius -= 0.5;   // increased from 0.05
+    battle.poisonRadius -= 0.5;
     const centerX = mapLimit / 2, centerY = mapLimit / 2;
     [...battle.bots, p].forEach(ent => {
         if(ent.hp <= 0 || ent.dying) return;
