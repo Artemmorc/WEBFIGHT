@@ -176,39 +176,51 @@ function isPoisonClose(bot, battle, mapLimit) {
     return distToCenter > battle.poisonRadius - POISON_ESCAPE_THRESHOLD;
 }
 
+// IMPROVED MOVE FUNCTION
 function moveBot(bot, desiredAngle, speed, mapLimit) {
-    let moved = false;
-    // Try desired direction first
-    let newX = bot.x + Math.cos(desiredAngle) * speed;
-    let newY = bot.y + Math.sin(desiredAngle) * speed;
-    newX = Math.max(25, Math.min(mapLimit - 25, newX));
-    newY = Math.max(25, Math.min(mapLimit - 25, newY));
-    if (!window.checkCollision(newX, newY, 25)) {
-        bot.x = newX;
-        bot.y = newY;
-        bot.angle = desiredAngle;
-        moved = true;
-    } else {
-        // Try up to MAX_ESCAPE_ATTEMPTS random angles
-        for (let attempt = 0; attempt < MAX_ESCAPE_ATTEMPTS; attempt++) {
-            let testAngle = desiredAngle + (Math.random() - 0.5) * Math.PI;
-            let tx = bot.x + Math.cos(testAngle) * speed * 0.8;
-            let ty = bot.y + Math.sin(testAngle) * speed * 0.8;
-            tx = Math.max(25, Math.min(mapLimit - 25, tx));
-            ty = Math.max(25, Math.min(mapLimit - 25, ty));
-            if (!window.checkCollision(tx, ty, 25)) {
-                bot.x = tx;
-                bot.y = ty;
-                bot.angle = testAngle;
-                moved = true;
-                break;
-            }
+    // Define a set of angles to try (8 cardinal + half-cardinal)
+    const anglesToTry = [
+        desiredAngle,                                    // desired first
+        desiredAngle + Math.PI/4, desiredAngle - Math.PI/4,
+        desiredAngle + Math.PI/2, desiredAngle - Math.PI/2,
+        desiredAngle + 3*Math.PI/4, desiredAngle - 3*Math.PI/4,
+        desiredAngle + Math.PI,                         // opposite
+        // also try pure cardinal directions as fallback
+        0, Math.PI/2, Math.PI, 3*Math.PI/2,
+        Math.PI/4, 3*Math.PI/4, 5*Math.PI/4, 7*Math.PI/4
+    ];
+    
+    // Remove duplicates by normalizing and using a Set
+    const uniqueAngles = [];
+    const angleSet = new Set();
+    anglesToTry.forEach(a => {
+        // normalize angle to [0, 2PI)
+        let norm = a % (2*Math.PI);
+        if (norm < 0) norm += 2*Math.PI;
+        const key = Math.round(norm * 100); // rounding to two decimals for uniqueness
+        if (!angleSet.has(key)) {
+            angleSet.add(key);
+            uniqueAngles.push(norm);
+        }
+    });
+    
+    // Try each angle in order
+    for (let angle of uniqueAngles) {
+        let newX = bot.x + Math.cos(angle) * speed;
+        let newY = bot.y + Math.sin(angle) * speed;
+        newX = Math.max(25, Math.min(mapLimit - 25, newX));
+        newY = Math.max(25, Math.min(mapLimit - 25, newY));
+        if (!window.checkCollision(newX, newY, 25)) {
+            bot.x = newX;
+            bot.y = newY;
+            bot.angle = angle;
+            return true; // moved successfully
         }
     }
-    if (!moved) {
-        // Completely stuck – rotate in place
-        bot.angle += (Math.random() - 0.5) * 0.5;
-    }
+    
+    // If all directions fail, rotate in place as last resort
+    bot.angle += (Math.random() - 0.5) * 0.5;
+    return false;
 }
 
 function useSuper(bot, battle, now, player) {
