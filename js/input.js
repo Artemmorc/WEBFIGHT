@@ -6,7 +6,7 @@ import { createBubble } from './effects.js';
 export let mouseInsideCanvas = false;
 export let mouseAimAngle = 0;
 export let superAiming = false;
-export let attackTarget = null;
+export let attackTarget = null; 
 
 // Re-export for other modules
 export function setMouseInside(value) { mouseInsideCanvas = value; }
