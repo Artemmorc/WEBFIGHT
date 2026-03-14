@@ -9,10 +9,13 @@ async function handleNewsClick() {
 async function openNewsViewer() {
     const viewer = document.getElementById('news-viewer');
     if (!viewer) {
-        console.error('News viewer element not found!');
+        console.error('❌ News viewer element (#news-viewer) not found in DOM!');
+        alert('News system error: viewer not found. Please refresh.');
         return;
     }
     viewer.classList.remove('hidden');
+    
+    // Load news list
     await loadNewsList();
 
     // Show or hide the create button based on admin status
@@ -41,7 +44,7 @@ async function loadNewsList() {
 
     const container = document.getElementById('news-list');
     if (!container) {
-        console.error('News list container not found');
+        console.error('❌ News list container (#news-list) not found in DOM!');
         return;
     }
 
@@ -131,9 +134,7 @@ async function attachReactions(card, newsId) {
             } else {
                 await addReaction(newsId, em);
             }
-            // Reload the card's reactions
-            card.innerHTML = ''; // This would clear everything; better to reload the whole list.
-            // For simplicity, reload the entire news list
+            // Reload the entire news list to reflect changes
             await loadNewsList();
         };
         reactionDiv.appendChild(btn);
@@ -285,7 +286,8 @@ function closeNewsEditor() {
 
 // Update poll options based on slider
 function updatePollOptions(count) {
-    document.getElementById('poll-count-display').innerText = count;
+    const display = document.getElementById('poll-count-display');
+    if (display) display.innerText = count;
     const container = document.getElementById('poll-options');
     if (!container) return;
     container.innerHTML = '';
