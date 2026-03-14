@@ -1,4 +1,4 @@
-// ========== STARR DROP (FIXED CHANCES, MAX 4 TAPS, GEMS ONLY LEGENDARY) ==========
+// ========== STARR DROP (FIXED CHANCES, EXACTLY 4 TAPS, GEMS ONLY LEGENDARY) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -63,27 +63,32 @@ document.getElementById('starr-drop-container').onclick = () => {
     // If reward already shown, do nothing
     if (!document.getElementById('starr-drop-reward').classList.contains('hidden')) return;
 
-    // If reached target rarity or max taps, reveal reward
-    if (window.state.starrDropRarity === window.state.starrDropTargetRarity || window.state.starrDropTaps >= 4) {
+    // Always do exactly 4 taps before revealing
+    if (window.state.starrDropTaps >= 4) {
         revealReward();
         return;
     }
 
-    // Upgrade one step towards target rarity
+    // Increment tap count
+    window.state.starrDropTaps++;
+
+    // Determine next rarity (upgrade towards target, but never exceed target)
     const currentIdx = rarities.indexOf(window.state.starrDropRarity);
     const targetIdx = rarities.indexOf(window.state.starrDropTargetRarity);
     if (currentIdx < targetIdx) {
         window.state.starrDropRarity = rarities[currentIdx + 1];
     }
-    window.state.starrDropTaps++;
+    // If already at or above target, stay at target (no further upgrade)
 
+    // Shake animation
     const container = document.getElementById('starr-drop-container');
     container.classList.add('starr-drop-shake');
     setTimeout(() => container.classList.remove('starr-drop-shake'), 400);
 
     updateStarrDropUI();
 
-    if (window.state.starrDropRarity === window.state.starrDropTargetRarity) {
+    // Update hint text on last tap
+    if (window.state.starrDropTaps === 4) {
         document.getElementById('starr-drop-hint').innerText = 'TAP TO OPEN';
     }
 };
@@ -110,18 +115,16 @@ function getRandomRareBrawler() {
 }
 
 function getPossibleRewards(rarity) {
-    // Base rewards for all rarities (coins and PP)
-    const baseRewards = [ 
+    // Base rewards: coins and PP for all, gems ONLY for legendary
+    const rewards = [
         { type: 'coins', min: 50, max: 150 },
         { type: 'pp', min: 30, max: 100 }
     ];
-    
-    // For LEGENDARY, also include gems
     if (rarity === 'LEGENDARY') {
-        baseRewards.push({ type: 'gems', min: 5, max: 10 });
+        rewards.push({ type: 'gems', min: 2, max: 5 });
     }
-    
-    // Brawler unlock chances based on rarity
+
+    // Brawler unlock chance based on rarity
     let brawlerChance = 0;
     switch (rarity) {
         case 'SUPER RARE': brawlerChance = 0.01; break;
@@ -130,7 +133,7 @@ function getPossibleRewards(rarity) {
         case 'LEGENDARY': brawlerChance = 0.20; break;
         default: brawlerChance = 0;
     }
-    return { rewards: baseRewards, brawlerChance };
+    return { rewards, brawlerChance };
 }
 
 function revealReward() {
@@ -182,8 +185,7 @@ function revealReward() {
         case 'gems':
             amount = Math.floor(Math.random() * (rewardType.max - rewardType.min + 1)) + rewardType.min;
             amount *= multiplier;
-            // Hard cap at 10 gems (though max is 10*multiplier, but we keep cap)
-            amount = Math.min(amount, 10);
+            amount = Math.min(amount, 10); // cap at 10
             window.playerState.gems += amount;
             document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.gem(120);
             rewardText = `${amount} Gems!`;
