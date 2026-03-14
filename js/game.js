@@ -4,7 +4,7 @@
 window.gameLoopId = null;
 window.preBattleStart = null;
 window.playerDead = false;
-window.deathAnimationStart = 0;
+window.deathAnimationStart = 0; 
 window.deathAnimationDuration = 1500;
 window.gameEnded = false;
 
