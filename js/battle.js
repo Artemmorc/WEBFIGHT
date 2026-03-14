@@ -28,7 +28,7 @@ async function startBattlePre() {
         startBattle(customMap, mapBackground);
         window.state.preBattle = true;
         const fullSize = window.CONFIG.MAP_SIZE * window.CONFIG.TILE_SIZE;
-        const canvas = document.getElementById('gameCanvas'); // <-- FIX: define canvas here
+        const canvas = document.getElementById('gameCanvas');
         if (window.state.battle && window.state.battle.camera) {
             window.state.battle.camera.x = fullSize/2 - (canvas.width/2)/window.state.battle.camera.zoom;
             window.state.battle.camera.y = fullSize/2 - (canvas.height/2)/window.state.battle.camera.zoom;
