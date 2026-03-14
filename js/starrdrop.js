@@ -1,4 +1,4 @@
-// ========== STARR DROP (FIXED CHANCES, MAX 4 TAPS) ==========
+// ========== STARR DROP (FIXED CHANCES, MAX 4 TAPS, GEMS CAPPED AT 10) ==========
 const rarities = ['RARE', 'SUPER RARE', 'EPIC', 'MYTHIC', 'LEGENDARY'];
 const rarityColors = ['#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
 const rarityClasses = ['rarity-rare', 'rarity-super', 'rarity-epic', 'rarity-mythic', 'rarity-legendary'];
@@ -113,15 +113,15 @@ function getPossibleRewards(rarity) {
     const rewards = [
         { type: 'coins', min: 50, max: 150 },
         { type: 'pp', min: 30, max: 100 },
-        { type: 'gems', min: 5, max: 20 }
+        { type: 'gems', min: 2, max: 5 }   // base range lowered to keep final ≤10
     ];
     // Add brawler unlock chances based on rarity
     let brawlerChance = 0;
     switch (rarity) {
-        case 'SUPER RARE': brawlerChance = 0.01; break; // 1%
-        case 'EPIC': brawlerChance = 0.04; break;      // 4%
-        case 'MYTHIC': brawlerChance = 0.10; break;    // 10%
-        case 'LEGENDARY': brawlerChance = 0.20; break; // 20%
+        case 'SUPER RARE': brawlerChance = 0.01; break;
+        case 'EPIC': brawlerChance = 0.04; break;
+        case 'MYTHIC': brawlerChance = 0.10; break;
+        case 'LEGENDARY': brawlerChance = 0.20; break;
         default: brawlerChance = 0;
     }
     return { rewards, brawlerChance };
@@ -176,6 +176,8 @@ function revealReward() {
         case 'gems':
             amount = Math.floor(Math.random() * (rewardType.max - rewardType.min + 1)) + rewardType.min;
             amount *= multiplier;
+            // Hard cap at 10 gems
+            amount = Math.min(amount, 10);
             window.playerState.gems += amount;
             document.getElementById('reward-visual').innerHTML = window.SVG_ICONS.gem(120);
             rewardText = `${amount} Gems!`;
