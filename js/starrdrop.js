@@ -12,8 +12,8 @@ const rarityProbs = [
     { rarity: 'LEGENDARY', prob: 0.02 }
 ];
 
-// Create rainbow SVG (spinning animation)
-function createRainbowSVG(size) {
+// Expose rainbow SVG globally so shop can use it
+window.createRainbowStarrDropSVG = function(size) {
     return `
     <svg width="${size}" height="${size}" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="45" fill="url(#rainbow)" stroke="white" stroke-width="4"/>
@@ -30,7 +30,7 @@ function createRainbowSVG(size) {
         </defs>
         <path d="M50 20 L58 40 L80 40 L62 55 L70 75 L50 62 L30 75 L38 55 L20 40 L42 40 Z" fill="white" />
     </svg>`;
-}
+};
 
 function createStarrDropSVG(rarity, size) {
     return `
@@ -56,14 +56,14 @@ function resetStarrDrop() {
     document.getElementById('starr-drop-content').classList.remove('hidden');
     
     // Show rainbow
-    document.getElementById('star-svg-container').innerHTML = createRainbowSVG(250);
+    document.getElementById('star-svg-container').innerHTML = window.createRainbowStarrDropSVG(250);
     document.getElementById('starr-drop-rarity').innerText = '???';
     document.getElementById('starr-drop-rarity').className = 'text-6xl mb-4 text-white';
     document.getElementById('star-glow').style.backgroundColor = 'white';
     
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
     document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
-    document.getElementById('star-svg-container').style.animation = 'spin 4s linear infinite'; // base speed
+    document.getElementById('star-svg-container').style.animation = 'spin 4s linear infinite';
 }
 
 document.getElementById('starr-drop-container').onclick = () => {
@@ -80,7 +80,6 @@ document.getElementById('starr-drop-container').onclick = () => {
 
     // Taps 1-3: speed up spinning
     if (window.state.starrDropTaps < 4) {
-        // Increase spin speed
         const speed = 4 - window.state.starrDropTaps; // 3s, 2s, 1s
         document.getElementById('star-svg-container').style.animation = `spin ${speed}s linear infinite`;
         document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
@@ -99,9 +98,15 @@ document.getElementById('starr-drop-container').onclick = () => {
         }
         window.state.starrDropExploded = true;
 
-        // Replace rainbow with static starr drop of final rarity
+        // Replace rainbow with static starr drop
         document.getElementById('star-svg-container').style.animation = 'none';
         document.getElementById('star-svg-container').innerHTML = createStarrDropSVG(window.state.starrDropFinalRarity, 250);
+        
+        // Force re‑center
+        const visual = document.getElementById('starr-drop-visual');
+        visual.style.display = 'flex';
+        visual.style.alignItems = 'center';
+        visual.style.justifyContent = 'center';
         
         // Update text
         document.getElementById('starr-drop-rarity').innerText = window.state.starrDropFinalRarity;
