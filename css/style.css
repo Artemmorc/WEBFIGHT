@@ -602,3 +602,28 @@ canvas {
     font-weight: bold;
     text-shadow: 0 0 5px currentColor;
 }
+
+/* Starr drop centering */
+#starr-drop-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 250px;
+    height: 250px;
+    margin: 0 auto;
+}
+
+#star-svg-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+#starr-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
