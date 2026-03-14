@@ -155,8 +155,10 @@ async function purchaseStarrDrop() {
         window.playerState.gems -= 10;
         updateStatsUI();
         await saveProfileToDB();
-        if (typeof startStarrDropAnimation === 'function') {
-            startStarrDropAnimation();
+        if (typeof window.startSingleStarrDrop === 'function') {
+            window.startSingleStarrDrop(); // starts one random starrdrop
+        } else {
+            console.error('startSingleStarrDrop not available');
         }
     } else {
         alert("Not enough gems!");
