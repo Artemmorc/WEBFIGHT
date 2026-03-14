@@ -2,9 +2,12 @@
 
 // Mouse aiming variables (global)
 window.mouseInsideCanvas = false;
-window.mouseAimAngle = 0; 
+window.mouseAimAngle = 0;
 window.superAiming = false;
 window.attackTarget = null;
+
+// Ensure keys object exists
+window.keys = window.keys || { w: false, a: false, s: false, d: false };
 
 function setupJoystick(id, stickId, type, onRelease) {
     const base = document.getElementById(id);
@@ -112,13 +115,15 @@ function updateKeyboardMovement() {
     updateMoveJoystickVisual();
 }
 
-// Keyboard listeners (already in original game.js, but we keep them here)
+// Keyboard listeners – safe with window.keys
 window.onkeydown = (e) => {
     if (!e) return;
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
         return;
     }
+    // Ensure window.keys exists
+    if (!window.keys) window.keys = { w: false, a: false, s: false, d: false };
     switch (e.code) {
         case 'KeyW': window.keys.w = true; e.preventDefault(); break;
         case 'KeyA': window.keys.a = true; e.preventDefault(); break;
@@ -133,6 +138,7 @@ window.onkeyup = (e) => {
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
         return;
     }
+    if (!window.keys) window.keys = { w: false, a: false, s: false, d: false };
     switch (e.code) {
         case 'KeyW': window.keys.w = false; e.preventDefault(); break;
         case 'KeyA': window.keys.a = false; e.preventDefault(); break;
