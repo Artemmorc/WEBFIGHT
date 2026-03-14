@@ -88,14 +88,39 @@ function createBrawlerSVG(name, size) {
     </svg>`;
 }
 
-// UPDATED toggleShop – now refreshes offers when opened
+// ========== SHOP BUTTON FREE INDICATOR ==========
+async function updateShopButtonFreeIndicator() {
+    const shopBtn = document.querySelector('button[onclick="toggleShop(true)"]');
+    if (!shopBtn) return;
+
+    // Remove existing badge if any
+    const existingBadge = shopBtn.querySelector('.free-badge');
+    if (existingBadge) existingBadge.remove();
+
+    // Check daily reward
+    const dailyUnclaimed = window.playerState && !window.playerState.dailyClaimed;
+
+    // Check free offers
+    let freeOfferExists = false;
+    if (typeof window.hasFreeOffer === 'function') {
+        freeOfferExists = await window.hasFreeOffer();
+    }
+
+    if (dailyUnclaimed || freeOfferExists) {
+        const badge = document.createElement('span');
+        badge.className = 'free-badge absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white animate-pulse';
+        badge.innerText = 'FREE';
+        shopBtn.style.position = 'relative';
+        shopBtn.appendChild(badge);
+    }
+}
+
 async function toggleShop(show) {
     const shop = document.getElementById('shop-modal');
     if (show) {
         shop.classList.remove('hidden');
         updateStatsUI();
         
-        // Daily deal
         if (window.playerState.dailyClaimed) {
             document.getElementById('daily-reward-card').style.opacity = '0.5';
             document.getElementById('daily-reward-card').onclick = null;
@@ -106,11 +131,8 @@ async function toggleShop(show) {
             document.getElementById('daily-claim-text').innerText = 'CLAIM';
         }
         
-        // 🔔 Refresh special offers from the server
         if (typeof window.refreshShopOffers === 'function') {
             await window.refreshShopOffers();
-        } else {
-            console.warn('refreshShopOffers not loaded');
         }
     } else {
         shop.classList.add('hidden');
@@ -352,3 +374,6 @@ function toggleBrawlers(show) {
         screen.classList.add('hidden'); 
     }
 }
+
+// Expose the free indicator globally
+window.updateShopButtonFreeIndicator = updateShopButtonFreeIndicator;
