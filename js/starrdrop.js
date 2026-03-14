@@ -13,7 +13,6 @@ function createStarrDropSVG(rarity, size) {
 
 function startStarrDropAnimation() {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
-    
     resetStarrDrop();
     document.getElementById('star-svg-container').style.animation = 'spin 8s linear infinite';
 }
@@ -51,7 +50,7 @@ document.getElementById('starr-drop-container').onclick = () => {
         return;
     }
 
-    // Upgrade chances based on current rarity (same as original)
+    // Upgrade chances: 0 steps (stay) 50%, +1 step 28%, +2 steps 15%, +3 steps 5%, +4 steps 2%
     const steps = [0, 1, 2, 3, 4];
     const probs = [0.50, 0.28, 0.15, 0.05, 0.02];
     const rand = Math.random();
@@ -69,6 +68,8 @@ document.getElementById('starr-drop-container').onclick = () => {
     let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
     window.state.starrDropRarity = rarities[newIdx];
     window.state.starrDropTaps++;
+
+    // Optional debug: console.log('Upgrade steps:', upgradeSteps, 'New rarity:', window.state.starrDropRarity);
 
     // Shake animation
     const container = document.getElementById('starr-drop-container');
