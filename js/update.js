@@ -1,6 +1,14 @@
 // ========== MAIN UPDATE LOGIC ==========
 
 function updateGame() {
+    // Safety check: if any core function is missing, log error and return
+    if (typeof window.updateBotAI !== 'function' ||
+        typeof window.createBubble !== 'function' ||
+        typeof window.checkCollision !== 'function') {
+        console.error('❌ Missing game functions – check script order');
+        return;
+    }
+
     if (window.gameEnded) return;
 
     const battle = window.state.battle;
@@ -360,8 +368,11 @@ function updateGame() {
         return;
     }
 
-    battle.camera.x = p.x - (canvas.width / 2) / battle.camera.zoom;
-    battle.camera.y = p.y - (canvas.height / 2) / battle.camera.zoom;
+    // Update camera
+    if (p) {
+        battle.camera.x = p.x - (canvas.width / 2) / battle.camera.zoom;
+        battle.camera.y = p.y - (canvas.height / 2) / battle.camera.zoom;
+    }
 }
 
 // Expose globally
