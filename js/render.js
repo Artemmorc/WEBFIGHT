@@ -1,12 +1,8 @@
 // ========== RENDERING ==========
-import { isInBush, canSee } from './core.js';
-import { getKillMessages, ensureKillFeed } from './utils.js';
-import { mouseInsideCanvas, superAiming, attackTarget } from './input.js';
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-export function drawGame() {
+function drawGame() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
     ctx.save();
@@ -137,12 +133,12 @@ export function drawGame() {
     });
 
     // Characters
-    if (isInBush(p.x, p.y)) ctx.globalAlpha = 0.75;
+    if (window.isInBush(p.x, p.y)) ctx.globalAlpha = 0.75;
     drawChar(p, true, p);
     ctx.globalAlpha = 1;
 
     battle.bots.forEach(b => {
-        if (canSee(p, b, now) || b.dying) {
+        if (window.canSee(p, b, now) || b.dying) {
             drawChar(b, false, p);
         }
     });
@@ -210,8 +206,8 @@ export function drawGame() {
     });
 
     // Aiming indicators
-    if (mouseInsideCanvas && p && !p.dying) {
-        if (superAiming && p.type === 'Anthony' && battle.superTarget) {
+    if (window.mouseInsideCanvas && p && !p.dying) {
+        if (window.superAiming && p.type === 'Anthony' && battle.superTarget) {
             const target = battle.superTarget;
             ctx.save();
             ctx.strokeStyle = '#ff0000';
@@ -222,8 +218,8 @@ export function drawGame() {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
-        } else if (p.type === 'Brewiant' && attackTarget) {
-            const target = attackTarget;
+        } else if (p.type === 'Brewiant' && window.attackTarget) {
+            const target = window.attackTarget;
             ctx.save();
             ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 4;
@@ -294,10 +290,10 @@ export function drawGame() {
     ctx.restore();
 
     // Kill feed
-    const killFeed = ensureKillFeed();
+    const killFeed = window.ensureKillFeed();
     if (killFeed) {
         killFeed.innerHTML = '';
-        getKillMessages().slice(-5).forEach(msg => {
+        window.getKillMessages().slice(-5).forEach(msg => {
             const el = document.createElement('div');
             el.className = 'kill-message';
             el.textContent = msg.text;
@@ -307,9 +303,11 @@ export function drawGame() {
 }
 
 function drawChar(c, isPlayer, viewer) {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
     const now = Date.now();
     if (c.hp <= 0 && !c.dying) return;
-    if (!isPlayer && !canSee(viewer, c, now) && !c.dying) return;
+    if (!isPlayer && !window.canSee(viewer, c, now) && !c.dying) return;
 
     let alpha = 1;
     let scale = 1;
@@ -420,3 +418,6 @@ function drawBrawler(ctx, type, x, y, angle) {
     
     ctx.restore();
 }
+
+// Expose globally
+window.drawGame = drawGame;
