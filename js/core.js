@@ -1,6 +1,6 @@
 // ========== CORE GAME CONSTANTS & HELPERS ==========
 
-export function isInBush(x, y) {
+function isInBush(x, y) {
     const battle = window.state.battle;
     if (!battle) return false;
     for (let bush of battle.bushes) {
@@ -9,17 +9,17 @@ export function isInBush(x, y) {
             return true;
         }
     }
-    return false; 
+    return false;
 }
 
-export function canSee(observer, target, currentTime) {
+function canSee(observer, target, currentTime) {
     if (target.revealUntil && target.revealUntil > currentTime) return true;
     if (!isInBush(target.x, target.y)) return true;
     const distance = Math.hypot(observer.x - target.x, observer.y - target.y);
     return distance < 3 * window.CONFIG.TILE_SIZE;
 }
 
-export function checkCollision(x, y, radius) {
+function checkCollision(x, y, radius) {
     if (!window.state.battle || !window.state.battle.active) return false;
     const battle = window.state.battle;
     for (const wall of battle.walls) {
@@ -48,3 +48,8 @@ export function checkCollision(x, y, radius) {
     }
     return false;
 }
+
+// Expose globally
+window.isInBush = isInBush;
+window.canSee = canSee;
+window.checkCollision = checkCollision;
