@@ -9,7 +9,7 @@ export function isInBush(x, y) {
             return true;
         }
     }
-    return false;
+    return false; 
 }
 
 export function canSee(observer, target, currentTime) {
