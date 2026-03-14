@@ -64,12 +64,13 @@ document.getElementById('starr-drop-container').onclick = () => {
         }
     }
 
+    // DEBUG: log the random value and chosen steps
+    console.log(`🎲 Tap ${window.state.starrDropTaps+1}: rand = ${rand.toFixed(4)}, upgradeSteps = ${upgradeSteps}`);
+
     const currentIdx = rarities.indexOf(window.state.starrDropRarity);
     let newIdx = Math.min(currentIdx + upgradeSteps, rarities.length - 1);
     window.state.starrDropRarity = rarities[newIdx];
     window.state.starrDropTaps++;
-
-    // Optional debug: console.log('Upgrade steps:', upgradeSteps, 'New rarity:', window.state.starrDropRarity);
 
     // Shake animation
     const container = document.getElementById('starr-drop-container');
