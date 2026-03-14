@@ -6,7 +6,7 @@ export function addKillMessage(killerName, victimName) {
     const msg = {
         text: `${killerName} killed ${victimName}`,
         time: Date.now()
-    };
+    }; 
     killMessages.push(msg);
     console.log('KILL FEED: added message', msg.text);
     setTimeout(() => {
