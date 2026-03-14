@@ -17,7 +17,7 @@ function addKillMessage(killerName, victimName) {
 }
 
 function getKillMessages() {
-    return window.killMessages;
+    return window.killMessages; 
 }
 
 function ensureKillFeed() {
