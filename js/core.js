@@ -10,7 +10,7 @@ function isInBush(x, y) {
         }
     }
     return false;
-}
+} 
 
 function canSee(observer, target, currentTime) {
     if (target.revealUntil && target.revealUntil > currentTime) return true;
