@@ -12,6 +12,12 @@ const rarityProbs = [
     { rarity: 'LEGENDARY', prob: 0.02 }
 ];
 
+// Queue for multiple starrdrops
+let starrDropQueue = [];
+let isStarrDropActive = false;
+let starrDropCompletionCallback = null;
+
+// Expose rainbow SVG globally
 window.createRainbowStarrDropSVG = function(size) {
     return `
     <svg width="${size}" height="${size}" viewBox="0 0 100 100">
@@ -39,17 +45,36 @@ function createStarrDropSVG(rarity, size) {
     </svg>`;
 }
 
-// Callback support
-let starrDropOnComplete = null;
+// Start a sequence of starrdrops
+function startStarrDropSequence(count, forcedRarity = null) {
+    for (let i = 0; i < count; i++) {
+        starrDropQueue.push(forcedRarity);
+    }
+    if (!isStarrDropActive) {
+        processNextStarrDrop();
+    }
+}
 
-function startStarrDropAnimation(forcedRarity = null, onComplete = null) {
-    window.starrDropActive = true;
-    starrDropOnComplete = onComplete;
+function processNextStarrDrop() {
+    if (starrDropQueue.length === 0) {
+        isStarrDropActive = false;
+        if (starrDropCompletionCallback) {
+            starrDropCompletionCallback();
+            starrDropCompletionCallback = null;
+        }
+        return;
+    }
+    isStarrDropActive = true;
+    const forcedRarity = starrDropQueue.shift();
+    startSingleStarrDrop(forcedRarity);
+}
+
+function startSingleStarrDrop(forcedRarity) {
     document.getElementById('starr-drop-screen').classList.remove('hidden');
     
+    // Choose target rarity if not forced
     if (forcedRarity && rarities.includes(forcedRarity)) {
         window.state.starrDropTargetRarity = forcedRarity;
-        window.state.starrDropFinalRarity = forcedRarity;
     } else {
         const rand = Math.random();
         let cumulative = 0;
@@ -62,24 +87,22 @@ function startStarrDropAnimation(forcedRarity = null, onComplete = null) {
         }
     }
     
-    resetStarrDrop();
+    resetSingleStarrDrop();
 }
 
-function resetStarrDrop() {
+function resetSingleStarrDrop() {
     window.state.starrDropTaps = 0;
+    window.state.starrDropFinalRarity = null;
     window.state.starrDropExploded = false;
     
     document.getElementById('close-starr-drop').classList.add('opacity-0', 'pointer-events-none');
-    document.getElementById('starr-drop-hint').classList.remove('hidden');
-    document.getElementById('starr-drop-reward').classList.add('hidden');
-    document.getElementById('starr-drop-content').classList.remove('hidden');
     
-    // Ensure centering
     const content = document.getElementById('starr-drop-content');
+    const reward = document.getElementById('starr-drop-reward');
+    content.classList.remove('hidden');
     content.style.display = 'flex';
-    content.style.flexDirection = 'column';
-    content.style.alignItems = 'center';
-    content.style.justifyContent = 'center';
+    reward.classList.add('hidden');
+    reward.style.display = 'none';
     
     document.getElementById('star-svg-container').innerHTML = window.createRainbowStarrDropSVG(250);
     document.getElementById('starr-drop-rarity').innerText = '???';
@@ -106,6 +129,7 @@ document.getElementById('starr-drop-container').onclick = () => {
         document.getElementById('starr-drop-hint').innerText = 'TAP TO SPIN';
     }
     else if (window.state.starrDropTaps === 4 && !window.state.starrDropExploded) {
+        // Explode and show final rarity
         window.state.starrDropFinalRarity = window.state.starrDropTargetRarity;
         window.state.starrDropExploded = true;
 
@@ -125,42 +149,11 @@ document.getElementById('starr-drop-container').onclick = () => {
         document.getElementById('starr-drop-hint').innerText = 'TAP TO OPEN';
     }
     else if (window.state.starrDropTaps >= 5 && window.state.starrDropExploded) {
-        revealReward();
+        revealSingleReward();
     }
 };
 
-function getRareBrawlers() {
-    return Object.keys(window.CONFIG.BRAWLERS).filter(name => 
-        window.CONFIG.BRAWLERS[name].rarity === 'rare'
-    );
-}
-
-function getRandomRareBrawler() {
-    const rareBrawlers = getRareBrawlers().filter(name => !window.brawlerProgress[name]?.unlocked);
-    if (rareBrawlers.length === 0) return null;
-    return rareBrawlers[Math.floor(Math.random() * rareBrawlers.length)];
-}
-
-function getPossibleRewards(rarity) {
-    const rewards = [
-        { type: 'coins', min: 50, max: 150 },
-        { type: 'pp', min: 30, max: 100 }
-    ];
-    if (rarity === 'LEGENDARY') {
-        rewards.push({ type: 'gems', min: 2, max: 5 });
-    }
-    let brawlerChance = 0;
-    switch (rarity) {
-        case 'SUPER RARE': brawlerChance = 0.01; break;
-        case 'EPIC': brawlerChance = 0.04; break;
-        case 'MYTHIC': brawlerChance = 0.10; break;
-        case 'LEGENDARY': brawlerChance = 0.20; break;
-        default: brawlerChance = 0;
-    }
-    return { rewards, brawlerChance };
-}
-
-function revealReward() {
+function revealSingleReward() {
     document.getElementById('starr-drop-hint').classList.add('hidden');
     document.getElementById('starr-drop-content').classList.add('hidden');
     document.getElementById('starr-drop-content').style.display = 'none';
@@ -173,6 +166,7 @@ function revealReward() {
     const multiplier = rIdx + 1;
     const { rewards, brawlerChance } = getPossibleRewards(rarity);
 
+    // Check for brawler unlock
     const rareBrawlers = getRareBrawlers();
     if (rareBrawlers.length > 0 && Math.random() < brawlerChance) {
         const newBrawler = getRandomRareBrawler();
@@ -183,10 +177,13 @@ function revealReward() {
             if (typeof saveBrawlerProgress === 'function') saveBrawlerProgress();
             if (typeof updateStatsUI === 'function') updateStatsUI();
             document.getElementById('close-starr-drop').classList.remove('opacity-0', 'pointer-events-none');
+            // Set up next starrdrop after closing
+            setupNextStarrDropOnClose();
             return;
         }
     }
 
+    // Resource reward
     const rewardType = rewards[Math.floor(Math.random() * rewards.length)];
     let amount = 0;
     let rewardText = '';
@@ -228,21 +225,63 @@ function revealReward() {
     if (typeof updateStatsUI === 'function') updateStatsUI();
     if (typeof saveProfileToDB === 'function') saveProfileToDB();
     document.getElementById('close-starr-drop').classList.remove('opacity-0', 'pointer-events-none');
+    
+    setupNextStarrDropOnClose();
+}
+
+function setupNextStarrDropOnClose() {
+    // Replace the close button's onclick to process next starrdrop
+    const closeBtn = document.getElementById('close-starr-drop');
+    const originalClick = closeBtn.onclick;
+    closeBtn.onclick = () => {
+        finishStarrDrop();
+        // Process next in queue
+        processNextStarrDrop();
+    };
 }
 
 function finishStarrDrop() {
     document.getElementById('starr-drop-screen').classList.add('hidden');
     document.getElementById('starr-drop-container').style.backgroundColor = 'transparent';
-    window.starrDropActive = false;
-    
-    if (typeof starrDropOnComplete === 'function') {
-        const cb = starrDropOnComplete;
-        starrDropOnComplete = null;
-        cb();
-    }
+    // Reset close button to default behavior (hides screen only)
+    document.getElementById('close-starr-drop').onclick = () => {
+        document.getElementById('starr-drop-screen').classList.add('hidden');
+    };
 }
 
-// Expose
-window.startStarrDropAnimation = startStarrDropAnimation;
-window.finishStarrDrop = finishStarrDrop;
-window.starrDropActive = false;
+// Helper functions (unchanged)
+function getRareBrawlers() {
+    return Object.keys(window.CONFIG.BRAWLERS).filter(name => 
+        window.CONFIG.BRAWLERS[name].rarity === 'rare'
+    );
+}
+
+function getRandomRareBrawler() {
+    const rareBrawlers = getRareBrawlers().filter(name => !window.brawlerProgress[name]?.unlocked);
+    if (rareBrawlers.length === 0) return null;
+    return rareBrawlers[Math.floor(Math.random() * rareBrawlers.length)];
+}
+
+function getPossibleRewards(rarity) {
+    const rewards = [
+        { type: 'coins', min: 50, max: 150 },
+        { type: 'pp', min: 30, max: 100 }
+    ];
+    if (rarity === 'LEGENDARY') {
+        rewards.push({ type: 'gems', min: 2, max: 5 });
+    }
+
+    let brawlerChance = 0;
+    switch (rarity) {
+        case 'SUPER RARE': brawlerChance = 0.01; break;
+        case 'EPIC': brawlerChance = 0.04; break;
+        case 'MYTHIC': brawlerChance = 0.10; break;
+        case 'LEGENDARY': brawlerChance = 0.20; break;
+        default: brawlerChance = 0;
+    }
+    return { rewards, brawlerChance };
+}
+
+// Expose the sequence starter
+window.startStarrDropSequence = startStarrDropSequence;
+window.finishStarrDrop = finishStarrDrop; // for manual close if needed
